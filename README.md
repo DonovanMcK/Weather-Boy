@@ -30,12 +30,13 @@ other maps' wonder weapons never roll.
 | Key | Action |
 |---|---|
 | WASD / Mouse | Move / aim |
-| LMB | Fire |
+| LMB / RMB | Fire / aim down sights |
+| Shift | Sprint (hold fire to sprint-out and shoot) |
+| C | **Slide** while sprinting, crouch otherwise — jump out of a slide to keep the momentum |
+| Space | Jump |
 | R | Reload |
 | F | Buy, use, open doors — **hold** F to rebuild barricades |
 | 1 / 2 / 3, Q, mouse wheel | Switch weapons |
-| Shift | Sprint |
-| Space | Jump |
 | V | Knife |
 | G | Frag grenade |
 | H | Monkey bomb |
