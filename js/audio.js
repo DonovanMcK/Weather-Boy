@@ -100,6 +100,8 @@
       tone(95, 0.35, 'sawtooth', vol, 55); noise(0.3, 500, vol * 0.7);
     },
     hurt: function () { tone(200, 0.25, 'sawtooth', 0.35, 80); noise(0.15, 500, 0.3); },
+    slide: function () { noise(0.4, 450, 0.22); },
+    land: function () { noise(0.1, 280, 0.22); tone(75, 0.09, 'sine', 0.18, 45); },
     heartbeat: function () { tone(55, 0.12, 'sine', 0.4); tone(50, 0.1, 'sine', 0.3, null, 0.18); },
 
     buy: function () { melody([880, 1175], 0.07, 'square', 0.15); },

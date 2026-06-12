@@ -202,3 +202,27 @@ links (24 / 7.5 m upgraded). Visualized as cyan arcs between victims. 3/15 ammo.
 tornado vortex (4 s, radius 5.5 m; 6.5 s / 7.5 m upgraded). The vortex drags
 nearby zombies toward its eye and strikes everything inside with lightning
 every 0.45 s. 4/16 ammo.
+
+## 15. BO3 Movement Update (v3)
+
+Momentum-based movement modeled on Black Ops 3's feel. All constants in `CFG.MOVE`.
+
+- **Acceleration model:** exponential approach on ground (accel 14/s, friction
+  11/s); in the air, input *redirects* velocity but never bleeds it below a slow
+  decay floor (0.3/s) — momentum carries, COD-style.
+- **Sprint** (Shift, unlimited): ×1.5 speed (×1.74 Stamin-Up), +6° FOV, weapon
+  tilts into a sprint pose. Holding fire or ADS ramps sprint out (the BO3
+  sprint-out delay, ~0.1 s via the 8/s ramp) and it auto-resumes after.
+- **Slide** (C while sprinting): entry boost ×1.4 (cap 11 m/s), ~1 s duration
+  (×1.2 Stamin-Up), low camera (0.72 m), +10° FOV, slight roll, limited lateral
+  steering, can fire/ADS throughout. 0.35 s re-slide cooldown.
+- **Slide-hop:** jumping out of a slide keeps the boosted velocity — chainable.
+- **Crouch** (C held): 1.05 m eye height, 2.1 m/s.
+- **ADS** (RMB): gun centers, FOV 58, spread ×0.3, move ×0.65, crosshair fades,
+  mouse sensitivity scales with zoom. Blocked during reload/switch/knife.
+- **Camera juice:** figure-8 view bob, strafe lean, landing dip scaled to fall
+  speed, slide roll, viewmodel mouse-sway with 9/s recovery.
+- Jump v=5.2, gravity 14 (snappier arc than v1).
+
+Crouch is bound to **C** only — Ctrl+W (slide while running) would close the
+browser tab.

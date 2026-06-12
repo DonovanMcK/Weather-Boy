@@ -103,6 +103,7 @@ function createGame() {
   return {
     G: G,
     win: windowStub,
+    doc: documentStub,
     step: function (frames, dtMs) {
       for (var i = 0; i < frames; i++) {
         simNow += (dtMs || 16);
@@ -190,6 +191,87 @@ function testWonderWeapon(ctx) {
   }
 }
 
+function testMovement(ctx) {
+  var G = ctx.G, step = ctx.step, win = ctx.win, doc = ctx.doc;
+  var P = G.player;
+  function hSpeed() { return Math.hypot(P.vel.x, P.vel.z); }
+  function keyup(codes) { codes.forEach(function (k) { win.dispatch('keyup', { code: k }); }); }
+
+  // stand in the middle of the spawn room facing +x (long open axis)
+  ctx.moveTo(roomCenter(G, 'S'));
+  P.yaw = -Math.PI / 2; P.pitch = 0;
+  P.vel.set(0, 0, 0);
+  keyup(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyC', 'Space']);
+  step(10);
+
+  /* walk -> sprint with FOV kick */
+  win.dispatch('keydown', { code: 'KeyW' });
+  step(45);
+  ok(hSpeed() > 3.8 && hSpeed() < 4.8, 'walk speed ~4.4 (' + hSpeed().toFixed(2) + ')');
+  win.dispatch('keydown', { code: 'ShiftLeft' });
+  step(60);
+  ok(P.sprintAmt > 0.85, 'sprint ramped in');
+  ok(hSpeed() > 6.0, 'sprint speed ~6.6 (' + hSpeed().toFixed(2) + ')');
+  ok(G.camera.fov > 79, 'sprint FOV kick (' + G.camera.fov.toFixed(1) + ')');
+
+  /* slide: speed boost, low camera, wider FOV */
+  win.dispatch('keydown', { code: 'KeyC' });
+  step(4);
+  ok(P.stance === 'slide', 'slide started from sprint');
+  ok(hSpeed() > 7.5, 'slide speed boost (' + hSpeed().toFixed(2) + ')');
+  step(12);
+  ok(P.eyeCur < 1.2, 'camera dropped during slide');
+  ok(G.camera.fov > 81, 'slide FOV kick');
+
+  /* slide-hop keeps momentum */
+  var preHop = hSpeed();
+  win.dispatch('keydown', { code: 'Space' });
+  step(3);
+  ok(!P.onGround, 'airborne from slide-hop');
+  ok(hSpeed() > preHop * 0.9, 'momentum kept through slide-hop (' +
+     preHop.toFixed(2) + ' -> ' + hSpeed().toFixed(2) + ')');
+  keyup(['KeyW', 'ShiftLeft', 'KeyC', 'Space']);
+  step(60);
+  ok(P.onGround, 'landed');
+  ok(hSpeed() < 1.0, 'friction stops cleanly (' + hSpeed().toFixed(2) + ')');
+
+  /* crouch */
+  win.dispatch('keydown', { code: 'KeyC' });
+  step(30);
+  ok(P.stance === 'crouch' && P.eyeCur < 1.25, 'crouch lowers camera');
+  win.dispatch('keyup', { code: 'KeyC' });
+  step(12);
+  ok(P.stance === 'stand', 'stand on crouch release');
+
+  /* ADS: zoom in, slower spread handled in fire; zoom restores */
+  doc.dispatch('mousedown', { button: 2 });
+  step(30);
+  ok(P.ads > 0.85, 'ADS in (' + P.ads.toFixed(2) + ')');
+  ok(G.camera.fov < 62, 'ADS zoom (' + G.camera.fov.toFixed(1) + ')');
+  doc.dispatch('mouseup', { button: 2 });
+  step(40);
+  ok(P.ads < 0.1, 'ADS out');
+  ok(Math.abs(G.camera.fov - G.CFG.MOVE.fov) < 2, 'FOV restored');
+
+  /* sprint-out delay: firing while sprinting waits for the ramp-down */
+  G.weapons.equip(0, true);
+  var gun = G.weapons.current();
+  gun.ammo = G.weapons.stats(gun).mag;
+  win.dispatch('keydown', { code: 'KeyW' });
+  win.dispatch('keydown', { code: 'ShiftLeft' });
+  step(50);
+  ok(P.sprintAmt > 0.85, 'sprinting again');
+  var ammo0 = gun.ammo;
+  G.weapons.mouseDown = true;
+  step(2);
+  ok(gun.ammo === ammo0, 'no shot during sprint-out');
+  step(15);
+  ok(gun.ammo < ammo0, 'fired after sprint ramped out');
+  G.weapons.mouseDown = false;
+  keyup(['KeyW', 'ShiftLeft']);
+  step(10);
+}
+
 function bootChecks(ctx, mapId) {
   var G = ctx.G;
   ok(!!G && !!G.CFG && !!G.map, 'modules loaded');
@@ -215,6 +297,7 @@ async function runQuick(mapId) {
   openAllDoors(ctx);
   unlockPap(ctx);
   testWonderWeapon(ctx);
+  if (mapId === 'nacht') testMovement(ctx); // big open spawn room
 }
 
 async function runFull(mapId) {

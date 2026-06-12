@@ -11,7 +11,7 @@
   var W = G.weapons = {
     slots: [], cur: 0, maxSlots: 2,
     reloading: 0, switching: 0, knifing: 0, fireCd: 0,
-    mouseDown: false, semiLatch: false,
+    mouseDown: false, semiLatch: false, adsHeld: false,
     projectiles: [], tracers: [], flashes: [], vortices: [],
     vmRoot: null, muzzle: null, camoTex: null
   };
@@ -138,10 +138,13 @@
     W.giveWeapon('m1911');
     document.addEventListener('mousedown', function (e) {
       if (e.button === 0 && document.pointerLockElement) { W.mouseDown = true; W.semiLatch = false; }
+      if (e.button === 2 && document.pointerLockElement) W.adsHeld = true;
     });
     document.addEventListener('mouseup', function (e) {
       if (e.button === 0) W.mouseDown = false;
+      if (e.button === 2) W.adsHeld = false;
     });
+    document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   };
 
   W.stats = function (gun) {
@@ -323,9 +326,11 @@
     if (s.projectile === 'ray') { spawnProjectile('ray', s); return; }
     if (s.projectile === 'rocket') { spawnProjectile('rocket', s); return; }
 
+    // ADS tightens spread, sprinting loosens it
+    var spreadMult = (1 - 0.7 * G.player.ads) * (1 + 0.5 * G.player.sprintAmt);
     var pellets = s.pellets || 1;
     for (var i = 0; i < pellets; i++) {
-      shootRay(s.spread, s.dmg, s.head, s.range, false);
+      shootRay(s.spread * spreadMult, s.dmg, s.head, s.range, false);
     }
   }
 
@@ -647,8 +652,10 @@
       if (W.reloading <= 0) finishReload();
     }
 
-    // trigger
+    // trigger (sprint must ramp out first — holding fire drops sprintAmt,
+    // so this gate produces the BO3 sprint-out delay automatically)
     if (G.state === 'playing' && !G.player.downed && !G.player.locked &&
+        G.player.sprintAmt < 0.45 &&
         gun && W.reloading <= 0 && W.switching <= 0 && W.knifing <= 0 && W.fireCd <= 0) {
       var s = CFG.WEAPONS[gun.id];
       var auto = (gun.papped && s.pap.mode === 'auto') || s.mode === 'auto';
@@ -659,7 +666,22 @@
     }
     if (!W.mouseDown) W.semiLatch = false;
 
-    // viewmodel animation
+    // viewmodel animation: hip<->ADS lerp, sprint pose, sway, bob, then the
+    // per-gun reload/knife/recoil offsets on the gun model itself
+    var Pl = G.player;
+    var ads = Pl.ads, sprint = Pl.sprintAmt * (1 - ads);
+    var hipX = 0.3, hipY = -0.28, hipZ = -0.5;
+    var adsX = 0, adsY = -0.235, adsZ = -0.36;
+    W.vmRoot.position.x = hipX + (adsX - hipX) * ads - 0.06 * sprint +
+      Pl.bobX * 0.45 + Pl.swayX * -0.0006;
+    W.vmRoot.position.y = hipY + (adsY - hipY) * ads - 0.05 * sprint +
+      Pl.bobY * 0.6 + Pl.swayY * 0.0005 - Pl.landDip * 0.4;
+    W.vmRoot.position.z = hipZ + (adsZ - hipZ) * ads + 0.04 * sprint;
+    W.vmRoot.rotation.y = 0.5 * sprint + Pl.swayX * -0.0009;
+    W.vmRoot.rotation.x = 0.3 * sprint + 0.12 * Pl.slideAmt + Pl.swayY * -0.0009;
+    W.vmRoot.rotation.z = -Pl.roll * 0.6 - 0.12 * sprint;
+    G.hud.setAds(ads);
+
     if (gun && gun.model) {
       var m = gun.model;
       m.position.z += (0 - m.position.z) * Math.min(1, dt * 10);
@@ -669,8 +691,6 @@
       if (W.knifing > 0.2) { m.position.z = -0.25; targetRX = -0.3; }
       m.position.y += (targetY - m.position.y) * Math.min(1, dt * 12);
       m.rotation.x += (targetRX - m.rotation.x) * Math.min(1, dt * 12);
-      // bob
-      m.position.x = Math.sin(G.player.bobT) * 0.012;
     }
 
     updateProjectiles(dt);

@@ -97,6 +97,14 @@
     H._hm = setTimeout(function () { H.hitEl.style.opacity = 0; }, 90);
   };
 
+  H.setAds = function (ads) {
+    if (Math.abs((H._ads || 0) - ads) < 0.02) return;
+    H._ads = ads;
+    var cross = document.getElementById('hud-cross');
+    cross.style.opacity = 0.75 * (1 - 0.85 * ads);
+    cross.style.transform = 'translate(-50%, -50%) scale(' + (1 - 0.35 * ads) + ')';
+  };
+
   H.setVignette = function (level) {
     H.vig.style.opacity = Math.max(0, Math.min(0.92, level * 1.1));
   };

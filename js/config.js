@@ -439,6 +439,30 @@
 
   /* --------------------------------------------------------------- combat */
   CFG.PLAYER_HP = 100;
+
+  /* ------------------------------------------------- movement (BO3 feel) */
+  CFG.MOVE = {
+    walk: 4.4,
+    sprint: 1.5,          // sprint speed multiplier
+    sprintStamin: 1.74,   // with Stamin-Up
+    crouch: 2.1,
+    adsMove: 0.65,        // move speed multiplier at full ADS
+    accel: 14,            // ground acceleration response (1/s)
+    friction: 11,         // ground stop response (1/s)
+    airAccel: 4.5,        // air steering response (1/s)
+    airDrag: 0.35,        // air decay with no input (1/s)
+    jumpV: 5.2,
+    gravity: 14,
+    slideBoost: 1.4,      // entry speed = current speed * boost
+    slideMax: 11,
+    slideDur: 1.0,        // seconds (×1.2 with Stamin-Up)
+    slideFrict: 1.6,      // exponential decay during slide
+    slideSteer: 5,        // lateral steering force while sliding
+    slideCd: 0.35,        // re-slide cooldown
+    adsSpeed: 13,         // ADS in/out response (1/s)
+    sprintRamp: 8,        // sprint in/out response (1/s); drives sprint-out delay
+    fov: 75, fovSprint: 6, fovSlide: 10, fovAds: 58
+  };
   CFG.JUGG_HP = 250;
   CFG.REGEN_DELAY = 3.5;
   CFG.REGEN_RATE = 60;        // hp/s

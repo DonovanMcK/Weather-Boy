@@ -1,6 +1,7 @@
 /* ===========================================================================
-   DER WETTERJUNGE — player.js
-   Pointer-lock FPS controller, collision, health/downs, points.
+   DER WETTERJUNGE & FRIENDS — player.js
+   BO3-style movement: momentum-based acceleration, sprint with sprint-out,
+   slides + slide-hops, crouch, ADS, FOV kicks, strafe lean, landing dips.
    =========================================================================== */
 (function () {
   'use strict';
@@ -17,7 +18,7 @@
     hp: 100, maxHp: 100,
     points: 500,
     kills: 0,
-    perks: [],            // perk ids in pickup order
+    perks: [],
     qrBuys: 0,
     frags: 2, monkeys: 0, hasMonkeys: false,
     regenTimer: 0,
@@ -25,8 +26,19 @@
     downed: false, downTimer: 0,
     kickPitch: 0,
     shakeAmt: 0,
-    bobT: 0,
-    locked: false          // input locked (PaP, teleport, drinking)
+    bobT: 0, bobX: 0, bobY: 0,
+    locked: false,
+    // BO3 movement state
+    stance: 'stand',       // stand | crouch | slide
+    sprintAmt: 0,          // 0..1, smoothed
+    ads: 0,                // 0..1, smoothed
+    slideAmt: 0,           // 0..1, smoothed (camera/FOV)
+    eyeCur: 1.65,
+    slideT: 0, slideCd: 0,
+    landDip: 0,
+    roll: 0,
+    swayX: 0, swayY: 0,
+    _prevCrouch: false
   };
 
   P.spawn = function () {
@@ -81,7 +93,6 @@
       P.downTimer = 5;
       G.audio.downed();
       G.hud.showDowned(true);
-      // QR is consumed along with everything else
       P.losePerks();
     } else {
       G.gameOver();
@@ -124,9 +135,14 @@
 
   window.addEventListener('mousemove', function (e) {
     if (!document.pointerLockElement) return;
-    P.yaw -= e.movementX * 0.0021;
-    P.pitch -= e.movementY * 0.0021;
+    // scale sensitivity with zoom so ADS tracking feels 1:1
+    var sens = 0.0021 * (G.camera ? G.camera.fov / 75 : 1);
+    P.yaw -= e.movementX * sens;
+    P.pitch -= e.movementY * sens;
     P.pitch = Math.max(-1.45, Math.min(1.45, P.pitch));
+    // viewmodel sway impulse
+    P.swayX = Math.max(-40, Math.min(40, P.swayX + e.movementX));
+    P.swayY = Math.max(-40, Math.min(40, P.swayY + e.movementY));
   });
 
   /* ---------------------------------------------------------- collision */
@@ -142,7 +158,7 @@
         var d2 = dx * dx + dz * dz;
         if (d2 < P.radius * P.radius) {
           var d = Math.sqrt(d2);
-          if (d < 1e-5) { // inside the box: push along smallest exit
+          if (d < 1e-5) {
             var exL = P.pos.x - c.x1 + P.radius, exR = c.x2 - P.pos.x + P.radius;
             var ezT = P.pos.z - c.z1 + P.radius, ezB = c.z2 - P.pos.z + P.radius;
             var m = Math.min(exL, exR, ezT, ezB);
@@ -161,6 +177,9 @@
 
   /* ------------------------------------------------------------- update */
   P.update = function (dt) {
+    var MV = G.CFG.MOVE;
+    var W = G.weapons;
+
     if (P.downed) {
       P.downTimer -= dt;
       if (P.downTimer <= 0) {
@@ -178,41 +197,164 @@
     }
     G.hud.setVignette(1 - P.hp / P.maxHp);
 
-    // movement
-    var moveX = 0, moveZ = 0;
-    if (!P.downed && !P.locked && G.state === 'playing') {
-      if (G.keys.KeyW) moveZ -= 1;
-      if (G.keys.KeyS) moveZ += 1;
-      if (G.keys.KeyA) moveX -= 1;
-      if (G.keys.KeyD) moveX += 1;
+    var playing = G.state === 'playing' && !P.downed && !P.locked;
+
+    /* ------------------------------------------------------ intent */
+    var ix = 0, iz = 0;
+    if (playing) {
+      if (G.keys.KeyW) iz -= 1;
+      if (G.keys.KeyS) iz += 1;
+      if (G.keys.KeyA) ix -= 1;
+      if (G.keys.KeyD) ix += 1;
     }
-    var speed = 4.4;
-    var sprinting = G.keys.ShiftLeft && moveZ < 0;
-    if (sprinting) speed *= P.hasPerk('stamin') ? 1.74 : 1.5;
-    if (P.downed) speed = 0;
+    var hasInput = ix !== 0 || iz !== 0;
+    var crouchKey = !!G.keys.KeyC && playing;
+    var crouchEdge = crouchKey && !P._prevCrouch;
+    P._prevCrouch = crouchKey;
+    var hSpeed = Math.hypot(P.vel.x, P.vel.z);
 
-    var sin = Math.sin(P.yaw), cos = Math.cos(P.yaw);
-    var len = Math.hypot(moveX, moveZ) || 1;
-    var vx = (moveX * cos - moveZ * sin) / len * speed;
-    var vz = (-moveX * sin - moveZ * cos) / len * speed * -1;
-    // smooth accelerate
-    P.vel.x += (vx - P.vel.x) * Math.min(1, dt * 12);
-    P.vel.z += (vz - P.vel.z) * Math.min(1, dt * 12);
+    // ADS (cancels sprint; blocked during reload/switch/knife)
+    var adsTarget = (playing && W.adsHeld && W.reloading <= 0 &&
+                     W.switching <= 0 && W.knifing <= 0) ? 1 : 0;
+    P.ads += (adsTarget - P.ads) * Math.min(1, dt * MV.adsSpeed);
+    if (P.ads < 0.002 && !adsTarget) P.ads = 0;
 
-    // jump / gravity
-    if (G.keys.Space && P.onGround && !P.downed && !P.locked) { P.vel.y = 4.6; P.onGround = false; }
-    if (!P.onGround) P.vel.y -= 11 * dt;
+    // sprint: holding fire or ADS ramps sprint out (sprint-out delay),
+    // releasing ramps it back in — BO3 auto-resume
+    var wantSprint = playing && G.keys.ShiftLeft && iz < 0 &&
+                     P.stance !== 'slide' && !crouchKey &&
+                     adsTarget === 0 && !W.mouseDown;
+    if (wantSprint && P.stance === 'crouch') P.stance = 'stand';
+    P.sprintAmt += ((wantSprint ? 1 : 0) - P.sprintAmt) * Math.min(1, dt * MV.sprintRamp);
+
+    /* ------------------------------------------------- stance / slide */
+    P.slideCd -= dt;
+    if (P.stance === 'slide') {
+      P.slideT -= dt;
+      var keep = Math.exp(-MV.slideFrict * dt);
+      P.vel.x *= keep;
+      P.vel.z *= keep;
+      if (hasInput) {
+        // light lateral steering only
+        var ssin = Math.sin(P.yaw), scos = Math.cos(P.yaw);
+        P.vel.x += (ix * scos) * MV.slideSteer * dt;
+        P.vel.z += (-ix * ssin) * MV.slideSteer * dt;
+      }
+      if (P.slideT <= 0 || Math.hypot(P.vel.x, P.vel.z) < MV.crouch * 1.1) {
+        P.stance = crouchKey ? 'crouch' : 'stand';
+        P.slideCd = MV.slideCd;
+      }
+    } else {
+      var canSlide = crouchEdge && P.onGround && P.slideCd <= 0 &&
+                     P.sprintAmt > 0.5 && hSpeed > MV.walk * 1.02;
+      if (canSlide) {
+        P.stance = 'slide';
+        var dx = hSpeed > 0.5 ? P.vel.x / hSpeed : -Math.sin(P.yaw);
+        var dz = hSpeed > 0.5 ? P.vel.z / hSpeed : -Math.cos(P.yaw);
+        var boost = Math.min(MV.slideMax, hSpeed * MV.slideBoost);
+        P.vel.x = dx * boost;
+        P.vel.z = dz * boost;
+        P.slideT = MV.slideDur * (P.hasPerk('stamin') ? 1.2 : 1);
+        G.audio.slide();
+      } else {
+        P.stance = crouchKey ? 'crouch' : 'stand';
+      }
+    }
+
+    /* --------------------------------------------------- acceleration */
+    if (P.stance !== 'slide') {
+      var targetSpeed = P.stance === 'crouch' ? MV.crouch : MV.walk;
+      if (P.stance === 'stand') {
+        var sprintMult = P.hasPerk('stamin') ? MV.sprintStamin : MV.sprint;
+        targetSpeed *= 1 + (sprintMult - 1) * P.sprintAmt;
+      }
+      targetSpeed *= 1 - (1 - MV.adsMove) * P.ads;
+      if (P.downed) targetSpeed = 0;
+
+      var len = Math.hypot(ix, iz) || 1;
+      var sin = Math.sin(P.yaw), cos = Math.cos(P.yaw);
+      var wx = (ix * cos - iz * sin) / len * targetSpeed;
+      var wz = (-ix * sin - iz * cos) / len * targetSpeed * -1;
+
+      if (P.onGround) {
+        var k = hasInput ? MV.accel : MV.friction;
+        P.vel.x += (wx - P.vel.x) * Math.min(1, dt * k);
+        P.vel.z += (wz - P.vel.z) * Math.min(1, dt * k);
+      } else if (hasInput) {
+        // air control redirects velocity but preserves momentum (slide-hops):
+        // blend toward the wish, then never drop below a slow-bleed floor
+        var sp = Math.hypot(P.vel.x, P.vel.z);
+        var t = Math.min(1, dt * MV.airAccel);
+        var nx = P.vel.x + (wx - P.vel.x) * t;
+        var nz = P.vel.z + (wz - P.vel.z) * t;
+        var nsp = Math.hypot(nx, nz) || 1e-6;
+        var floor = sp * Math.exp(-0.3 * dt);
+        var scale = Math.max(nsp, floor) / nsp;
+        P.vel.x = nx * scale;
+        P.vel.z = nz * scale;
+      } else {
+        var drag = Math.exp(-MV.airDrag * dt);
+        P.vel.x *= drag;
+        P.vel.z *= drag;
+      }
+    }
+
+    /* ------------------------------------------------- jump / gravity */
+    if (G.keys.Space && P.onGround && playing) {
+      if (P.stance === 'slide') {
+        // slide-hop: keep the boosted momentum
+        P.stance = crouchKey ? 'crouch' : 'stand';
+        P.slideCd = MV.slideCd * 0.6;
+      }
+      P.vel.y = MV.jumpV;
+      P.onGround = false;
+    }
+    if (!P.onGround) P.vel.y -= MV.gravity * dt;
+    var fallV = P.vel.y;
 
     P.pos.x += P.vel.x * dt;
     P.pos.z += P.vel.z * dt;
     P.pos.y += P.vel.y * dt;
-    if (P.pos.y <= 0) { P.pos.y = 0; P.vel.y = 0; P.onGround = true; }
+    if (P.pos.y <= 0) {
+      if (!P.onGround && fallV < -5.5) {
+        P.landDip = Math.min(0.16, 0.05 + (-fallV - 5.5) * 0.018);
+        G.audio.land();
+      }
+      P.pos.y = 0;
+      P.vel.y = 0;
+      P.onGround = true;
+    }
     collide();
 
-    // view bob
-    var moving = Math.hypot(P.vel.x, P.vel.z) > 0.5;
-    if (moving && P.onGround) P.bobT += dt * (sprinting ? 11 : 8);
-    var bob = moving && P.onGround ? Math.sin(P.bobT) * 0.035 : 0;
+    /* ------------------------------------------------- camera feel */
+    hSpeed = Math.hypot(P.vel.x, P.vel.z);
+    var moving = hSpeed > 0.5;
+    if (moving && P.onGround && P.stance !== 'slide') P.bobT += dt * (5 + hSpeed * 0.95);
+    var bobAmp = 0.028 * Math.min(1, hSpeed / 7) * (1 - 0.85 * P.ads);
+    P.bobX = moving && P.onGround ? Math.sin(P.bobT) * bobAmp : 0;
+    P.bobY = moving && P.onGround ? Math.sin(P.bobT * 2) * bobAmp * 0.55 : 0;
+
+    P.slideAmt += ((P.stance === 'slide' ? 1 : 0) - P.slideAmt) * Math.min(1, dt * 11);
+    var eyeTarget = P.stance === 'slide' ? 0.72 : (P.stance === 'crouch' ? 1.05 : P.height);
+    P.eyeCur += (eyeTarget - P.eyeCur) * Math.min(1, dt * 12);
+    P.landDip *= Math.exp(-dt * 6.5);
+
+    // strafe lean + slide roll
+    var rollT = -ix * 0.018 * (playing ? 1 : 0) - P.slideAmt * 0.055;
+    P.roll += (rollT - P.roll) * Math.min(1, dt * 10);
+
+    // sway decay
+    P.swayX *= Math.exp(-dt * 9);
+    P.swayY *= Math.exp(-dt * 9);
+
+    // FOV: sprint/slide widen, ADS narrows (ADS wins)
+    var fovHip = MV.fov + MV.fovSprint * P.sprintAmt * (1 - P.slideAmt) +
+                 MV.fovSlide * P.slideAmt;
+    var fov = fovHip + (MV.fovAds - fovHip) * P.ads;
+    if (Math.abs(G.camera.fov - fov) > 0.01) {
+      G.camera.fov = fov;
+      G.camera.updateProjectionMatrix();
+    }
 
     // recoil + shake decay
     P.kickPitch *= Math.pow(0.001, dt);
@@ -220,11 +362,11 @@
     var shX = (Math.random() - 0.5) * P.shakeAmt * 0.06;
     var shY = (Math.random() - 0.5) * P.shakeAmt * 0.06;
 
-    var camY = P.downed ? 0.6 : P.height;
-    G.camera.position.set(P.pos.x, P.pos.y + camY + bob, P.pos.z);
+    var camY = P.downed ? 0.6 : P.eyeCur;
+    G.camera.position.set(P.pos.x, P.pos.y + camY + P.bobY - P.landDip, P.pos.z);
     G.camera.rotation.order = 'YXZ';
     G.camera.rotation.y = P.yaw + shX;
     G.camera.rotation.x = P.pitch + P.kickPitch + shY + (P.downed ? -0.25 : 0);
-    G.camera.rotation.z = P.downed ? 0.4 : 0;
+    G.camera.rotation.z = P.roll + (P.downed ? 0.4 : 0);
   };
 })();
