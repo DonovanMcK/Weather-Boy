@@ -673,9 +673,9 @@
     var hipX = 0.3, hipY = -0.28, hipZ = -0.5;
     var adsX = 0, adsY = -0.235, adsZ = -0.36;
     W.vmRoot.position.x = hipX + (adsX - hipX) * ads - 0.06 * sprint +
-      Pl.bobX * 0.45 + Pl.swayX * -0.0006;
+      Pl.vmBobX + Pl.swayX * -0.0006;
     W.vmRoot.position.y = hipY + (adsY - hipY) * ads - 0.05 * sprint +
-      Pl.bobY * 0.6 + Pl.swayY * 0.0005 - Pl.landDip * 0.4;
+      Pl.vmBobY + Pl.swayY * 0.0005 - Pl.landDip * 0.4;
     W.vmRoot.position.z = hipZ + (adsZ - hipZ) * ads + 0.04 * sprint;
     W.vmRoot.rotation.y = 0.5 * sprint + Pl.swayX * -0.0009;
     W.vmRoot.rotation.x = 0.3 * sprint + 0.12 * Pl.slideAmt + Pl.swayY * -0.0009;

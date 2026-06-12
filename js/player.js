@@ -26,7 +26,7 @@
     downed: false, downTimer: 0,
     kickPitch: 0,
     shakeAmt: 0,
-    bobT: 0, bobX: 0, bobY: 0,
+    bobT: 0, bobX: 0, bobY: 0, vmBobX: 0, vmBobY: 0,
     locked: false,
     // BO3 movement state
     stance: 'stand',       // stand | crouch | slide
@@ -330,9 +330,12 @@
     hSpeed = Math.hypot(P.vel.x, P.vel.z);
     var moving = hSpeed > 0.5;
     if (moving && P.onGround && P.stance !== 'slide') P.bobT += dt * (5 + hSpeed * 0.95);
-    var bobAmp = 0.028 * Math.min(1, hSpeed / 7) * (1 - 0.85 * P.ads);
-    P.bobX = moving && P.onGround ? Math.sin(P.bobT) * bobAmp : 0;
-    P.bobY = moving && P.onGround ? Math.sin(P.bobT * 2) * bobAmp * 0.55 : 0;
+    var bobScale = (moving && P.onGround ? 1 : 0) * Math.min(1, hSpeed / 7) * (1 - 0.85 * P.ads);
+    // camera bob is near zero (head stays steady); the gun carries the motion
+    P.bobX = Math.sin(P.bobT) * MV.bobCam * bobScale;
+    P.bobY = Math.sin(P.bobT * 2) * MV.bobCam * 0.55 * bobScale;
+    P.vmBobX = Math.sin(P.bobT) * MV.bobGun * bobScale;
+    P.vmBobY = Math.sin(P.bobT * 2) * MV.bobGun * 0.55 * bobScale;
 
     P.slideAmt += ((P.stance === 'slide' ? 1 : 0) - P.slideAmt) * Math.min(1, dt * 11);
     var eyeTarget = P.stance === 'slide' ? 0.72 : (P.stance === 'crouch' ? 1.05 : P.height);

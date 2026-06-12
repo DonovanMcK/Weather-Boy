@@ -459,6 +459,8 @@
     slideFrict: 1.6,      // exponential decay during slide
     slideSteer: 5,        // lateral steering force while sliding
     slideCd: 0.35,        // re-slide cooldown
+    bobCam: 0.005,        // camera bob amplitude (near zero — no head bob)
+    bobGun: 0.018,        // viewmodel bob amplitude
     adsSpeed: 13,         // ADS in/out response (1/s)
     sprintRamp: 8,        // sprint in/out response (1/s); drives sprint-out delay
     fov: 75, fovSprint: 6, fovSlide: 10, fovAds: 58
