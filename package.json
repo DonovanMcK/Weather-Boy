@@ -1,0 +1,12 @@
+{
+  "name": "der-wetterjunge",
+  "version": "1.0.0",
+  "description": "Weather-Boy Zombies: a BO1/BO2-style round-based zombies FPS in Three.js. Open index.html to play.",
+  "private": true,
+  "scripts": {
+    "test": "node tests/validate-map.js && node tests/smoke.js"
+  },
+  "devDependencies": {
+    "three": "0.160.0"
+  }
+}
