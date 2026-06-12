@@ -81,6 +81,16 @@
     color: #fdd; border: 2px solid #911; border-radius: 6px; cursor: pointer; }
   .menu button:hover { background: #511; }
   #start-best { margin-top: 14px; color: #886; font-size: 16px; }
+  #map-select { display: flex; gap: 18px; margin-bottom: 26px; flex-wrap: wrap; justify-content: center; }
+  .mapcard { width: 240px; padding: 16px 18px; background: #140a0a; border: 2px solid #511;
+    border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.15s; }
+  .mapcard:hover { background: #2a0d0d; border-color: #c33; transform: translateY(-4px);
+    box-shadow: 0 8px 22px rgba(160,0,0,0.35); }
+  .mapcard h3 { margin: 0 0 8px; color: #d33; font-style: italic; font-size: 20px;
+    text-shadow: 0 0 10px #500; }
+  .mapcard p { margin: 0 0 6px; font-size: 13px; color: #998; line-height: 1.45; }
+  .mapcard .wonder { color: #7bd; }
+  .mapcard .best { font-size: 13px; color: #fd6; }
 </style>
 </head>
 <body>
@@ -106,19 +116,36 @@
 </div>
 
 <div class="menu" id="menu-start">
-  <h1>DER WETTERJUNGE</h1>
-  <h2>Weather-Boy Zombies — an abandoned storm research station</h2>
+  <h1>WEATHER-BOY ZOMBIES</h1>
+  <h2>Choose your map</h2>
+  <div id="map-select">
+    <div class="mapcard" id="map-nacht">
+      <h3>NACHT DER UNTOTEN</h3>
+      <p>Where it all began. A tight three-room bunker — power unlocks Pack-a-Punch.</p>
+      <p class="wonder">Wonder weapon: Thundergun</p>
+      <span class="best" id="best-nacht"></span>
+    </div>
+    <div class="mapcard" id="map-derriese">
+      <h3>DER RIESE</h3>
+      <p>The giant's factory. Link all 3 teleporters at the mainframe to unlock Pack-a-Punch.</p>
+      <p class="wonder">Wonder weapon: Wunderwaffe DG-2</p>
+      <span class="best" id="best-derriese"></span>
+    </div>
+    <div class="mapcard" id="map-wetterjunge">
+      <h3>DER WETTERJUNGE</h3>
+      <p>Custom map — an abandoned storm research station. Teleporters guard Pack-a-Punch.</p>
+      <p class="wonder">Wonder weapon: Wettermacher (storm vortex)</p>
+      <span class="best" id="best-wetterjunge"></span>
+    </div>
+  </div>
   <div class="controls">
     <b>WASD</b> move &nbsp; <b>Mouse</b> aim &nbsp; <b>LMB</b> fire &nbsp; <b>R</b> reload &nbsp;
     <b>F</b> buy / use / rebuild &nbsp; <b>Shift</b> sprint<br>
     <b>1/2/3 · Q · wheel</b> swap guns &nbsp; <b>V</b> knife &nbsp; <b>G</b> grenade &nbsp;
-    <b>H</b> monkey bomb &nbsp; <b>Space</b> jump &nbsp; <b>M</b> mute &nbsp; <b>Esc</b> pause<br><br>
-    Open doors · turn on the power in the Radar Dome · link all 3 teleporters at the
-    mainframe to unlock Pack-a-Punch.<br>
+    <b>H</b> monkey bomb &nbsp; <b>Space</b> jump &nbsp; <b>M</b> mute &nbsp; <b>Esc</b> pause<br>
+    Every box hides the Ray Gun, Monkey Bombs and the map's wonder weapon.
     Hellhounds attack every 5th round — the last one drops a Max Ammo.
   </div>
-  <button id="btn-start">ENTER THE STORM</button>
-  <div id="start-best"></div>
 </div>
 
 <div class="menu" id="menu-pause">

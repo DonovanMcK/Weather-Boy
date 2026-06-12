@@ -161,12 +161,9 @@
       pool.push({ w: w, weight: weight });
     });
     var playerRoom = G.map.roomAt(G.player.pos.x, G.player.pos.z);
-    if (playerRoom === 'C') {
-      CFG.RISERS.forEach(function (rs) {
-        var wc = CFG.cellToWorld(rs[0], rs[1]);
-        pool.push({ riser: new THREE.Vector3(wc.x, 0, wc.z), weight: 0.8 });
-      });
-    }
+    (G.map.risers || []).forEach(function (rs) {
+      if (rs.room === playerRoom) pool.push({ riser: rs.pos, weight: 0.8 });
+    });
     var total = 0;
     pool.forEach(function (p) { total += p.weight; });
     var pick = Math.random() * total;
@@ -579,6 +576,21 @@
       }
       animate(z, dt, moving);
     }
+  };
+
+  // Direct spawn at a position, already chasing (debug / headless tests).
+  Z.spawnAt = function (pos) {
+    var z = {
+      isDog: false, dead: false, crawler: false,
+      hp: CFG.zombieHealth(Math.max(1, Z.round)),
+      speed: 1.6, state: 'chase', t: 0, attackCd: 0, animT: Math.random() * 9
+    };
+    z.mesh = buildZombieMesh(z);
+    z.mesh.position.set(pos.x, 0, pos.z);
+    G.scene.add(z.mesh);
+    Z.list.push(z);
+    Z._shootablesDirty = true;
+    return z;
   };
 
   Z.reset = function () {

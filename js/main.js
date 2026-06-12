@@ -1,6 +1,6 @@
 /* ===========================================================================
-   DER WETTERJUNGE — main.js
-   Scene boot, game loop, state machine.
+   DER WETTERJUNGE & FRIENDS — main.js
+   Scene boot, map selection, game loop, state machine.
    =========================================================================== */
 (function () {
   'use strict';
@@ -8,6 +8,9 @@
 
   G.state = 'menu'; // menu | playing | paused | over
   G.time = 0;
+  var started = false;
+
+  G.bestKey = function () { return 'wj_best_' + G.CFG.cur.id; };
 
   function boot() {
     var canvas = document.getElementById('game');
@@ -29,11 +32,6 @@
     G.scene.add(moon);
 
     G.hud.init();
-    G.map.build();
-    G.player.spawn();
-    G.weapons.init();
-    G.interact.init();
-    G.zombies.start();
 
     window.addEventListener('resize', function () {
       G.camera.aspect = window.innerWidth / window.innerHeight;
@@ -41,8 +39,14 @@
       G.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // start / resume buttons
-    document.getElementById('btn-start').addEventListener('click', startGame);
+    // map select cards + menu buttons
+    G.CFG.MAP_IDS.forEach(function (id) {
+      var card = document.getElementById('map-' + id);
+      if (card) card.addEventListener('click', function () { G.startGame(id); });
+      var best = localStorage.getItem('wj_best_' + id);
+      var span = document.getElementById('best-' + id);
+      if (span && best) span.textContent = 'Best: round ' + best;
+    });
     document.getElementById('btn-resume').addEventListener('click', resume);
     document.getElementById('btn-restart').addEventListener('click', function () { location.reload(); });
     document.getElementById('btn-restart2').addEventListener('click', function () { location.reload(); });
@@ -54,36 +58,44 @@
       }
     });
 
-    var best = localStorage.getItem('wj_best');
-    if (best) document.getElementById('start-best').textContent = 'Best round: ' + best;
-
     G.hud.showMenu('start');
     last = performance.now();
     requestAnimationFrame(loop);
   }
 
-  function startGame() {
+  G.startGame = function (mapId) {
+    if (started) return;
+    started = true;
+    G.CFG.setMap(mapId);
+    G.map.build();
+    G.player.spawn();
+    G.weapons.init();
+    G.interact.init();
+    G.zombies.start();
     G.audio.init();
     G.state = 'playing';
     G.hud.showMenu(null);
     G.hud.setPoints(G.player.points);
     G.hud.setAmmo();
     G.hud.setRound(1);
-    document.body.requestPointerLock ? document.getElementById('game').requestPointerLock() : null;
-  }
+    G.hud.banner(G.CFG.cur.name, '#c11', 3, G.CFG.cur.sub);
+    var canvas = document.getElementById('game');
+    if (canvas.requestPointerLock) canvas.requestPointerLock();
+  };
 
   function resume() {
     G.state = 'playing';
     G.hud.showMenu(null);
-    document.getElementById('game').requestPointerLock();
+    var canvas = document.getElementById('game');
+    if (canvas.requestPointerLock) canvas.requestPointerLock();
   }
 
   G.gameOver = function () {
     if (G.state === 'over') return;
     G.state = 'over';
     G.audio.gameOver();
-    var best = +(localStorage.getItem('wj_best') || 0);
-    if (G.zombies.round > best) localStorage.setItem('wj_best', G.zombies.round);
+    var best = +(localStorage.getItem(G.bestKey()) || 0);
+    if (G.zombies.round > best) localStorage.setItem(G.bestKey(), G.zombies.round);
     G.hud.gameOverStats();
     G.hud.showMenu('over');
     document.exitPointerLock();

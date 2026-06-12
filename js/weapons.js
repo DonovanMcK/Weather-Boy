@@ -12,7 +12,7 @@
     slots: [], cur: 0, maxSlots: 2,
     reloading: 0, switching: 0, knifing: 0, fireCd: 0,
     mouseDown: false, semiLatch: false,
-    projectiles: [], tracers: [], flashes: [],
+    projectiles: [], tracers: [], flashes: [], vortices: [],
     vmRoot: null, muzzle: null, camoTex: null
   };
 
@@ -89,6 +89,26 @@
       coil.rotation.x = Math.PI / 2; coil.position.set(0, 0.02, -0.3); g.add(coil);
       part(0.05, 0.13, 0.07, 0, -0.11, 0.03, dark);
       tipZ = -0.45;
+    } else if (cls === 'wunder') {
+      part(0.07, 0.12, 0.3, 0, -0.03, 0.12, wood);
+      part(0.08, 0.1, 0.44, 0, 0, -0.2);
+      for (var ci = 0; ci < 3; ci++) {
+        var coilM = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.07, 8),
+          new THREE.MeshLambertMaterial({ color: 0x223344, emissive: 0x33ccff, emissiveIntensity: 0.9 }));
+        coilM.position.set(0, 0.085, -0.1 - ci * 0.14);
+        g.add(coilM);
+      }
+      part(0.05, 0.14, 0.07, 0, -0.13, 0.02, dark);
+      tipZ = -0.52;
+    } else if (cls === 'storm') {
+      var st = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.55, 8),
+        gunMat(papped, 0x4a525c));
+      st.rotation.x = Math.PI / 2; st.position.set(0, 0, -0.18); g.add(st);
+      var orb = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 10),
+        new THREE.MeshLambertMaterial({ color: 0x113355, emissive: 0x55ccff, emissiveIntensity: 1.0 }));
+      orb.position.set(0, 0.09, -0.05); g.add(orb);
+      part(0.05, 0.14, 0.08, 0, -0.12, 0.06, dark);
+      tipZ = -0.5;
     } else if (cls === 'thunder') {
       var t1 = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.6, 8),
         gunMat(papped, 0x55585e));
@@ -257,15 +277,19 @@
     return false;
   }
 
+  function addLine(a, b, color, life, opacity) {
+    var geo = new THREE.BufferGeometry().setFromPoints([a, b]);
+    var line = new THREE.Line(geo, new THREE.LineBasicMaterial({
+      color: color, transparent: true, opacity: opacity || 0.7
+    }));
+    G.scene.add(line);
+    W.tracers.push({ mesh: line, life: life });
+  }
+
   function spawnTracer(end) {
     var start = W.muzzle ? W.muzzle.getWorldPosition(new THREE.Vector3())
                          : G.camera.position.clone();
-    var geo = new THREE.BufferGeometry().setFromPoints([start, end]);
-    var line = new THREE.Line(geo, new THREE.LineBasicMaterial({
-      color: 0xffdd88, transparent: true, opacity: 0.7
-    }));
-    G.scene.add(line);
-    W.tracers.push({ mesh: line, life: 0.07 });
+    addLine(start, end, 0xffdd88, 0.07);
   }
 
   function muzzleFlash() {
@@ -294,8 +318,10 @@
     G.hud.setAmmo();
 
     if (s.projectile === 'wind') { fireThunder(); return; }
-    if (s.projectile === 'ray') { spawnProjectile('ray', s.dmg); return; }
-    if (s.projectile === 'rocket') { spawnProjectile('rocket', s.dmg); return; }
+    if (s.projectile === 'chain') { fireWunderwaffe(s); return; }
+    if (s.projectile === 'storm') { spawnProjectile('storm', s); return; }
+    if (s.projectile === 'ray') { spawnProjectile('ray', s); return; }
+    if (s.projectile === 'rocket') { spawnProjectile('rocket', s); return; }
 
     var pellets = s.pellets || 1;
     for (var i = 0; i < pellets; i++) {
@@ -319,8 +345,121 @@
     });
   }
 
+  /* --------------------------------------------- wunderwaffe (chain bolt) */
+  function fireWunderwaffe(s) {
+    G.player.shake(0.5);
+    _dir.set(0, 0, -1).applyEuler(G.camera.rotation);
+    _ray.set(G.camera.position, _dir);
+    _ray.far = 90;
+    var targets = G.zombies.shootables().concat(G.map.solidMeshes);
+    var hits = _ray.intersectObjects(targets, false);
+    var end = hits.length ? hits[0].point
+                          : G.camera.position.clone().addScaledVector(_dir, 50);
+    var start = W.muzzle ? W.muzzle.getWorldPosition(new THREE.Vector3())
+                         : G.camera.position.clone();
+    addLine(start, end, 0x88eeff, 0.18, 0.95);
+    G.audio.zap();
+    var first = hits.length && hits[0].object.userData.zombie
+      ? hits[0].object.userData.zombie : null;
+    if (!first || first.dead) return;
+    // chain to nearest neighbors of anything already electrified
+    var chained = [first];
+    var pool = G.zombies.list.filter(function (z) { return !z.dead && z !== first; });
+    while (chained.length < (s.chain || 10)) {
+      var bestZ = null, bd = 1e9;
+      for (var i = 0; i < pool.length; i++) {
+        var z = pool[i];
+        if (chained.indexOf(z) >= 0 || z.dead) continue;
+        for (var j = 0; j < chained.length; j++) {
+          var d = z.mesh.position.distanceTo(chained[j].mesh.position);
+          if (d < (s.chainRadius || 5.5) && d < bd) { bd = d; bestZ = z; }
+        }
+      }
+      if (!bestZ) break;
+      chained.push(bestZ);
+    }
+    for (var k = 0; k < chained.length; k++) {
+      if (k > 0) {
+        var a = chained[k - 1].mesh.position.clone(); a.y += 1.3;
+        var b = chained[k].mesh.position.clone(); b.y += 1.3;
+        addLine(a, b, 0x88eeff, 0.3, 0.95);
+      }
+      G.zombies.damageZombie(chained[k], 1e9, { boom: true });
+    }
+    G.hud.hitmarker(true);
+  }
+
+  /* -------------------------------------------- storm vortex (Wettermacher) */
+  function spawnVortex(pos, opts) {
+    var grp = new THREE.Group();
+    var coneMat = new THREE.MeshBasicMaterial({
+      color: 0x66ccff, transparent: true, opacity: 0.28,
+      side: THREE.DoubleSide, depthWrite: false
+    });
+    var cone = new THREE.Mesh(
+      new THREE.ConeGeometry(opts.storm.radius * 0.55, 5, 12, 1, true), coneMat);
+    cone.position.y = 2.5;
+    grp.add(cone);
+    var inner = new THREE.Mesh(
+      new THREE.ConeGeometry(opts.storm.radius * 0.28, 4.4, 10, 1, true),
+      coneMat.clone());
+    inner.material.opacity = 0.45;
+    inner.position.y = 2.2;
+    grp.add(inner);
+    var light = new THREE.PointLight(0x88ddff, 1.6, opts.storm.radius * 3);
+    light.position.y = 2;
+    grp.add(light);
+    grp.position.set(pos.x, 0, pos.z);
+    G.scene.add(grp);
+    G.audio.vortex();
+    W.vortices.push({
+      mesh: grp, cone: cone, inner: inner, light: light,
+      t: opts.storm.dur, radius: opts.storm.radius, dmg: opts.dmg, tick: 0
+    });
+  }
+
+  function updateVortices(dt) {
+    for (var i = W.vortices.length - 1; i >= 0; i--) {
+      var v = W.vortices[i];
+      v.t -= dt;
+      v.cone.rotation.y += dt * 7;
+      v.inner.rotation.y -= dt * 11;
+      v.light.intensity = 1.2 + Math.random() * 1.2;
+      // suck zombies in
+      G.zombies.list.forEach(function (z) {
+        if (z.dead || (z.state !== 'chase' && z.state !== 'attack')) return;
+        var dx = v.mesh.position.x - z.mesh.position.x;
+        var dz = v.mesh.position.z - z.mesh.position.z;
+        var d = Math.hypot(dx, dz);
+        if (d > v.radius * 1.5 || d < 0.3) return;
+        z.mesh.position.x += dx / d * dt * 4;
+        z.mesh.position.z += dz / d * dt * 4;
+      });
+      // periodic lightning ticks
+      v.tick -= dt;
+      if (v.tick <= 0) {
+        v.tick = 0.45;
+        G.audio.vortexTick();
+        G.zombies.list.slice().forEach(function (z) {
+          if (z.dead) return;
+          var d = z.mesh.position.distanceTo(v.mesh.position);
+          if (d < v.radius) {
+            var a = v.mesh.position.clone(); a.y = 4.5;
+            var b = z.mesh.position.clone(); b.y += 1.3;
+            addLine(a, b, 0xaaeeff, 0.15, 0.9);
+            G.zombies.damageZombie(z, v.dmg, { boom: true });
+          }
+        });
+      }
+      if (v.t <= 0) {
+        G.scene.remove(v.mesh);
+        W.vortices.splice(i, 1);
+      }
+    }
+  }
+
   /* --------------------------------------------------------- projectiles */
-  function spawnProjectile(type, dmg) {
+  function spawnProjectile(type, s) {
     var pos = W.muzzle ? W.muzzle.getWorldPosition(new THREE.Vector3())
                        : G.camera.position.clone();
     var dir = new THREE.Vector3(0, 0, -1).applyEuler(G.camera.rotation);
@@ -329,12 +468,18 @@
       mesh = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8),
         new THREE.MeshBasicMaterial({ color: 0x44ff66 }));
       vel = dir.multiplyScalar(38);
-      opts = { dmg: dmg, radius: 2.5, gravity: 0, fuse: 3, color: 0x44ff66 };
+      opts = { dmg: s.dmg, radius: 2.5, gravity: 0, fuse: 3, color: 0x44ff66 };
     } else if (type === 'rocket') {
       mesh = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8),
         new THREE.MeshBasicMaterial({ color: 0xffaa33 }));
       vel = dir.multiplyScalar(26).add(new THREE.Vector3(0, 1.5, 0));
-      opts = { dmg: dmg, radius: 4, gravity: 5, fuse: 4, color: 0xffaa33, crawlers: true };
+      opts = { dmg: s.dmg, radius: 4, gravity: 5, fuse: 4, color: 0xffaa33, crawlers: true };
+    } else if (type === 'storm') {
+      mesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0x66ccff }));
+      vel = dir.multiplyScalar(24).add(new THREE.Vector3(0, 0.5, 0));
+      opts = { dmg: s.dmg, radius: 2.5, gravity: 1.5, fuse: 3, color: 0x66ccff,
+               storm: { dur: s.stormDur, radius: s.stormRadius } };
     }
     mesh.position.copy(pos);
     G.scene.add(mesh);
@@ -454,8 +599,8 @@
         p.mesh.position.set(nx, ny, nz);
       }
 
-      // proximity detonation vs zombies for rockets/rays
-      if (!detonate && (p.type === 'ray' || p.type === 'rocket')) {
+      // proximity detonation vs zombies for rockets/rays/storm orbs
+      if (!detonate && (p.type === 'ray' || p.type === 'rocket' || p.type === 'storm')) {
         for (var j = 0; j < G.zombies.list.length; j++) {
           var z = G.zombies.list[j];
           if (!z.dead && z.mesh.position.distanceTo(p.mesh.position) < 0.9) { detonate = true; break; }
@@ -465,7 +610,8 @@
 
       if (detonate) {
         if (p.type === 'monkey' && G.zombies.lure && G.zombies.lure.proj === p) G.zombies.lure = null;
-        W.explode(p.mesh.position, p.opts.dmg, p.opts.radius, p.opts);
+        if (p.opts.storm) spawnVortex(p.mesh.position, p.opts);
+        else W.explode(p.mesh.position, p.opts.dmg, p.opts.radius, p.opts);
         G.scene.remove(p.mesh);
         W.projectiles.splice(i, 1);
       }
@@ -528,6 +674,7 @@
     }
 
     updateProjectiles(dt);
+    updateVortices(dt);
 
     for (var i = W.tracers.length - 1; i >= 0; i--) {
       var t = W.tracers[i];

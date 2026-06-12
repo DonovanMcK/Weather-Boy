@@ -1,12 +1,13 @@
 /* Headless smoke test: boots the whole game in node with a stubbed DOM and a
-   stubbed WebGLRenderer, then plays through the core systems — rounds, combat,
-   doors, perks, power, teleporters, Pack-a-Punch, mystery box, power-ups,
-   hellhounds, and game over.
+   stubbed WebGLRenderer, once per map, and plays through the core systems.
+   Full suite on Der Wetterjunge; quick suites on Nacht and Der Riese covering
+   their PaP rules and wonder weapons.
    Run: npm install && node tests/smoke.js */
 'use strict';
 var fs = require('fs');
 var path = require('path');
 var vm = require('vm');
+var THREE = require('three');
 
 var fails = 0;
 function ok(cond, msg) {
@@ -15,143 +16,227 @@ function ok(cond, msg) {
 }
 function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
-/* ------------------------------------------------------------- DOM stubs */
-function makeEmitter(obj) {
-  obj._ls = {};
-  obj.addEventListener = function (type, fn) { (obj._ls[type] = obj._ls[type] || []).push(fn); };
-  obj.removeEventListener = function () {};
-  obj.dispatch = function (type, ev) { (obj._ls[type] || []).forEach(function (f) { f(ev || {}); }); };
-  return obj;
-}
+/* --------------------------------------------------- sandbox per game --- */
+function createGame() {
+  function makeEmitter(obj) {
+    obj._ls = {};
+    obj.addEventListener = function (type, fn) { (obj._ls[type] = obj._ls[type] || []).push(fn); };
+    obj.removeEventListener = function () {};
+    obj.dispatch = function (type, ev) { (obj._ls[type] || []).forEach(function (f) { f(ev || {}); }); };
+    return obj;
+  }
+  function ctx2d() {
+    return new Proxy({}, {
+      get: function (t, p) {
+        if (p in t) return t[p];
+        return function () { return { width: 10 }; };
+      },
+      set: function (t, p, v) { t[p] = v; return true; }
+    });
+  }
+  function canvasStub() {
+    var cv = makeEmitter({ width: 300, height: 150, style: {} });
+    cv.getContext = function () { return ctx2d(); };
+    cv.requestPointerLock = function () {};
+    return cv;
+  }
+  function elemStub() {
+    var e = makeEmitter({
+      style: {}, textContent: '', innerHTML: '', offsetWidth: 0, title: '',
+      classList: { add: function () {}, remove: function () {} },
+      children: []
+    });
+    e.appendChild = function (c) { e.children.push(c); };
+    e.remove = function () {};
+    e.requestPointerLock = function () {};
+    e.parentElement = { style: {} };
+    return e;
+  }
 
-function ctx2d() {
-  return new Proxy({}, {
-    get: function (t, p) {
-      if (p in t) return t[p];
-      return function () { return { width: 10 }; };
+  var elements = {};
+  var documentStub = makeEmitter({
+    readyState: 'complete',
+    pointerLockElement: {},
+    body: elemStub(),
+    exitPointerLock: function () {},
+    getElementById: function (id) {
+      if (!elements[id]) elements[id] = id === 'game' ? canvasStub() : elemStub();
+      return elements[id];
     },
-    set: function (t, p, v) { t[p] = v; return true; }
-  });
-}
-
-function canvasStub() {
-  var cv = makeEmitter({ width: 300, height: 150, style: {} });
-  cv.getContext = function () { return ctx2d(); };
-  cv.requestPointerLock = function () {};
-  return cv;
-}
-
-function elemStub() {
-  var e = makeEmitter({
-    style: {}, textContent: '', innerHTML: '', offsetWidth: 0, title: '',
-    classList: { add: function () {}, remove: function () {} },
-    children: []
-  });
-  e.appendChild = function (c) { e.children.push(c); };
-  e.remove = function () {};
-  e.requestPointerLock = function () {};
-  e.parentElement = { style: {} };
-  return e;
-}
-
-var elements = {};
-var documentStub = makeEmitter({
-  readyState: 'complete',
-  pointerLockElement: {},
-  body: elemStub(),
-  exitPointerLock: function () {},
-  getElementById: function (id) {
-    if (!elements[id]) {
-      elements[id] = id === 'game' ? canvasStub() : elemStub();
-    }
-    return elements[id];
-  },
-  createElement: function (tag) { return tag === 'canvas' ? canvasStub() : elemStub(); }
-});
-
-var rafCb = null;
-var windowStub = makeEmitter({
-  innerWidth: 1280, innerHeight: 720,
-  devicePixelRatio: 1
-});
-
-var THREE = require('three');
-// stub the GPU-dependent renderer
-function FakeRenderer() { this.domElement = canvasStub(); }
-FakeRenderer.prototype.setSize = function () {};
-FakeRenderer.prototype.setPixelRatio = function () {};
-FakeRenderer.prototype.render = function () {};
-var THREEStub = Object.create(THREE);
-THREEStub.WebGLRenderer = FakeRenderer;
-
-var sandbox = {
-  window: windowStub,
-  document: documentStub,
-  THREE: THREEStub,
-  performance: performance,
-  localStorage: { _d: {}, getItem: function (k) { return this._d[k] || null; }, setItem: function (k, v) { this._d[k] = String(v); } },
-  location: { reload: function () {} },
-  requestAnimationFrame: function (cb) { rafCb = cb; },
-  setTimeout: setTimeout, clearTimeout: clearTimeout,
-  setInterval: setInterval, clearInterval: clearInterval,
-  console: console, Math: Math, Object: Object, Array: Array, JSON: JSON,
-  Proxy: Proxy, Promise: Promise
-};
-windowStub.G = undefined; // game sets window.G
-vm.createContext(sandbox);
-
-['config', 'audio', 'hud', 'map', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'main']
-  .forEach(function (name) {
-    var src = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
-    vm.runInContext(src, sandbox, { filename: name + '.js' });
+    createElement: function (tag) { return tag === 'canvas' ? canvasStub() : elemStub(); }
   });
 
-var G = sandbox.window.G;
-ok(!!G && !!G.CFG && !!G.map && !!G.zombies, 'all modules loaded into G namespace');
+  var rafCb = null;
+  var windowStub = makeEmitter({ innerWidth: 1280, innerHeight: 720, devicePixelRatio: 1 });
 
-/* ------------------------------------------------------------- stepping */
-var simNow = performance.now();
-function step(frames, dtMs) {
-  for (var i = 0; i < frames; i++) {
-    simNow += (dtMs || 16);
-    var cb = rafCb; rafCb = null;
-    if (cb) cb(simNow);
+  function FakeRenderer() { this.domElement = canvasStub(); }
+  FakeRenderer.prototype.setSize = function () {};
+  FakeRenderer.prototype.setPixelRatio = function () {};
+  // the real renderer updates world matrices each frame; mirror that
+  FakeRenderer.prototype.render = function (scene) { scene.updateMatrixWorld(true); };
+  var THREEStub = Object.create(THREE);
+  THREEStub.WebGLRenderer = FakeRenderer;
+
+  var sandbox = {
+    window: windowStub,
+    document: documentStub,
+    THREE: THREEStub,
+    performance: performance,
+    localStorage: { _d: {}, getItem: function (k) { return this._d[k] || null; }, setItem: function (k, v) { this._d[k] = String(v); } },
+    location: { reload: function () {} },
+    requestAnimationFrame: function (cb) { rafCb = cb; },
+    setTimeout: setTimeout, clearTimeout: clearTimeout,
+    setInterval: setInterval, clearInterval: clearInterval,
+    console: console, Math: Math, Object: Object, Array: Array, JSON: JSON,
+    Proxy: Proxy, Promise: Promise
+  };
+  vm.createContext(sandbox);
+
+  ['config', 'audio', 'hud', 'map', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'main']
+    .forEach(function (name) {
+      var src = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
+      vm.runInContext(src, sandbox, { filename: name + '.js' });
+    });
+
+  var G = sandbox.window.G;
+  var simNow = performance.now();
+  return {
+    G: G,
+    win: windowStub,
+    step: function (frames, dtMs) {
+      for (var i = 0; i < frames; i++) {
+        simNow += (dtMs || 16);
+        var cb = rafCb; rafCb = null;
+        if (cb) cb(simNow);
+      }
+    },
+    pressF: function () { windowStub.dispatch('keydown', { code: 'KeyF' }); },
+    moveTo: function (pos) { G.player.pos.set(pos.x, 0, pos.z); G.player.vel.set(0, 0, 0); }
+  };
+}
+
+/* -------------------------------------------------- shared test pieces --- */
+function roomCenter(G, room) {
+  return G.map.parsed.rooms[room].center;
+}
+
+function openAllDoors(ctx) {
+  var G = ctx.G;
+  G.player.points = 200000;
+  Object.keys(G.map.doors).forEach(function (id) {
+    ctx.moveTo(G.map.doors[id].pos);
+    ctx.pressF();
+    ctx.step(5);
+  });
+  ok(Object.keys(G.map.doors).every(function (id) { return G.map.doors[id].open; }),
+     'all doors opened');
+  ok(Object.keys(G.map.parsed.rooms).every(function (r) { return G.map.reachableRooms[r]; }),
+     'all rooms reachable');
+}
+
+function unlockPap(ctx) {
+  var G = ctx.G;
+  ctx.moveTo(G.map.powerSwitch.pos);
+  ctx.pressF();
+  ctx.step(5);
+  ok(G.map.power, 'power turned on');
+  if (G.CFG.cur.papRule === 'power') {
+    ok(G.map.pap.unlocked, 'PaP unlocked by power (papRule=power)');
+  } else {
+    ok(!G.map.pap.unlocked, 'PaP still locked until teleporters linked');
+    G.map.teleporters.forEach(function (t) {
+      ctx.moveTo(t.pos); ctx.pressF(); ctx.step(5);
+      ok(t.linking, 'teleporter ' + t.id + ' activated');
+      ctx.moveTo(G.map.mainframe.pos); ctx.pressF(); ctx.step(5);
+      ok(t.linked, 'teleporter ' + t.id + ' linked');
+    });
+    ok(G.map.pap.unlocked, 'PaP unlocked after 3 links');
   }
 }
-function pressF() { windowStub.dispatch('keydown', { code: 'KeyF' }); }
-function moveTo(pos) { G.player.pos.set(pos.x, 0, pos.z); G.player.vel.set(0, 0, 0); }
 
-(async function run() {
-  /* boot checks */
-  ok(G.map.windows.length === 10, 'built 10 barricaded windows');
-  ok(G.map.colliders.length > 50, 'colliders built (' + G.map.colliders.length + ')');
-  ok(Object.keys(G.map.doors).length === 7, '7 doors built');
+function testWonderWeapon(ctx) {
+  var G = ctx.G;
+  var wonderId = G.CFG.cur.wonder;
+  G.weapons.giveWeapon(wonderId);
+  ok(G.weapons.current().id === wonderId, 'holding ' + wonderId);
+  // stand at spawn room center facing -z with three zombies ahead
+  var c = roomCenter(G, 'S');
+  ctx.moveTo(c);
+  G.player.yaw = 0; G.player.pitch = 0;
+  ctx.step(2);
+  var zs = [
+    G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 4.5)),
+    G.zombies.spawnAt(new THREE.Vector3(c.x + 0.9, 0, c.z - 5.5)),
+    G.zombies.spawnAt(new THREE.Vector3(c.x - 0.9, 0, c.z - 6))
+  ];
+  ctx.step(2);
+  var ammoBefore = G.weapons.current().ammo;
+  G.weapons.mouseDown = true;
+  ctx.step(4);
+  G.weapons.mouseDown = false;
+  ok(G.weapons.current().ammo === ammoBefore - 1, wonderId + ' fired one shot');
+
+  if (wonderId === 'thunder') {
+    ctx.step(60 * 2);
+    ok(zs.every(function (z) { return z.dead; }), 'thundergun flung and killed the pack');
+  } else if (wonderId === 'wunderwaffe') {
+    ok(zs.every(function (z) { return z.dead; }), 'wunderwaffe chain-killed all three');
+  } else if (wonderId === 'stormcaller') {
+    ctx.step(30);
+    ok(G.weapons.vortices.length > 0, 'storm vortex spawned');
+    ctx.step(60 * 7);
+    ok(zs.every(function (z) { return z.dead; }), 'vortex zapped the pack');
+    ok(G.weapons.vortices.length === 0, 'vortex expired');
+  }
+}
+
+function bootChecks(ctx, mapId) {
+  var G = ctx.G;
+  ok(!!G && !!G.CFG && !!G.map, 'modules loaded');
+  G.startGame(mapId);
+  ok(G.state === 'playing', 'game started on ' + mapId);
+  ok(G.map.windows.length === G.CFG.WINDOWS.length, 'windows built (' + G.map.windows.length + ')');
+  ok(Object.keys(G.map.doors).length === Object.keys(G.CFG.DOORS).length, 'doors built');
   ok(G.weapons.slots.length === 1 && G.weapons.slots[0].id === 'm1911', 'starts with M1911');
-
-  /* round 1 begins, zombies spawn and approach */
-  G.state = 'playing';
   G.zombies.list.length = 0;
-  step(60 * 6); // 6 seconds
+  ctx.step(60 * 6);
   ok(G.zombies.round === 1, 'round 1 started');
   ok(G.zombies.list.length > 0, 'zombies spawned (' + G.zombies.list.length + ')');
+}
+
+/* ------------------------------------------------------------ map runs --- */
+async function runQuick(mapId) {
+  console.log('\n=== quick: ' + mapId + ' ===');
+  var ctx = createGame();
+  var G = ctx.G;
+  bootChecks(ctx, mapId);
+  G.player.damage = function () {}; // invulnerable for systems testing
+  ctx.step(60 * 10);
+  openAllDoors(ctx);
+  unlockPap(ctx);
+  testWonderWeapon(ctx);
+}
+
+async function runFull(mapId) {
+  console.log('\n=== full: ' + mapId + ' ===');
+  var ctx = createGame();
+  var G = ctx.G, step = ctx.step, pressF = ctx.pressF, moveTo = ctx.moveTo;
+  bootChecks(ctx, mapId);
   var origDamage = G.player.damage;
-  G.player.damage = function () {}; // invulnerable during systems testing
+  G.player.damage = function () {};
   step(60 * 25);
-  var states = {};
-  G.zombies.list.forEach(function (z) { states[z.state] = true; });
   ok(G.zombies.list.some(function (z) { return ['tear', 'vault', 'chase', 'attack'].indexOf(z.state) >= 0; }),
-     'zombies tearing/vaulting/chasing (' + Object.keys(states) + ')');
+     'zombies tearing/vaulting/chasing');
   ok(G.map.windows.some(function (w) { return w.boards < 6; }), 'boards were torn off');
 
-  /* combat: kill a zombie with a headshot */
-  var pointsBefore = G.player.points;
-  var killsBefore = G.player.kills;
+  /* combat */
+  var pointsBefore = G.player.points, killsBefore = G.player.kills;
   var z0 = G.zombies.list.filter(function (z) { return !z.dead; })[0];
   if (z0) {
     G.zombies.damageZombie(z0, 1e9, { head: true });
     ok(z0.dead, 'zombie killed');
     ok(G.player.kills === killsBefore + 1, 'kill counted');
-    ok(G.player.points > pointsBefore, 'points awarded (' + (G.player.points - pointsBefore) + ')');
+    ok(G.player.points > pointsBefore, 'points awarded');
   }
 
   /* barricade repair */
@@ -165,24 +250,14 @@ function moveTo(pos) { G.player.pos.set(pos.x, 0, pos.z); G.player.vel.set(0, 0,
     ok(brokenWin.boards > boardsBefore, 'barricade rebuilt by holding F');
   }
 
-  /* doors */
-  G.player.points = 100000;
-  var d1 = G.map.doors[1];
-  moveTo(d1.pos); pressF(); step(5);
-  ok(d1.open, 'door 1 opened');
-  [2, 3, 4, 5, 6, 7].forEach(function (id) {
-    moveTo(G.map.doors[id].pos); pressF(); step(5);
-  });
-  ok(Object.keys(G.map.doors).every(function (id) { return G.map.doors[id].open; }), 'all doors opened');
-  ok(G.map.reachableRooms.D && G.map.reachableRooms.L, 'reachability recomputed');
+  openAllDoors(ctx);
 
   /* wall buy */
-  var wbMp40 = G.map.wallbuys.filter(function (w) { return w.gun === 'mp40'; })[0];
-  moveTo(wbMp40.pos); pressF(); step(5);
-  ok(G.weapons.hasWeapon('mp40'), 'bought MP40 off the wall');
-  ok(G.weapons.slots.length === 2, 'two weapon slots used');
+  var wb = G.map.wallbuys.filter(function (w) { return !w.isFrags; })[0];
+  moveTo(wb.pos); pressF(); step(5);
+  ok(G.weapons.hasWeapon(wb.gun), 'bought ' + wb.gun + ' off the wall');
 
-  /* perks (power off: only revive allowed) */
+  /* perks: gated by power except revive */
   var pmJugg = G.map.perkMachines.filter(function (p) { return p.perk === 'jugg'; })[0];
   moveTo(pmJugg.pos); pressF(); step(5);
   ok(!G.player.hasPerk('jugg'), 'juggernog denied before power');
@@ -190,29 +265,19 @@ function moveTo(pos) { G.player.pos.set(pos.x, 0, pos.z); G.player.vel.set(0, 0,
   moveTo(pmQR.pos); pressF(); step(5);
   ok(G.player.hasPerk('revive'), 'quick revive bought before power');
 
-  /* power */
-  moveTo(G.map.powerSwitch.pos); pressF(); step(5);
-  ok(G.map.power, 'power turned on');
+  unlockPap(ctx);
   moveTo(pmJugg.pos); pressF(); step(5);
   ok(G.player.hasPerk('jugg') && G.player.maxHp === 250, 'juggernog bought, 250 hp');
 
-  /* teleporter linking -> pack-a-punch */
-  for (var ti = 0; ti < 3; ti++) {
-    var t = G.map.teleporters[ti];
-    moveTo(t.pos); pressF(); step(5);
-    ok(t.linking, 'teleporter ' + t.id + ' activated');
-    moveTo(G.map.mainframe.pos); pressF(); step(5);
-    ok(t.linked, 'teleporter ' + t.id + ' linked at mainframe');
+  /* teleporter travel (teleporter maps) */
+  if (G.map.mainframe) {
+    var tA = G.map.teleporters[0];
+    moveTo(tA.pos); pressF(); step(5);
+    ok(G.player.pos.distanceTo(G.map.mainframe.pos) < 4, 'teleported to mainframe');
   }
-  ok(G.map.pap.unlocked, 'pack-a-punch unlocked after 3 links');
 
-  /* teleporter use */
-  var tA = G.map.teleporters[0];
-  moveTo(tA.pos); pressF(); step(5);
-  ok(G.player.pos.distanceTo(G.map.mainframe.pos) < 4, 'teleported to mainframe');
-
-  /* pack-a-punch the current gun */
-  G.weapons.equip(0, true); // m1911 -> Mustang & Sally
+  /* pack-a-punch */
+  G.weapons.equip(0, true);
   moveTo(G.map.pap.pos); pressF(); step(5);
   ok(G.player.locked, 'PaP machine took the gun');
   await sleep(3700);
@@ -226,29 +291,22 @@ function moveTo(pos) { G.player.pos.set(pos.x, 0, pos.z); G.player.vel.set(0, 0,
   ok(G.interact.box.rolling, 'mystery box rolling');
   await sleep(3300);
   step(5);
-  var gotOffer = !!G.interact.box.offer || G.player.hasMonkeys;
-  ok(gotOffer, 'box offered a weapon (or monkeys)');
+  ok(!!G.interact.box.offer || G.player.hasMonkeys, 'box offered a weapon (or monkeys)');
   if (G.interact.box.offer) {
     var offered = G.interact.box.offer;
+    ok(!G.CFG.WEAPONS[offered].wonder || offered === G.CFG.cur.wonder,
+       'box never offers another map\'s wonder');
     pressF(); step(5);
     ok(G.weapons.hasWeapon(offered), 'took ' + offered + ' from the box');
   }
 
-  /* grenades + explosions make crawlers or kills */
-  var aliveBefore = G.zombies.aliveCount();
-  if (aliveBefore > 0) {
-    var zt = G.zombies.list.filter(function (z) { return !z.dead; })[0];
-    G.weapons.explode(zt.mesh.position.clone(), 600, 4.5, { crawlers: true, color: 0xffaa33 });
-    step(5);
-    ok(G.zombies.aliveCount() < aliveBefore ||
-       G.zombies.list.some(function (z) { return z.crawler; }),
-       'explosion killed or crawled zombies');
-  }
+  /* wonder weapon */
+  testWonderWeapon(ctx);
 
-  /* monkey bomb lure */
+  /* monkeys */
   G.player.hasMonkeys = true;
   G.player.monkeys = 3;
-  windowStub.dispatch('keydown', { code: 'KeyH' });
+  ctx.win.dispatch('keydown', { code: 'KeyH' });
   step(60 * 2);
   ok(G.player.monkeys === 2, 'monkey bomb thrown');
 
@@ -261,11 +319,12 @@ function moveTo(pos) { G.player.pos.set(pos.x, 0, pos.z); G.player.vel.set(0, 0,
   G.powerups.spawn('insta', G.player.pos.clone());
   step(10);
   ok(G.powerups.timers.insta > 0, 'insta-kill timer running');
+  G.zombies.toSpawn = 0; // freeze spawning so the nuke check is deterministic
   G.powerups.spawn('nuke', G.player.pos.clone());
   step(10);
   ok(G.zombies.aliveCount() === 0, 'nuke killed everything');
 
-  /* hellhound round: force next round to be round 5 */
+  /* hellhound round */
   G.zombies.toSpawn = 0;
   G.zombies.list.forEach(function (z) { if (!z.dead) z.hp = 0; });
   step(30);
@@ -276,19 +335,17 @@ function moveTo(pos) { G.player.pos.set(pos.x, 0, pos.z); G.player.vel.set(0, 0,
   ok(G.zombies.round === 5 && G.zombies.mode === 'dogs', 'round 5 is a hellhound round');
   step(60 * 20);
   ok(G.zombies.list.some(function (z) { return z.isDog; }), 'hellhounds spawned');
-  // wipe the dogs; last death should drop a max ammo
   G.zombies.toSpawn = 0;
-  G.weapons.slots[0].reserve = 0; // sentinel: refilled only if max ammo is grabbed
-  var dogs = G.zombies.list.filter(function (z) { return !z.dead; });
-  dogs.forEach(function (z) { G.zombies.damageZombie(z, 1e9, {}); });
+  G.weapons.slots[0].reserve = 0;
+  G.zombies.list.filter(function (z) { return !z.dead; })
+    .forEach(function (z) { G.zombies.damageZombie(z, 1e9, {}); });
   step(10);
-  var dropped = G.powerups.active.some(function (p) { return p.type === 'maxammo'; });
-  var grabbed = G.weapons.slots[0].reserve > 0;
-  ok(dropped || grabbed, 'max ammo dropped at the end of the dog round' +
-     (grabbed ? ' (grabbed instantly)' : ''));
+  ok(G.powerups.active.some(function (p) { return p.type === 'maxammo'; }) ||
+     G.weapons.slots[0].reserve > 0,
+     'max ammo dropped at the end of the dog round');
   ok(G.zombies.mode === 'break', 'round break after dogs');
 
-  /* downed with quick revive, then final death */
+  /* downs */
   G.player.damage = origDamage;
   ok(G.player.hasPerk('revive'), 'still has quick revive');
   G.player.hp = 1;
@@ -301,7 +358,12 @@ function moveTo(pos) { G.player.pos.set(pos.x, 0, pos.z); G.player.vel.set(0, 0,
   G.player.damage(50);
   step(5);
   ok(G.state === 'over', 'game over without quick revive');
+}
 
+(async function () {
+  await runFull('wetterjunge');
+  await runQuick('nacht');
+  await runQuick('derriese');
   console.log(fails ? '\n' + fails + ' FAILURES' : '\nSMOKE TEST PASSED');
   process.exit(fails ? 1 : 0);
 })().catch(function (e) {

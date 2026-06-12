@@ -189,6 +189,18 @@
     var P = G.map.parsed = CFG.parseGrid(CFG.GRID);
     var map = G.map;
 
+    // per-map atmosphere
+    var atmos = CFG.cur.atmos;
+    G.scene.background = new THREE.Color(atmos.sky);
+    G.scene.fog.color.setHex(atmos.fog);
+    G.scene.fog.density = atmos.density;
+
+    // riser spawn points (room-tagged; active when the player is in that room)
+    map.risers = (CFG.RISERS || []).map(function (cr) {
+      var wc = CFG.cellToWorld(cr[0], cr[1]);
+      return { pos: new THREE.Vector3(wc.x, 0, wc.z), room: P.cells[cr[1]][cr[0]].room };
+    });
+
     var wallMat = mat(0x4a4540);
     var wallMat2 = mat(0x3e3a36);
     var woodMat = mat(0x6b4a2f);
@@ -417,17 +429,20 @@
       map.teleporters.push({ id: t.id, pos: pos, ring: ring, light: light, linked: false, linking: false, linkTimer: 0 });
     });
 
-    // mainframe
-    var mf = place(CFG.MAINFRAME);
-    var mfPad = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.8, 0.2, 24),
-      mat(0x44505a, { emissive: new THREE.Color(0x113344) }));
-    mfPad.position.set(mf.x, 0.1, mf.z);
-    G.scene.add(mfPad);
-    addBox(0.5, 2.8, 0.5, mf.x - 2.2, 1.4, mf.z, mat(0x39424d), { collide: true, solid: true });
-    var mfLabel = textSprite('MAINFRAME', '#9ef', 2.6);
-    mfLabel.position.set(mf.x, 2.6, mf.z);
-    G.scene.add(mfLabel);
-    map.mainframe = { pos: mf, pad: mfPad };
+    // mainframe (maps with teleporters only)
+    map.mainframe = null;
+    if (CFG.MAINFRAME) {
+      var mf = place(CFG.MAINFRAME);
+      var mfPad = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.8, 0.2, 24),
+        mat(0x44505a, { emissive: new THREE.Color(0x113344) }));
+      mfPad.position.set(mf.x, 0.1, mf.z);
+      G.scene.add(mfPad);
+      addBox(0.5, 2.8, 0.5, mf.x - 2.2, 1.4, mf.z, mat(0x39424d), { collide: true, solid: true });
+      var mfLabel = textSprite('MAINFRAME', '#9ef', 2.6);
+      mfLabel.position.set(mf.x, 2.6, mf.z);
+      G.scene.add(mfLabel);
+      map.mainframe = { pos: mf, pad: mfPad };
+    }
 
     // pack-a-punch + force field
     var pp = place(CFG.PAP);

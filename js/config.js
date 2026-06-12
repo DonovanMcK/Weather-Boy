@@ -1,111 +1,281 @@
 /* ===========================================================================
-   DER WETTERJUNGE — config.js
+   DER WETTERJUNGE & FRIENDS — config.js
    All tuning data + the pure map-grid parser (also loadable in node tests).
+   Three maps: Nacht der Untoten, Der Riese, Der Wetterjunge.
+   Convention: the spawn room is ALWAYS room letter 'S'.
    =========================================================================== */
 (function (root) {
   'use strict';
 
   var CFG = {};
-
-  /* ------------------------------------------------------------------ map */
-  // 4m grid cells. Letters = rooms, digits = doors, '.' = void (outside).
-  // Coordinate mapping: x = (col - 6) * 4, z = (row - 5.5) * 4.
   CFG.CELL = 4;
-  CFG.GRID = [
-    '.....DDD.....', // r0   D = Radar Dome (power, Teleporter C, Stamin-Up)
-    '.....DDD.....', // r1
-    '......7......', // r2   door 7: Dome <-> Courtyard (1750)
-    'LLL.CCCCC.RRR', // r3   L = Lab (Tele A), C = Courtyard, R = Storage (Tele B)
-    'LLL5CCCCC6RRR', // r4   door 5: Lab<->C (1250), door 6: Storage<->C (1250)
-    'LLL.CCCCC.RRR', // r5
-    '...CCCCCCC...', // r6
-    '...3.....4...', // r7   door 3: HallA<->C (1250), door 4: HallB<->C (1250)
-    '.AAA.....BBB.', // r8   A/B = L-shaped corridors
-    '.A.........B.', // r9
-    '.AAA1SSS2BBB.', // r10  door 1: Spawn<->A (750), door 2: Spawn<->B (1000)
-    '.....SSS.....'  // r11  S = Spawn room
-  ];
 
-  CFG.ROOMS = {
-    S: { name: 'Spawn Room',  floor: 0x3a3530, light: 0x886655 },
-    A: { name: 'West Hall',   floor: 0x2f3338, light: 0x667788 },
-    B: { name: 'East Hall',   floor: 0x33302f, light: 0x778866 },
-    C: { name: 'Courtyard',   floor: 0x2c3a2e, light: 0x99aabb },
-    L: { name: 'Laboratory',  floor: 0x2e3640, light: 0x66ccdd },
-    R: { name: 'Storage',     floor: 0x3b3328, light: 0xddaa66 },
-    D: { name: 'Radar Dome',  floor: 0x342e3e, light: 0xbb88ff }
+  /* ===================================================================== */
+  /* MAPS — 4m grid cells. Letters = rooms, digits = doors, '.' = outside. */
+  /* ===================================================================== */
+  CFG.MAPS = {};
+
+  /* ----------------------------------------------- NACHT DER UNTOTEN --- */
+  CFG.MAPS.nacht = {
+    id: 'nacht',
+    name: 'NACHT DER UNTOTEN',
+    sub: 'Where it all began — a bombed-out bunker. Wonder weapon: Thundergun.',
+    wonder: 'thunder',
+    papRule: 'power',          // Pack-a-Punch unlocks when the power goes on
+    atmos: { sky: 0x0b0805, fog: 0x0e0a06, density: 0.038 },
+    GRID: [
+      '..........',
+      '.HHH.GGG..',  // H = Help Room, G = Generator Room (power + PaP)
+      '.HHH.GGG..',
+      '.HHH1GGG..',  // door 1: shortcut Help <-> Generator
+      '..2....3..',  // door 2: Spawn -> Help, door 3: Spawn -> Generator
+      '.SSSSSSS..',
+      '.SSSSSSS..',
+      '.SSSSSSS..',
+      '..........'
+    ],
+    ROOMS: {
+      S: { name: 'Spawn Bunker',   floor: 0x3a3328, light: 0x997755 },
+      H: { name: 'Help Room',      floor: 0x332e2a, light: 0xaa8866 },
+      G: { name: 'Generator Room', floor: 0x2e2c26, light: 0x88aa77 }
+    },
+    DOORS: {
+      1: { cost: 750,  name: 'Shortcut' },
+      2: { cost: 1000, name: 'Help Room' },
+      3: { cost: 1000, name: 'Generator Room' }
+    },
+    WINDOWS: [
+      { cell: [1, 6], dir: 'W' },
+      { cell: [3, 7], dir: 'S' },
+      { cell: [5, 7], dir: 'S' },
+      { cell: [7, 6], dir: 'E' },
+      { cell: [1, 1], dir: 'W' },
+      { cell: [2, 1], dir: 'N' },
+      { cell: [6, 1], dir: 'N' },
+      { cell: [7, 2], dir: 'E' }
+    ],
+    RISERS: [],
+    PERK_MACHINES: [
+      { perk: 'revive', cell: [1, 7],  off: [-1.2, 1.2] },
+      { perk: 'jugg',   cell: [1, 1],  off: [-1.2, -1.2] },
+      { perk: 'speed',  cell: [5, 1],  off: [0, -1.2] },
+      { perk: 'dtap',   cell: [7, 7],  off: [1.2, 1.2] }
+    ],
+    WALLBUYS: [
+      { gun: 'm14',      cell: [4, 7], off: [0, 1.7],  face: 'S' },
+      { gun: 'olympia',  cell: [6, 7], off: [0, 1.7],  face: 'S' },
+      { gun: 'mp5k',     cell: [3, 2], off: [1.7, 0],  face: 'E' },
+      { gun: 'stakeout', cell: [1, 3], off: [-1.7, 0], face: 'W' },
+      { gun: 'mp40',     cell: [7, 3], off: [1.7, 0],  face: 'E' },
+      { gun: 'frags',    cell: [5, 5], off: [0, -1.7], face: 'N' }
+    ],
+    BOX_SPOTS: [
+      { cell: [2, 2], off: [0, 0.5] },
+      { cell: [6, 2], off: [-0.8, 0.5] },
+      { cell: [3, 6], off: [0, 0] }
+    ],
+    TELEPORTERS: [],
+    MAINFRAME: null,
+    PAP: { cell: [5, 2], off: [-0.5, 0.5] },
+    POWER: { cell: [7, 1], off: [1.0, -1.0] },
+    PLAYER_SPAWN: { cell: [4, 6], off: [0, 0.5] }
   };
 
-  CFG.DOORS = {
-    1: { cost: 750,  name: 'Spawn → West Hall' },
-    2: { cost: 1000, name: 'Spawn → East Hall' },
-    3: { cost: 1250, name: 'West Hall → Courtyard' },
-    4: { cost: 1250, name: 'East Hall → Courtyard' },
-    5: { cost: 1250, name: 'Laboratory' },
-    6: { cost: 1250, name: 'Storage' },
-    7: { cost: 1750, name: 'Radar Dome' }
+  /* ------------------------------------------------------- DER RIESE --- */
+  CFG.MAPS.derriese = {
+    id: 'derriese',
+    name: 'DER RIESE',
+    sub: "The giant's factory — link the teleporters. Wonder weapon: Wunderwaffe DG-2.",
+    wonder: 'wunderwaffe',
+    papRule: 'teleporters',
+    atmos: { sky: 0x090c09, fog: 0x0c100c, density: 0.032 },
+    GRID: [
+      '.LLL....FFF.',  // L = Animal Lab (Tele A), F = Furnace (Tele B)
+      '.LLL....FFF.',
+      '..4......5..',
+      '.AAA....BBB.',  // A / B = factory hallways
+      '.AAA....BBB.',
+      '..2.....3...',
+      '..SSSSSSS...',  // S = courtyard with mainframe + Pack-a-Punch
+      '..SSSSSSS...',
+      '..SSSSSSS...',
+      '.....6......',
+      '....GGGG....',  // G = Garage (Tele C)
+      '....GGGG....'
+    ],
+    ROOMS: {
+      S: { name: 'Mainframe Courtyard', floor: 0x33352e, light: 0x99aa88 },
+      A: { name: 'West Hallway',  floor: 0x2f3338, light: 0x778899 },
+      B: { name: 'East Hallway',  floor: 0x36302a, light: 0xaa8866 },
+      L: { name: 'Animal Lab',    floor: 0x2e3640, light: 0x66bbcc },
+      F: { name: 'Furnace',       floor: 0x3b2c24, light: 0xcc7744 },
+      G: { name: 'Garage',        floor: 0x30322e, light: 0x88aa99 }
+    },
+    DOORS: {
+      2: { cost: 750,  name: 'West Hallway' },
+      3: { cost: 1000, name: 'East Hallway' },
+      4: { cost: 1250, name: 'Animal Lab' },
+      5: { cost: 1250, name: 'Furnace' },
+      6: { cost: 1250, name: 'Garage' }
+    },
+    WINDOWS: [
+      { cell: [3, 8],  dir: 'S' },
+      { cell: [7, 8],  dir: 'S' },
+      { cell: [2, 7],  dir: 'W' },
+      { cell: [1, 4],  dir: 'W' },
+      { cell: [10, 4], dir: 'E' },
+      { cell: [1, 0],  dir: 'N' },
+      { cell: [3, 0],  dir: 'N' },
+      { cell: [8, 0],  dir: 'N' },
+      { cell: [10, 0], dir: 'N' },
+      { cell: [4, 11], dir: 'S' },
+      { cell: [7, 11], dir: 'S' }
+    ],
+    RISERS: [[4, 7], [6, 7]],
+    PERK_MACHINES: [
+      { perk: 'revive', cell: [3, 6],  off: [0, -1.2] },
+      { perk: 'jugg',   cell: [1, 3],  off: [-1.2, -1.2] },
+      { perk: 'speed',  cell: [10, 3], off: [1.2, -1.2] },
+      { perk: 'dtap',   cell: [8, 1],  off: [-1.0, 0.8] },
+      { perk: 'mule',   cell: [2, 1],  off: [0, 1.0] },
+      { perk: 'stamin', cell: [6, 10], off: [1.0, 0] }
+    ],
+    WALLBUYS: [
+      { gun: 'm14',      cell: [8, 7],  off: [1.7, 0],  face: 'E' },
+      { gun: 'olympia',  cell: [2, 8],  off: [-1.7, 0], face: 'W' },
+      { gun: 'mp5k',     cell: [3, 3],  off: [1.7, 0],  face: 'E' },
+      { gun: 'stakeout', cell: [8, 3],  off: [-1.7, 0], face: 'W' },
+      { gun: 'mp40',     cell: [10, 1], off: [1.7, 0],  face: 'E' },
+      { gun: 'm16',      cell: [1, 1],  off: [-1.7, 0], face: 'W' },
+      { gun: 'ak74u',    cell: [4, 10], off: [-1.7, 0], face: 'W' },
+      { gun: 'frags',    cell: [6, 8],  off: [0, 1.7],  face: 'S' }
+    ],
+    BOX_SPOTS: [
+      { cell: [2, 4],  off: [0, 0.8] },
+      { cell: [3, 1],  off: [0.8, 0.8] },
+      { cell: [9, 1],  off: [0, 0.8] },
+      { cell: [9, 4],  off: [0.8, 0.8] },
+      { cell: [5, 11], off: [-0.8, 0.8] }
+    ],
+    TELEPORTERS: [
+      { id: 'A', cell: [2, 0],  off: [0, -0.8] },
+      { id: 'B', cell: [9, 0],  off: [0, -0.6] },
+      { id: 'C', cell: [6, 11], off: [0.5, 0.5] }
+    ],
+    MAINFRAME: { cell: [5, 6], off: [0, -0.5] },
+    PAP: { cell: [6, 6], off: [1.2, -0.5] },
+    POWER: { cell: [3, 4], off: [1.4, 0] },
+    PLAYER_SPAWN: { cell: [5, 7], off: [0, 0.5] }
   };
 
-  // Windows: barricades on outer walls. {cell:[col,row], dir:'N'|'S'|'E'|'W'}
-  CFG.WINDOWS = [
-    { cell: [5, 11], dir: 'S' },
-    { cell: [7, 11], dir: 'S' },
-    { cell: [1, 9],  dir: 'W' },
-    { cell: [11, 9], dir: 'E' },
-    { cell: [4, 3],  dir: 'N' },
-    { cell: [8, 3],  dir: 'N' },
-    { cell: [0, 4],  dir: 'W' },
-    { cell: [12, 4], dir: 'E' },
-    { cell: [5, 0],  dir: 'N' },
-    { cell: [7, 0],  dir: 'N' }
-  ];
+  /* -------------------------------------------------- DER WETTERJUNGE --- */
+  CFG.MAPS.wetterjunge = {
+    id: 'wetterjunge',
+    name: 'DER WETTERJUNGE',
+    sub: 'Storm research station — custom map. Wonder weapon: the Wettermacher.',
+    wonder: 'stormcaller',
+    papRule: 'teleporters',
+    atmos: { sky: 0x07090f, fog: 0x0a0d14, density: 0.03 },
+    GRID: [
+      '.....DDD.....', // D = Radar Dome (power, Teleporter C, Stamin-Up)
+      '.....DDD.....',
+      '......7......', // door 7: Dome <-> Courtyard
+      'LLL.CCCCC.RRR', // L = Lab (Tele A), C = Courtyard, R = Storage (Tele B)
+      'LLL5CCCCC6RRR',
+      'LLL.CCCCC.RRR',
+      '...CCCCCCC...',
+      '...3.....4...',
+      '.AAA.....BBB.', // A/B = L-shaped corridors
+      '.A.........B.',
+      '.AAA1SSS2BBB.', // S = Spawn room
+      '.....SSS.....'
+    ],
+    ROOMS: {
+      S: { name: 'Spawn Room',  floor: 0x3a3530, light: 0x886655 },
+      A: { name: 'West Hall',   floor: 0x2f3338, light: 0x667788 },
+      B: { name: 'East Hall',   floor: 0x33302f, light: 0x778866 },
+      C: { name: 'Courtyard',   floor: 0x2c3a2e, light: 0x99aabb },
+      L: { name: 'Laboratory',  floor: 0x2e3640, light: 0x66ccdd },
+      R: { name: 'Storage',     floor: 0x3b3328, light: 0xddaa66 },
+      D: { name: 'Radar Dome',  floor: 0x342e3e, light: 0xbb88ff }
+    },
+    DOORS: {
+      1: { cost: 750,  name: 'Spawn → West Hall' },
+      2: { cost: 1000, name: 'Spawn → East Hall' },
+      3: { cost: 1250, name: 'West Hall → Courtyard' },
+      4: { cost: 1250, name: 'East Hall → Courtyard' },
+      5: { cost: 1250, name: 'Laboratory' },
+      6: { cost: 1250, name: 'Storage' },
+      7: { cost: 1750, name: 'Radar Dome' }
+    },
+    WINDOWS: [
+      { cell: [5, 11], dir: 'S' },
+      { cell: [7, 11], dir: 'S' },
+      { cell: [1, 9],  dir: 'W' },
+      { cell: [11, 9], dir: 'E' },
+      { cell: [4, 3],  dir: 'N' },
+      { cell: [8, 3],  dir: 'N' },
+      { cell: [0, 4],  dir: 'W' },
+      { cell: [12, 4], dir: 'E' },
+      { cell: [5, 0],  dir: 'N' },
+      { cell: [7, 0],  dir: 'N' }
+    ],
+    RISERS: [[5, 5], [7, 5], [6, 6]],
+    PERK_MACHINES: [
+      { perk: 'revive',  cell: [7, 11], off: [1.2, 1.2] },
+      { perk: 'jugg',    cell: [4, 5],  off: [-1.5, 0] },
+      { perk: 'speed',   cell: [0, 3],  off: [-1.2, -1.2] },
+      { perk: 'dtap',    cell: [12, 3], off: [1.2, -1.2] },
+      { perk: 'stamin',  cell: [5, 1],  off: [-1.2, 0.8] },
+      { perk: 'mule',    cell: [11, 8], off: [1.2, -1.2] }
+    ],
+    WALLBUYS: [
+      { gun: 'm14',      cell: [7, 11], off: [1.7, -1.0], face: 'E' },
+      { gun: 'olympia',  cell: [5, 11], off: [-1.7, -1.0], face: 'W' },
+      { gun: 'mp40',     cell: [1, 8],  off: [0, -1.7], face: 'N' },
+      { gun: 'mp5k',     cell: [11, 10], off: [0, 1.7], face: 'S' },
+      { gun: 'ak74u',    cell: [5, 6],  off: [0, 1.7],  face: 'S' },
+      { gun: 'frags',    cell: [7, 6],  off: [0, 1.7],  face: 'S' },
+      { gun: 'stakeout', cell: [0, 5],  off: [0, 1.7],  face: 'S' },
+      { gun: 'm16',      cell: [12, 5], off: [0, 1.7],  face: 'S' }
+    ],
+    BOX_SPOTS: [
+      { cell: [4, 6],  off: [0, -1] },
+      { cell: [6, 11], off: [-1.4, 0.8] },
+      { cell: [1, 8],  off: [0.8, 0.8] },
+      { cell: [11, 10], off: [-0.8, -0.8] },
+      { cell: [0, 5],  off: [-0.8, -0.8] },
+      { cell: [12, 5], off: [0.8, -0.8] },
+      { cell: [7, 1],  off: [1.0, 0.5] }
+    ],
+    TELEPORTERS: [
+      { id: 'A', cell: [1, 4],  off: [-0.5, 0] },
+      { id: 'B', cell: [11, 4], off: [0.5, 0] },
+      { id: 'C', cell: [6, 0],  off: [0, -0.5] }
+    ],
+    MAINFRAME: { cell: [6, 4], off: [0, 0] },
+    PAP: { cell: [6, 5], off: [0, 1.0] },
+    POWER: { cell: [5, 0], off: [-1.4, -1.4] },
+    PLAYER_SPAWN: { cell: [6, 10], off: [0, 0.5] }
+  };
 
-  // Ground risers (courtyard only), used when the player is in 'C'.
-  CFG.RISERS = [[5, 5], [7, 5], [6, 6]];
+  CFG.MAP_IDS = ['nacht', 'derriese', 'wetterjunge'];
 
-  /* ------------------------------------------------------- placed objects */
-  // pos given as [col,row] cell + optional [ox,oz] offset in meters.
-  CFG.PERK_MACHINES = [
-    { perk: 'revive',  cell: [7, 11], off: [1.2, 1.2] },
-    { perk: 'jugg',    cell: [4, 5],  off: [-1.5, 0] },
-    { perk: 'speed',   cell: [0, 3],  off: [-1.2, -1.2] },
-    { perk: 'dtap',    cell: [12, 3], off: [1.2, -1.2] },
-    { perk: 'stamin',  cell: [5, 1],  off: [-1.2, 0.8] },
-    { perk: 'mule',    cell: [11, 8], off: [1.2, -1.2] }
-  ];
+  // Copies the chosen map's data onto CFG.* so the rest of the code keeps a
+  // single source. Also sets the grid->world centering offsets.
+  CFG.setMap = function (id) {
+    var m = CFG.MAPS[id];
+    if (!m) throw new Error('unknown map ' + id);
+    CFG.cur = m;
+    ['GRID', 'ROOMS', 'DOORS', 'WINDOWS', 'RISERS', 'PERK_MACHINES', 'WALLBUYS',
+     'BOX_SPOTS', 'TELEPORTERS', 'MAINFRAME', 'PAP', 'POWER', 'PLAYER_SPAWN']
+      .forEach(function (k) { CFG[k] = m[k]; });
+    CFG._cx = m.GRID[0].length / 2 - 0.5;
+    CFG._cz = m.GRID.length / 2 - 0.5;
+    return m;
+  };
 
-  CFG.WALLBUYS = [
-    { gun: 'm14',      cell: [7, 11], off: [1.7, -1.0], face: 'E' },
-    { gun: 'olympia',  cell: [5, 11], off: [-1.7, -1.0], face: 'W' },
-    { gun: 'mp40',     cell: [1, 8],  off: [0, -1.7], face: 'N' },
-    { gun: 'mp5k',     cell: [11, 10], off: [0, 1.7], face: 'S' },
-    { gun: 'ak74u',    cell: [5, 6],  off: [0, 1.7],  face: 'S' },
-    { gun: 'frags',    cell: [7, 6],  off: [0, 1.7],  face: 'S' },
-    { gun: 'stakeout', cell: [0, 5],  off: [0, 1.7],  face: 'S' },
-    { gun: 'm16',      cell: [12, 5], off: [0, 1.7],  face: 'S' }
-  ];
-
-  CFG.BOX_SPOTS = [
-    { cell: [4, 6],  off: [0, -1] },   // courtyard (starting spot)
-    { cell: [6, 11], off: [-1.4, 0.8] },
-    { cell: [1, 8],  off: [0.8, 0.8] },
-    { cell: [11, 10], off: [-0.8, -0.8] },
-    { cell: [0, 5],  off: [-0.8, -0.8] },
-    { cell: [12, 5], off: [0.8, -0.8] },
-    { cell: [7, 1],  off: [1.0, 0.5] }
-  ];
-
-  CFG.TELEPORTERS = [
-    { id: 'A', cell: [1, 4],  off: [-0.5, 0] },
-    { id: 'B', cell: [11, 4], off: [0.5, 0] },
-    { id: 'C', cell: [6, 0],  off: [0, -0.5] }
-  ];
-  CFG.MAINFRAME = { cell: [6, 4], off: [0, 0] };
-  CFG.PAP = { cell: [6, 5], off: [0, 1.0] };
-  CFG.POWER = { cell: [5, 0], off: [-1.4, -1.4] };
-  CFG.PLAYER_SPAWN = { cell: [6, 10], off: [0, 0.5] };
-
-  CFG.TELE_LINK_WINDOW = 30;   // seconds to reach the mainframe
+  CFG.TELE_LINK_WINDOW = 30;
   CFG.TELE_USE_COST = 500;
   CFG.PAP_COST = 5000;
 
@@ -124,6 +294,7 @@
   /* -------------------------------------------------------------- weapons */
   // dmg per bullet (pellets multiply), rpm, mag, reserve, reload (s),
   // mode: 'auto' | 'semi' | 'pump', spread in degrees, cls drives the viewmodel.
+  // wonder:true guns only appear in the box on the map whose wonder they are.
   CFG.WEAPONS = {
     m1911: {
       name: 'M1911', cls: 'pistol', dmg: 30, head: 3, rpm: 360, mag: 8,
@@ -217,9 +388,23 @@
     },
     thunder: {
       name: 'Thundergun', cls: 'thunder', dmg: 0, head: 1, rpm: 90, mag: 2,
-      reserve: 12, reload: 3.0, mode: 'semi', spread: 0, box: 0.3,
-      projectile: 'wind',
+      reserve: 12, reload: 3.0, mode: 'semi', spread: 0, box: 0.35,
+      projectile: 'wind', wonder: true,
       pap: { name: 'Zeus Cannon', mag: 4, reserve: 24 }
+    },
+    wunderwaffe: {
+      name: 'Wunderwaffe DG-2', cls: 'wunder', dmg: 999999, head: 1, rpm: 100,
+      mag: 3, reserve: 15, reload: 3.0, mode: 'semi', spread: 0, box: 0.35,
+      projectile: 'chain', wonder: true, chain: 10, chainRadius: 5.5,
+      pap: { name: 'Wunderwaffe DG-3 JZ', mag: 6, reserve: 30,
+             chain: 24, chainRadius: 7.5 }
+    },
+    stormcaller: {
+      name: 'Wettermacher', cls: 'storm', dmg: 2500, head: 1, rpm: 80,
+      mag: 4, reserve: 16, reload: 3.2, mode: 'semi', spread: 0, box: 0.35,
+      projectile: 'storm', wonder: true, stormDur: 4, stormRadius: 5.5,
+      pap: { name: 'Auge des Sturms', dmg: 5000, mag: 8, reserve: 24,
+             stormDur: 6.5, stormRadius: 7.5 }
     }
   };
   // Mystery box also rolls monkey bombs as a pseudo-weapon entry.
@@ -318,10 +503,11 @@
   };
 
   CFG.cellToWorld = function (col, row) {
-    return { x: (col - 6) * CFG.CELL, z: (row - 5.5) * CFG.CELL };
+    return { x: (col - CFG._cx) * CFG.CELL, z: (row - CFG._cz) * CFG.CELL };
   };
   CFG.worldToCell = function (x, z) {
-    return { col: Math.round(x / CFG.CELL + 6), row: Math.round(z / CFG.CELL + 5.5) };
+    return { col: Math.round(x / CFG.CELL + CFG._cx),
+             row: Math.round(z / CFG.CELL + CFG._cz) };
   };
 
   /* ----------------------------------------------------------------------- */

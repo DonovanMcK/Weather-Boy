@@ -110,8 +110,9 @@
         if (map.power) return;
         map.setPower();
         G.audio.powerOn();
-        G.hud.banner('POWER ON', '#ff5', 3, 'Perks, teleporters and the courtyard hum to life');
+        G.hud.banner('POWER ON', '#ff5', 3, 'The machines hum to life');
         map.powerSwitch.mesh.material.emissive = new THREE.Color(0x115511);
+        if (CFG.cur.papRule === 'power' && !map.pap.unlocked) map.pap.unlock();
       }
     });
 
@@ -145,8 +146,8 @@
       });
     });
 
-    // mainframe
-    add({
+    // mainframe (teleporter maps only)
+    if (map.mainframe) add({
       pos: map.mainframe.pos, r: 2.4,
       prompt: function () {
         var linking = map.teleporters.filter(function (t) { return t.linking; });
@@ -175,7 +176,11 @@
     add({
       pos: map.pap.pos, r: 2.4,
       prompt: function () {
-        if (!map.pap.unlocked) return 'Pack-a-Punch — link all 3 teleporters';
+        if (!map.pap.unlocked) {
+          return CFG.cur.papRule === 'power'
+            ? 'Pack-a-Punch — turn on the power'
+            : 'Pack-a-Punch — link all 3 teleporters';
+        }
         if (I.papBusy) return null;
         var gun = G.weapons.current();
         if (!gun) return null;
@@ -295,6 +300,7 @@
     return Object.keys(CFG.WEAPONS).filter(function (id) {
       var w = CFG.WEAPONS[id];
       if (!w.box) return false;
+      if (w.wonder && id !== CFG.cur.wonder) return false; // map's own wonder only
       if (G.weapons.hasWeapon(id)) return false;
       return true;
     });

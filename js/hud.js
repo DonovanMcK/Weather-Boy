@@ -141,8 +141,9 @@
 
   H.gameOverStats = function () {
     el('over-stats').innerHTML =
+      G.CFG.cur.name + '<br>' +
       'You survived to round <b>' + G.zombies.round + '</b><br>' +
       'Kills: <b>' + G.player.kills + '</b> &nbsp; Points earned: <b>' + G.player.points + '</b><br>' +
-      'Best round: <b>' + (localStorage.getItem('wj_best') || G.zombies.round) + '</b>';
+      'Best round: <b>' + (localStorage.getItem(G.bestKey()) || G.zombies.round) + '</b>';
   };
 })();

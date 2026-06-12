@@ -174,3 +174,31 @@ tests/validate-map.js   node test: grid integrity, door adjacency, reachability
 
 Everything hangs off one `G` namespace; data lives in `config.js` so the whole
 game is tunable from one file.
+
+---
+
+## 14. Multi-Map Update (v2)
+
+The game now ships **three maps**, selected from the start menu. All map data
+lives in `CFG.MAPS` (config.js); each entry defines its own grid, rooms, doors,
+windows, risers, machines, box spots, teleporters, atmosphere, PaP unlock rule
+and wonder weapon. The spawn room is always letter `S`.
+
+| Map | PaP rule | Wonder weapon |
+|---|---|---|
+| Nacht der Untoten | `power` — flipping the switch drops the PaP force field | Thundergun (authentic to BO1 Nacht) |
+| Der Riese | `teleporters` — link 3 pads at the courtyard mainframe | Wunderwaffe DG-2 → *DG-3 JZ* (chains 10 → 24) |
+| Der Wetterjunge | `teleporters` | **Wettermacher** → *Auge des Sturms* (custom) |
+
+**Wonder-weapon rules:** every map's box carries the Ray Gun, Monkey Bombs and
+exactly one wonder weapon; wonder weapons flagged `wonder: true` never roll on
+another map.
+
+**Wunderwaffe DG-2** — instant lightning bolt; first zombie struck electrifies
+the nearest zombie within 5.5 m of *any* electrified zombie, repeating up to 10
+links (24 / 7.5 m upgraded). Visualized as cyan arcs between victims. 3/15 ammo.
+
+**Wettermacher** (custom) — lobs a storm orb that detonates into a stationary
+tornado vortex (4 s, radius 5.5 m; 6.5 s / 7.5 m upgraded). The vortex drags
+nearby zombies toward its eye and strikes everything inside with lightning
+every 0.45 s. 4/16 ammo.

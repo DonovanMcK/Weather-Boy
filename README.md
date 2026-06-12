@@ -1,8 +1,19 @@
-# DER WETTERJUNGE — Weather-Boy Zombies
+# WEATHER-BOY ZOMBIES
 
-A Black Ops 1/2-style **round-based zombies FPS** set in an abandoned mountaintop
-weather research station. Fully 3D (Three.js), fully offline, zero build step,
+A Black Ops 1/2-style **round-based zombies FPS** with **three maps**, each with
+its own wonder weapon. Fully 3D (Three.js), fully offline, zero build step,
 zero assets — every texture and sound is generated procedurally at runtime.
+
+## Maps
+
+| Map | Layout | Pack-a-Punch unlock | Wonder weapon |
+|---|---|---|---|
+| **Nacht der Untoten** | Tight 3-room bunker | Turn on the power | **Thundergun** (wind cone, flings hordes) |
+| **Der Riese** | Factory: courtyard mainframe + 3 teleporter wings | Link all 3 teleporters | **Wunderwaffe DG-2** (chain lightning, 10 zombies — 24 upgraded) |
+| **Der Wetterjunge** *(custom)* | Storm research station | Link all 3 teleporters | **Wettermacher** *(custom)* — storm orb that spawns a tornado vortex which drags zombies in and zaps them |
+
+Every map's mystery box also carries the **Ray Gun** and **Monkey Bombs**;
+other maps' wonder weapons never roll.
 
 ![genre](https://img.shields.io/badge/genre-zombies%20FPS-darkred)
 
@@ -37,8 +48,9 @@ zero assets — every texture and sound is generated procedurally at runtime.
   boards off windows, vault in, and flow through the map toward you.
 - **Hellhound rounds every 5th round** — kill the last dog for a guaranteed **Max Ammo**.
 - **Points economy**: 10/hit, 60/kill, 100/headshot, 130/knife, 10/board.
-- **8 wall buys**, **mystery box** (16 guns including the **Ray Gun**,
-  **Thundergun** and **Monkey Bombs**; teddy bear moves the box).
+- **Wall buys** on every map, **mystery box** (assault rifles, LMGs, shotguns,
+  Python, Ray Gun, Monkey Bombs and the map's wonder weapon; teddy bear moves
+  the box).
 - **Two-gun limit**, magazine + reserve ammo, per-gun reload/fire characteristics.
 - **6 Perk-a-Colas**: Quick Revive (solo self-revive ×3), Juggernog, Speed Cola,
   Double Tap II, Stamin-Up, Mule Kick (max 4 perks).
@@ -51,27 +63,17 @@ zero assets — every texture and sound is generated procedurally at runtime.
 - Crawlers, barricade rebuilding, headshots, hit markers, damage vignette,
   best-round tracking in localStorage.
 
-## Map
-
-```
-            [RADAR DOME]  power · Teleporter C · Stamin-Up
-                 |1750
-[LAB]────[ COURTYARD ]────[STORAGE]      Courtyard: mainframe, Pack-a-Punch,
- TeleA     1250 · 1250      TeleB        Juggernog, mystery box start
-   \           |  |            /
-   [WEST HALL]      [EAST HALL]          L-shaped halls: MP40 / MP5K, Mule Kick
-      750 \            / 1000
-           [SPAWN ROOM]                  Quick Revive, M14, Olympia
-```
-
 ## Development
 
-- `js/config.js` holds *all* tuning data (weapons, perks, round curves, map grid).
-  The map is an ASCII grid — edit it and the world rebuilds itself.
+- `js/config.js` holds *all* tuning data (weapons, perks, round curves, and all
+  three map definitions). Maps are ASCII grids — edit one or add a fourth entry
+  to `CFG.MAPS` and the world rebuilds itself.
 - Tests (no browser needed): `npm install && npm test`
-  - `tests/validate-map.js` — grid integrity, door adjacency, reachability, placements.
-  - `tests/smoke.js` — boots the entire game headless in node and plays through
-    rounds, combat, doors, perks, power, teleporter linking, Pack-a-Punch, the
-    mystery box, power-ups, hellhounds, quick revive and game over.
+  - `tests/validate-map.js` — for every map: grid integrity, door adjacency,
+    reachability, placements, wonder-weapon/box-pool rules.
+  - `tests/smoke.js` — boots the entire game headless in node, once per map,
+    and plays through rounds, combat, doors, perks, power, teleporter linking,
+    Pack-a-Punch, the mystery box, all three wonder weapons, power-ups,
+    hellhounds, quick revive and game over.
 
 See `DESIGN.md` for the full design document.

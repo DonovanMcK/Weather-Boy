@@ -73,6 +73,10 @@
       else if (cls === 'raygun') { tone(900, 0.18, 'sawtooth', 0.25, 120); tone(1400, 0.12, 'square', 0.1, 300); }
       else if (cls === 'thunder') {
         noise(0.7, 300, 0.8); tone(60, 0.7, 'sawtooth', 0.5, 20); tone(45, 0.9, 'triangle', 0.5, 15);
+      } else if (cls === 'wunder') {
+        tone(1500, 0.35, 'sawtooth', 0.3, 90); noise(0.3, 5000, 0.25, 'highpass');
+      } else if (cls === 'storm') {
+        tone(130, 0.55, 'sine', 0.4, 35); noise(0.5, 700, 0.35);
       } else { noise(0.13, 1700, v); tone(150, 0.08, 'square', 0.16, 60); }
       if (papped && cls !== 'thunder') tone(1200, 0.05, 'sine', 0.06, 2000);
     },
@@ -127,6 +131,13 @@
       melody([0, 0, 110, 104, 98], 0.3, 'sawtooth', 0.2);
     },
     thunderClap: function () { noise(1.0, 300, 0.5); tone(50, 0.9, 'triangle', 0.35, 22); },
+
+    zap: function () {
+      tone(1800, 0.3, 'sawtooth', 0.28, 110); noise(0.28, 5500, 0.22, 'highpass');
+      tone(2400, 0.12, 'square', 0.1, 400);
+    },
+    vortex: function () { noise(2.4, 600, 0.4); tone(70, 2.4, 'sawtooth', 0.3, 35); },
+    vortexTick: function () { tone(900 + Math.random() * 900, 0.1, 'sawtooth', 0.09, 200); },
 
     teleportCharge: function () { tone(220, 1.2, 'sawtooth', 0.2, 880); },
     teleport: function () {
