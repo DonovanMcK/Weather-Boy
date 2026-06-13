@@ -23,6 +23,8 @@ function createGame() {
     obj.addEventListener = function (type, fn) { (obj._ls[type] = obj._ls[type] || []).push(fn); };
     obj.removeEventListener = function () {};
     obj.dispatch = function (type, ev) { (obj._ls[type] || []).forEach(function (f) { f(ev || {}); }); };
+    // gamepad.js dispatches synthetic key events via window.dispatchEvent(ev)
+    obj.dispatchEvent = function (ev) { (obj._ls[ev.type] || []).forEach(function (f) { f(ev); }); return true; };
     return obj;
   }
   function ctx2d() {
@@ -45,14 +47,16 @@ function createGame() {
   }
   function elemStub() {
     var e = makeEmitter({
-      style: {}, textContent: '', innerHTML: '', offsetWidth: 0, title: '',
-      classList: { add: function () {}, remove: function () {} },
-      children: []
+      style: { setProperty: function () {}, removeProperty: function () {} },
+      textContent: '', innerHTML: '', offsetWidth: 0, title: '', className: '',
+      classList: { add: function () {}, remove: function () {}, toggle: function () {} },
+      children: [], firstElementChild: null
     });
     e.appendChild = function (c) { e.children.push(c); };
     e.remove = function () {};
     e.requestPointerLock = function () {};
     e.parentElement = { style: {} };
+    e.matches = function () { return false; };
     return e;
   }
 
@@ -71,6 +75,9 @@ function createGame() {
 
   var rafCb = null;
   var windowStub = makeEmitter({ innerWidth: 1280, innerHeight: 720, devicePixelRatio: 1 });
+  var fakePads = [];
+  function KeyboardEventStub(type, init) { this.type = type; this.code = init && init.code; this.repeat = false; this.isTrusted = false; }
+  var navigatorStub = { platform: 'Test', userAgent: 'node', getGamepads: function () { return fakePads; } };
 
   function FakeRenderer() { this.domElement = canvasStub(); }
   FakeRenderer.prototype.setSize = function () {};
@@ -83,6 +90,8 @@ function createGame() {
   var sandbox = {
     window: windowStub,
     document: documentStub,
+    navigator: navigatorStub,
+    KeyboardEvent: KeyboardEventStub,
     THREE: THREEStub,
     performance: performance,
     localStorage: { _d: {}, getItem: function (k) { return this._d[k] || null; }, setItem: function (k, v) { this._d[k] = String(v); } },
@@ -95,7 +104,7 @@ function createGame() {
   };
   vm.createContext(sandbox);
 
-  ['config', 'audio', 'hud', 'map', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'main']
+  ['config', 'audio', 'hud', 'map', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'main']
     .forEach(function (name) {
       var src = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
       vm.runInContext(src, sandbox, { filename: name + '.js' });
@@ -115,9 +124,19 @@ function createGame() {
       }
     },
     pressF: function () { windowStub.dispatch('keydown', { code: 'KeyF' }); },
-    moveTo: function (pos) { G.player.pos.set(pos.x, 0, pos.z); G.player.vel.set(0, 0, 0); }
+    moveTo: function (pos) { G.player.pos.set(pos.x, 0, pos.z); G.player.vel.set(0, 0, 0); },
+    setPad: function (p) { fakePads[0] = p; },
+    keyup: function (code) { windowStub.dispatch('keyup', { code: code }); }
   };
 }
+
+// a fresh standard-mapping gamepad with all buttons released, sticks centered
+function makePad() {
+  var p = { connected: true, index: 0, mapping: 'standard', axes: [0, 0, 0, 0], buttons: [] };
+  for (var i = 0; i < 16; i++) p.buttons.push({ pressed: false, value: 0 });
+  return p;
+}
+function press(p, i, v) { p.buttons[i] = { pressed: v !== 0, value: v == null ? 1 : v }; }
 
 /* -------------------------------------------------- shared test pieces --- */
 function roomCenter(G, room) {
@@ -314,7 +333,76 @@ async function runQuick(mapId) {
   if (mapId === 'nacht') {
     testMovement(ctx); // big open spawn room
     testSimpleAim(ctx);
+    testGamepad(ctx);
   }
+}
+
+/* gamepad: a plugged-in controller drives movement, look, fire and ADS */
+function testGamepad(ctx) {
+  var G = ctx.G, step = ctx.step;
+  var P = G.player;
+  ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyC', 'Space'].forEach(ctx.keyup);
+  P.vel.set(0, 0, 0);
+  ctx.moveTo(roomCenter(G, 'S'));
+  P.yaw = 0; P.pitch = 0;
+  G.settings.aimMode = 'mouse';
+
+  var pad = makePad();
+  ctx.setPad(pad);
+  ctx.win.dispatch('gamepadconnected', { gamepad: { index: 0, id: 'Test Controller' } });
+  step(3);
+  ok(G.gamepad.connected, 'controller detected via Gamepad API');
+
+  // left stick forward -> forward intent -> player accelerates
+  pad.axes[1] = -1;
+  step(40);
+  ok(G.gamepad.moveZ < -0.6, 'left stick forward becomes a forward move intent');
+  ok(Math.hypot(P.vel.x, P.vel.z) > 3, 'player moves from the stick (' + Math.hypot(P.vel.x, P.vel.z).toFixed(1) + ' m/s)');
+  pad.axes[1] = 0;
+  step(40);
+
+  // right stick turns the view
+  var yaw0 = P.yaw;
+  pad.axes[2] = 1; // look right
+  step(20);
+  ok(Math.abs(P.yaw - yaw0) > 0.1, 'right stick turns the camera');
+  pad.axes[2] = 0;
+
+  // RT fires the weapon
+  G.weapons.equip(0, true);
+  var gun = G.weapons.current();
+  gun.ammo = G.weapons.stats(gun).mag;
+  step(30); // let any sprint ramp out
+  var ammo0 = gun.ammo;
+  press(pad, 7, 1); // right trigger
+  step(20);
+  press(pad, 7, 0);
+  ok(gun.ammo < ammo0, 'right trigger fires the weapon');
+
+  // LT aims down sights
+  press(pad, 6, 1);
+  step(30);
+  ok(P.ads > 0.7, 'left trigger aims down sights');
+  press(pad, 6, 0);
+  step(20);
+
+  // A jumps
+  P.pos.y = 0; P.vel.y = 0; P.onGround = true;
+  press(pad, 0, 1);
+  step(3);
+  ok(!P.onGround || P.vel.y > 0, 'A button jumps');
+  press(pad, 0, 0);
+
+  // Y reloads (synthetic key path)
+  gun.ammo = 1;
+  press(pad, 3, 1); step(3); press(pad, 3, 0);
+  step(2);
+  ok(G.weapons.reloading > 0, 'Y button reloads');
+
+  // unplug: intents clear, keyboard unaffected
+  ctx.setPad(null);
+  step(3);
+  ok(!G.gamepad.connected && G.gamepad.moveZ === 0, 'unplugging clears controller intents');
 }
 
 /* simple-aim (trackpad) mode: bullet magnetism lands slightly-off shots */

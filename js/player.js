@@ -218,9 +218,14 @@
       if (G.keys.KeyS) iz += 1;
       if (G.keys.KeyA) ix -= 1;
       if (G.keys.KeyD) ix += 1;
+      // gamepad left stick (analog intent; idle pad contributes 0)
+      if (G.gamepad && G.gamepad.connected) { ix += G.gamepad.moveX; iz += G.gamepad.moveZ; }
     }
-    var hasInput = ix !== 0 || iz !== 0;
-    var crouchKey = !!G.keys.KeyC && playing;
+    ix = Math.max(-1, Math.min(1, ix));
+    iz = Math.max(-1, Math.min(1, iz));
+    var gp = G.gamepad;
+    var hasInput = Math.abs(ix) > 0.01 || Math.abs(iz) > 0.01;
+    var crouchKey = ((!!G.keys.KeyC) || (gp && gp.crouch)) && playing;
     var crouchEdge = crouchKey && !P._prevCrouch;
     P._prevCrouch = crouchKey;
     var hSpeed = Math.hypot(P.vel.x, P.vel.z);
@@ -228,16 +233,19 @@
     // ADS (cancels sprint; blocked during reload/switch/knife;
     // disabled entirely in simple-aim/trackpad mode)
     var adsAllowed = !G.settings || G.settings.aimMode !== 'simple';
-    var adsTarget = (playing && adsAllowed && W.adsHeld && W.reloading <= 0 &&
+    var adsHeld = W.adsHeld || (gp && gp.ads);
+    var firing = W.mouseDown || (gp && gp.fire);
+    var adsTarget = (playing && adsAllowed && adsHeld && W.reloading <= 0 &&
                      W.switching <= 0 && W.knifing <= 0) ? 1 : 0;
     P.ads += (adsTarget - P.ads) * Math.min(1, dt * MV.adsSpeed);
     if (P.ads < 0.002 && !adsTarget) P.ads = 0;
 
     // sprint: holding fire or ADS ramps sprint out (sprint-out delay),
     // releasing ramps it back in — BO3 auto-resume
-    var wantSprint = playing && G.keys.ShiftLeft && iz < 0 &&
+    var sprintHeld = G.keys.ShiftLeft || (gp && gp.sprint);
+    var wantSprint = playing && sprintHeld && iz < 0 &&
                      P.stance !== 'slide' && !crouchKey &&
-                     adsTarget === 0 && !W.mouseDown;
+                     adsTarget === 0 && !firing;
     if (wantSprint && P.stance === 'crouch') P.stance = 'stand';
     P.sprintAmt += ((wantSprint ? 1 : 0) - P.sprintAmt) * Math.min(1, dt * MV.sprintRamp);
 
@@ -315,7 +323,7 @@
     }
 
     /* ------------------------------------------------- jump / gravity */
-    if (G.keys.Space && P.onGround && playing) {
+    if ((G.keys.Space || (gp && gp.jump)) && P.onGround && playing) {
       if (P.stance === 'slide') {
         // slide-hop: keep the boosted momentum
         P.stance = crouchKey ? 'crouch' : 'stand';

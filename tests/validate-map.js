@@ -188,9 +188,12 @@ ok(shots('m1911', 1) > shots('mp5k', 1), 'starting pistol weaker than an SMG');
 // headshots always beat body shots
 ok(shots('m16', 3, true) <= shots('m16', 3, false), 'headshots kill at least as fast as body');
 // player melee scaling: 3 hits base, 5 with Jugg on early rounds
-ok(Math.ceil(CFG.PLAYER_HP / CFG.zombieMeleeDamage(1)) === 3, 'player downs in 3 hits at base (BO3 scaling)');
+ok(Math.ceil(CFG.PLAYER_HP / CFG.zombieMeleeDamage(1)) === 3, 'player downs in 3 hits at base');
 ok(Math.ceil(CFG.JUGG_HP / CFG.zombieMeleeDamage(1)) === 5, 'player downs in 5 hits with Juggernog');
-ok(CFG.zombieMeleeDamage(20) > CFG.zombieMeleeDamage(1), 'zombie melee scales up with rounds');
+// melee never scales — 3-hit-down at every round, difficulty is count + speed
+ok([1, 10, 25, 50].every(function (r) { return Math.ceil(CFG.PLAYER_HP / CFG.zombieMeleeDamage(r)) === 3; }),
+   'always 3 swipes to down — melee damage is constant across all rounds');
+ok(CFG.sprinterFraction(1) < CFG.sprinterFraction(15), 'difficulty rises via sprinter fraction instead');
 // PPSh present (the requested gun) + 30+ arsenal
 ok(!!CFG.WEAPONS.ppsh, 'PPSh-41 is in the arsenal');
 ok(ids.length >= 30, 'at least 30 distinct guns (' + ids.length + ')');

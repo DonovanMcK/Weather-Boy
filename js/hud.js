@@ -13,8 +13,11 @@
   H.init = function () {
     H.points = el('hud-points');
     H.ticker = el('hud-ticker');
-    H.round = el('hud-round');
-    H.ammo = el('hud-ammo');
+    H.roundNum = el('hud-round-num');
+    H.mag = el('hud-mag');
+    H.res = el('hud-res');
+    H.ammoLine = el('hud-ammo-line');
+    H.magbar = el('hud-magbar');
     H.gun = el('hud-gun');
     H.equip = el('hud-equip');
     H.perksEl = el('hud-perks');
@@ -22,10 +25,12 @@
     H.bannerEl = el('hud-banner');
     H.bannerSub = el('hud-banner-sub');
     H.hitEl = el('hud-hitmarker');
+    H.cross = el('hud-cross');
     H.vig = el('hud-vignette');
     H.flash = el('hud-flash');
     H.pu = el('hud-powerups');
     H.downedEl = el('hud-downed');
+    H.health = el('hud-health');
     H.bannerTimer = 0;
   };
 
@@ -46,41 +51,72 @@
   };
 
   H.setRound = function (r) {
-    H.round.textContent = r;
-    H.round.classList.remove('pulse');
-    void H.round.offsetWidth;
-    H.round.classList.add('pulse');
+    H.roundNum.textContent = r;
+    H.roundNum.classList.remove('pulse');
+    void H.roundNum.offsetWidth;
+    H.roundNum.classList.add('pulse');
   };
 
   H.setAmmo = function () {
     var gun = G.weapons.current();
-    if (!gun) { H.ammo.textContent = ''; H.gun.textContent = ''; return; }
+    if (!gun) { H.mag.textContent = '0'; H.res.textContent = ''; H.gun.textContent = ''; return; }
     var s = G.weapons.stats(gun);
-    H.ammo.textContent = gun.ammo + ' / ' + gun.reserve;
-    H.ammo.style.color = gun.ammo === 0 ? '#f55' : '#eee';
+    H.mag.textContent = gun.ammo;
+    H.res.textContent = '/ ' + gun.reserve;
+    H.ammoLine.className = (gun.ammo === 0 || gun.ammo / s.mag <= 0.25) ? 'low' : '';
     H.gun.textContent = s.name;
-    H.gun.style.color = gun.papped ? '#d9f' : '#ccc';
-    H.equip.textContent = 'Frags ' + G.player.frags +
-      (G.player.hasMonkeys ? '  |  Monkeys ' + G.player.monkeys : '');
+    H.gun.style.color = gun.papped ? '#e0a8ff' : '#d8d8d8';
+    // magazine pips (cap the count so huge drums don't overflow the screen)
+    var pips = Math.min(s.mag, 40);
+    if (H._magPips !== pips) {
+      H._magPips = pips;
+      var html = '';
+      for (var i = 0; i < pips; i++) html += '<i></i>';
+      H.magbar.innerHTML = html;
+    }
+    var loaded = Math.round(gun.ammo / s.mag * pips);
+    var kids = H.magbar.children;
+    for (var k = 0; k < kids.length; k++) {
+      kids[k].className = k < loaded ? '' : 'spent';
+    }
+    var eq = '✊ ' + G.player.frags;
+    if (G.player.hasMonkeys) eq += '   🐵 ' + G.player.monkeys;
+    H.equip.textContent = eq;
   };
 
   H.setPerks = function (perks) {
     H.perksEl.innerHTML = '';
     perks.forEach(function (id) {
       var def = G.CFG.PERKS[id];
+      var col = new THREE.Color(def.color);
       var d = document.createElement('div');
-      d.className = 'perk';
+      d.className = 'perk pop';
       d.textContent = def.icon;
-      d.style.background = '#' + new THREE.Color(def.color).getHexString();
+      d.style.background = 'radial-gradient(circle at 38% 32%, ' +
+        '#' + col.clone().lerp(new THREE.Color(0xffffff), 0.35).getHexString() + ', ' +
+        '#' + col.getHexString() + ' 65%, ' +
+        '#' + col.clone().multiplyScalar(0.55).getHexString() + ')';
       d.title = def.name;
       H.perksEl.appendChild(d);
     });
   };
 
   H.setPrompt = function (text) {
-    H.prompt.textContent = text || '';
-    H.prompt.style.display = text ? 'block' : 'none';
+    if (!text) { H.prompt.style.display = 'none'; H._prompt = null; return; }
+    if (H._prompt === text) { H.prompt.style.display = 'block'; return; }
+    H._prompt = text;
+    // turn a leading "[F] " into a styled key-cap
+    var m = text.match(/^\[(\w)\]\s*(.*)$/);
+    if (m) H.prompt.innerHTML = '<span class="key">' + m[1] + '</span>' + escapeHtml(m[2]);
+    else H.prompt.textContent = text;
+    H.prompt.style.display = 'block';
   };
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>]/g, function (c) {
+      return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;';
+    });
+  }
 
   H.banner = function (text, color, secs, sub) {
     H.bannerEl.textContent = text;
@@ -92,18 +128,18 @@
 
   H.hitmarker = function (kill) {
     H.hitEl.style.opacity = 1;
-    H.hitEl.style.color = kill ? '#f33' : '#fff';
+    H.hitEl.style.color = kill ? '#ff3a3a' : '#fff';
+    if (H.cross) {
+      H.cross.classList.add('hit');
+      clearTimeout(H._chm);
+      H._chm = setTimeout(function () { H.cross.classList.remove('hit'); }, 110);
+    }
     clearTimeout(H._hm);
     H._hm = setTimeout(function () { H.hitEl.style.opacity = 0; }, 90);
   };
 
-  H.setAds = function (ads) {
-    if (Math.abs((H._ads || 0) - ads) < 0.02) return;
-    H._ads = ads;
-    var cross = document.getElementById('hud-cross');
-    cross.style.opacity = 0.75 * (1 - 0.85 * ads);
-    cross.style.transform = 'translate(-50%, -50%) scale(' + (1 - 0.35 * ads) + ')';
-  };
+  // crosshair ADS response is handled in updateCrosshair (reads player.ads)
+  H.setAds = function (ads) { H._ads = ads; };
 
   H.setScope = function (on) {
     if (H._scope === on) return;
@@ -125,13 +161,18 @@
 
   H.setPowerupTimers = function (timers) {
     var names = { insta: 'INSTA-KILL', double: 'DOUBLE POINTS', firesale: 'FIRE SALE' };
+    var cols = { insta: '#ffe24a', double: '#ff8a33', firesale: '#55bbff' };
+    var full = G.CFG.POWERUP_TIME || 30;
     var html = '';
     Object.keys(names).forEach(function (k) {
       if (timers[k] > 0) {
-        html += '<span class="pu">' + names[k] + ' ' + Math.ceil(timers[k]) + 's</span>';
+        var frac = Math.max(0, Math.min(1, timers[k] / full));
+        html += '<span class="pu" style="color:' + cols[k] + '">' +
+          names[k] + ' ' + Math.ceil(timers[k]) + 's' +
+          '<i class="bar" style="width:' + (frac * 100) + '%;background:' + cols[k] + '"></i></span>';
       }
     });
-    H.pu.innerHTML = html;
+    if (H._puHtml !== html) { H._puHtml = html; H.pu.innerHTML = html; }
   };
 
   H.showDowned = function (on) {
@@ -146,19 +187,34 @@
     var key = Math.round(hp) + '/' + maxHp;
     if (H._hpKey === key) return;
     H._hpKey = key;
-    var wrap = el('hud-health');
-    var fill = el('hud-health-fill');
-    wrap.style.width = Math.round(maxHp / 250 * 220) + 'px';
+    var fill = H.health.firstElementChild || el('hud-health-fill');
+    H.health.style.width = Math.round(80 + maxHp / 250 * 90) + 'px';
     var frac = Math.max(0, hp / maxHp);
     fill.style.width = (frac * 100) + '%';
-    fill.style.background = frac > 0.6 ? '#cfe3cf' : (frac > 0.3 ? '#e3b94f' : '#d33');
+    fill.style.background = frac > 0.55 ? '#d6ead6' : (frac > 0.28 ? '#e3b94f' : '#e23b3b');
+    if (frac <= 0.28) H.health.classList.add('low'); else H.health.classList.remove('low');
   };
+
+  // dynamic crosshair gap: opens with movement, sprint and recent fire; the
+  // dot stays put. Hidden when scoped.
+  function updateCrosshair() {
+    if (!H.cross) return;
+    var P = G.player, W = G.weapons;
+    if (!P || !W) return;
+    var speed = Math.hypot(P.vel.x || 0, P.vel.z || 0);
+    var gap = 4 + speed * 0.7 + P.sprintAmt * 7;
+    if (W.fireCd > 0) gap += Math.min(10, W.fireCd * 30); // bloom right after a shot
+    gap *= (1 - 0.7 * P.ads);                              // tighten at ADS
+    H.cross.style.setProperty('--gap', gap.toFixed(1) + 'px');
+    H.cross.style.opacity = (H._scope ? 0 : 0.85 * (1 - 0.55 * P.ads)).toFixed(2);
+  }
 
   H.update = function (dt) {
     if (H.bannerTimer > 0) {
       H.bannerTimer -= dt;
       if (H.bannerTimer <= 0) H.bannerEl.parentElement.style.opacity = 0;
     }
+    updateCrosshair();
   };
 
   /* ---------------------------------------------------------------- menus */

@@ -836,18 +836,19 @@
       if (W.reloading <= 0) finishReload();
     }
 
-    // trigger (sprint must ramp out first — the BO3 sprint-out delay)
+    // trigger (mouse OR gamepad RT; sprint must ramp out first — sprint-out delay)
+    var firing = W.mouseDown || (G.gamepad && G.gamepad.fire);
     if (G.state === 'playing' && !G.player.downed && !G.player.locked &&
         G.player.sprintAmt < 0.45 &&
         gun && W.reloading <= 0 && W.switching <= 0 && W.knifing <= 0 && W.fireCd <= 0) {
       var s = CFG.WEAPONS[gun.id];
       var auto = (gun.papped && s.pap.mode === 'auto') || s.mode === 'auto';
-      if (W.mouseDown && (auto || !W.semiLatch)) {
+      if (firing && (auto || !W.semiLatch)) {
         W.semiLatch = true;
         fire();
       }
     }
-    if (!W.mouseDown) W.semiLatch = false;
+    if (!firing) W.semiLatch = false;
 
     // viewmodel composition: hip<->ADS, sprint pose, sway, bob
     var Pl = G.player;

@@ -62,6 +62,13 @@ other maps' wonder weapons never roll.
 - **Two aim modes, auto-detected**: Macs/trackpads default to *simple aim*
   (no ADS needed — tighter hip-fire + bullet magnetism); mouse PCs get full
   right-click ADS with per-gun zoom. Switchable on the start menu.
+- **Controller support**: plug in an Xbox/PS gamepad and play — sticks
+  move/look, RT fire, LT aim, L3 sprint, A jump, B slide, X buy, Y reload,
+  LB/RB grenade & monkey, Start pause. Coexists with keyboard+mouse (an idle
+  pad never interferes).
+- **Polished HUD**: dynamic crosshair that opens with spread, 4-stroke
+  hitmarker, magazine pip bar, segmented health (grows with Juggernog),
+  power-up pills with countdown bars, perk discs, key-capped look prompts.
 - **Procedurally textured world**: concrete, tile, wood-grain and brushed-metal
   surfaces, hanging flickering lamps, barrels/crates, a real moon and starfield,
   filmic tone mapping — no asset files, everything generated at runtime.

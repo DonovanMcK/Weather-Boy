@@ -467,7 +467,7 @@
     var pressed = G.player.consumeInteract();
     if (best && !G.player.downed && !G.player.locked) {
       if (best.holdable) {
-        if (G.keys.KeyF) best.hold(dt);
+        if (G.keys.KeyF || (G.gamepad && G.gamepad.interactHeld)) best.hold(dt);
         else I.repairProgress = 0;
       } else if (pressed) {
         best.use();

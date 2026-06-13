@@ -132,6 +132,17 @@
     if (canvas.requestPointerLock) canvas.requestPointerLock();
   }
 
+  // controller-friendly pause toggle (Start button)
+  G.setPaused = function (on) {
+    if (on && G.state === 'playing') {
+      G.state = 'paused';
+      G.hud.showMenu('pause');
+      if (document.exitPointerLock) document.exitPointerLock();
+    } else if (!on && G.state === 'paused') {
+      resume();
+    }
+  };
+
   G.gameOver = function () {
     if (G.state === 'over') return;
     G.state = 'over';
@@ -148,6 +159,7 @@
     requestAnimationFrame(loop);
     var dt = Math.min(0.05, (now - last) / 1000);
     last = now;
+    if (G.gamepad) G.gamepad.update(dt);   // polled even while paused (Start resumes)
     if (G.state === 'paused' || G.state === 'menu') {
       G.renderer.render(G.scene, G.camera);
       return;

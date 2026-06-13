@@ -286,3 +286,22 @@ Renamed the game **TOTENSTURM** ("death storm" — Group 935 / storm theme).
 - **Zombie vocals**: sprinters scream on approach, every death gurgles, groans
   fire more often — all synthesized (wave-shaped saws through vocal formant
   filters). Drop-in real SFX still supported via `sounds/`.
+
+## 18. HUD Polish + Controller + Flat Melee (v6)
+
+- **Constant melee:** zombie swipe damage no longer scales — it's always 50, so
+  it's **always 3 swipes to down (5 with Juggernog)** at every round. Difficulty
+  comes from zombie count and speed (sprinter fraction), never harder hits.
+- **HUD pass:** dynamic crosshair (4 ticks that bloom with movement/sprint/recoil
+  and tighten at ADS, recolor on hit), proper 4-stroke hitmarker, ammo block with
+  a magazine pip bar + low-ammo state, segmented health bar that widens with
+  Juggernog and pulses red when low, power-up pills with shrinking countdown bars,
+  perk discs with a pickup pop, points coin + floating tick, ROUND label, and a
+  key-capped interaction prompt.
+- **Controller support (`js/gamepad.js`):** Gamepad API polled each frame. To
+  avoid fighting keyboard+mouse, the pad writes neutral intents onto `G.gamepad`
+  (an idle plugged-in pad contributes nothing); look is applied to the camera and
+  discrete actions dispatch synthetic key events through the existing handlers.
+  Standard Xbox mapping; Start pauses/resumes and A resumes from the pause menu so
+  you never need the mouse. Headless test simulates a fake pad and verifies move,
+  look, fire, ADS, jump, reload and clean unplug.

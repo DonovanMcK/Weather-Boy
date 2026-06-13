@@ -758,14 +758,10 @@
   CFG.JUGG_HP = 250;
   CFG.REGEN_DELAY = 3.5;
   CFG.REGEN_RATE = 60;        // hp/s
-  CFG.ZOMBIE_DMG = 50;        // base swipe (kept for back-compat references)
-  // Round-scaled melee: 50 holds the BO3 feel (3 hits at 150HP, 5 with Jugg)
-  // through the early game, then climbs so high rounds genuinely threaten —
-  // by ~round 20 it's a 2-hit-down without Juggernog.
-  CFG.zombieMeleeDamage = function (r) {
-    if (r <= 10) return 50;
-    return Math.min(150, 50 + (r - 10) * 9);
-  };
+  CFG.ZOMBIE_DMG = 50;        // every swipe, every round
+  // Melee damage is CONSTANT — always 3 swipes to down (5 with Juggernog).
+  // Difficulty comes from zombie COUNT and SPEED, never from harder hits.
+  CFG.zombieMeleeDamage = function () { return CFG.ZOMBIE_DMG; };
   CFG.KNIFE_DMG = 150;
   CFG.GRENADE_DMG = 600;
   CFG.GRENADE_RADIUS = 4.5;
