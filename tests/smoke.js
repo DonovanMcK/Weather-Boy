@@ -337,6 +337,37 @@ async function runQuick(mapId) {
   }
 }
 
+/* controller-only menu navigation: focus, select, pause, resume */
+async function runMenuNav() {
+  console.log('\n=== menu navigation (controller) ===');
+  var ctx = createGame();
+  var G = ctx.G;
+  ok(G.state === 'menu', 'boots to the menu');
+  ok(G.hud.activeMenu === 'start', 'start menu is active');
+  ok(G.hud.menus.start && G.hud.menus.start.length >= 4, 'start menu items registered (maps + aim)');
+
+  var pad = makePad();
+  ctx.setPad(pad);
+  ctx.win.dispatch('gamepadconnected', { gamepad: { index: 0, id: 'Test Controller' } });
+  ctx.step(2);
+  ok(G.hud.focusIdx === 0, 'first item focused on the start menu');
+
+  press(pad, 15, 1); ctx.step(2); press(pad, 15, 0); ctx.step(2);  // D-pad right
+  ok(G.hud.focusIdx === 1, 'D-pad right moves menu focus forward');
+  press(pad, 14, 1); ctx.step(2); press(pad, 14, 0); ctx.step(2);  // D-pad left
+  ok(G.hud.focusIdx === 0, 'D-pad left moves menu focus back');
+
+  press(pad, 0, 1); ctx.step(2); press(pad, 0, 0); ctx.step(3);    // A: select first map
+  ok(G.state === 'playing', 'A on a focused map card starts the game');
+  ok(G.CFG.cur.id === G.CFG.MAP_IDS[0], 'started the focused map (' + G.CFG.cur.id + ')');
+
+  press(pad, 9, 1); ctx.step(2); press(pad, 9, 0); ctx.step(2);    // Start: pause
+  ok(G.state === 'paused', 'Start pauses the game');
+  ok(G.hud.activeMenu === 'pause', 'pause menu active');
+  press(pad, 1, 1); ctx.step(2); press(pad, 1, 0); ctx.step(2);    // B: back/resume
+  ok(G.state === 'playing', 'B resumes from the pause menu');
+}
+
 /* gamepad: a plugged-in controller drives movement, look, fire and ADS */
 function testGamepad(ctx) {
   var G = ctx.G, step = ctx.step;
@@ -634,6 +665,7 @@ if (require.main === module) {
     await runFull('wetterjunge');
     await runQuick('nacht');
     await runQuick('derriese');
+    await runMenuNav();
     console.log(fails ? '\n' + fails + ' FAILURES' : '\nSMOKE TEST PASSED');
     process.exit(fails ? 1 : 0);
   })().catch(function (e) {

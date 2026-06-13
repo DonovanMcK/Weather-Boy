@@ -74,24 +74,49 @@
       G.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // map select cards + menu buttons
+    // map select cards + menu buttons (also registered for controller nav)
+    var startItems = [];
     G.CFG.MAP_IDS.forEach(function (id) {
       var card = document.getElementById('map-' + id);
-      if (card) card.addEventListener('click', function () { G.startGame(id); });
+      if (card) {
+        card.addEventListener('click', function () { G.startGame(id); });
+        startItems.push({ el: card, action: function () { G.startGame(id); } });
+      }
       var best = localStorage.getItem('wj_best_' + id);
       var span = document.getElementById('best-' + id);
       if (span && best) span.textContent = 'Best: round ' + best;
     });
     G.settings.aimMode = detectAimMode();
     refreshAimButton();
-    document.getElementById('btn-aimmode').addEventListener('click', function () {
+    function toggleAim() {
       G.settings.aimMode = G.settings.aimMode === 'simple' ? 'mouse' : 'simple';
       localStorage.setItem('wj_aim', G.settings.aimMode);
       refreshAimButton();
-    });
+    }
+    var aimBtn = document.getElementById('btn-aimmode');
+    aimBtn.addEventListener('click', toggleAim);
+    startItems.push({ el: aimBtn, action: toggleAim });
+    var reload = function () { location.reload(); };
     document.getElementById('btn-resume').addEventListener('click', resume);
-    document.getElementById('btn-restart').addEventListener('click', function () { location.reload(); });
-    document.getElementById('btn-restart2').addEventListener('click', function () { location.reload(); });
+    document.getElementById('btn-restart').addEventListener('click', reload);
+    document.getElementById('btn-restart2').addEventListener('click', reload);
+
+    G.hud.setMenuItems('start', startItems);
+    G.hud.setMenuItems('pause', [
+      { el: document.getElementById('btn-resume'), action: resume },
+      { el: document.getElementById('btn-restart2'), action: reload }
+    ]);
+    G.hud.setMenuItems('over', [
+      { el: document.getElementById('btn-restart'), action: reload }
+    ]);
+
+    // keyboard menu navigation (arrows + Enter), for parity with the pad
+    window.addEventListener('keydown', function (e) {
+      if (G.state === 'playing') return;
+      if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') G.hud.menuMove(-1);
+      else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') G.hud.menuMove(1);
+      else if (e.code === 'Enter') G.hud.menuActivate();
+    });
 
     document.addEventListener('pointerlockchange', function () {
       if (!document.pointerLockElement && G.state === 'playing') {

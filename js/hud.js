@@ -218,11 +218,45 @@
   };
 
   /* ---------------------------------------------------------------- menus */
+  // controller/keyboard menu focus: each menu is a list of {el, action}
+  H.menus = {};
+  H.activeMenu = null;
+  H.focusIdx = 0;
+  H.setMenuItems = function (which, items) { H.menus[which] = items; };
+
+  function applyFocus() {
+    var items = H.menus[H.activeMenu];
+    if (!items) return;
+    for (var i = 0; i < items.length; i++) {
+      var el2 = items[i] && items[i].el;
+      if (el2 && el2.classList) el2.classList.toggle('focused', i === H.focusIdx);
+    }
+  }
+
+  H.menuMove = function (dir) {
+    var items = H.menus[H.activeMenu];
+    if (!items || !items.length) return;
+    H.focusIdx = (H.focusIdx + dir + items.length) % items.length;
+    applyFocus();
+  };
+  H.menuActivate = function () {
+    var items = H.menus[H.activeMenu];
+    if (!items || !items.length) return;
+    var it = items[H.focusIdx];
+    if (it && it.action) it.action();
+  };
+  H.menuBack = function () {
+    if (H.activeMenu === 'pause' && G.setPaused) G.setPaused(false);
+  };
+
   H.showMenu = function (which) {
     el('menu-start').style.display = which === 'start' ? 'flex' : 'none';
     el('menu-pause').style.display = which === 'pause' ? 'flex' : 'none';
     el('menu-over').style.display = which === 'over' ? 'flex' : 'none';
     el('hud').style.display = which ? 'none' : 'block';
+    H.activeMenu = which;
+    H.focusIdx = 0;
+    applyFocus();
   };
 
   H.gameOverStats = function () {

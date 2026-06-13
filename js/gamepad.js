@@ -104,8 +104,8 @@
     // ---- held: interact (X) drives barricade rebuild ----
     GP.interactHeld = playing && down(2);
 
-    // ---- edge-triggered discrete actions ----
     if (playing) {
+      // ---- in-game edge-triggered actions ----
       if (edge(2)) tapKey('KeyF');     // X tap: buy / use / open
       if (edge(3)) tapKey('KeyR');     // Y: reload
       if (edge(4)) tapKey('KeyG');     // LB: frag
@@ -115,16 +115,27 @@
       if (edge(13)) tapKey('KeyM');    // D-pad down: mute
       if (edge(14)) tapKey('Digit1');  // D-pad left: slot 1
       if (edge(15)) tapKey('Digit2');  // D-pad right: slot 2
-    } else {
-      // refresh edges so a press made while paused/menu doesn't fire on resume
-      [2, 3, 4, 5, 11, 12, 13, 14, 15].forEach(function (i) { prev[i] = down(i); });
+      GP._stick = 0;
+    } else if (G.hud && G.hud.menuActivate) {
+      // ---- menu navigation (start / pause / game-over) ----
+      // D-pad + left stick (edge-latched) move focus; A activates, B goes back
+      var nx = a[0] || 0, ny = a[1] || 0;
+      var sd = (nx > 0.5 || ny > 0.5) ? 1 : ((nx < -0.5 || ny < -0.5) ? -1 : 0);
+      var move = 0;
+      if (edge(12) || edge(14)) move = -1;       // up / left
+      if (edge(13) || edge(15)) move = 1;        // down / right
+      if (sd !== 0 && GP._stick === 0) move = sd;
+      GP._stick = sd;
+      if (move) G.hud.menuMove(move);
+      if (edge(0)) G.hud.menuActivate();         // A: select
+      if (edge(1)) G.hud.menuBack();             // B: back (resume)
+      // keep in-game button edges fresh so nothing fires on resume
+      [2, 3, 4, 5, 11].forEach(function (i) { prev[i] = down(i); });
     }
     // Start: pause / resume (works in both states)
     if (edge(9) && G.setPaused) {
       if (G.state === 'playing') G.setPaused(true);
       else if (G.state === 'paused') G.setPaused(false);
     }
-    // A also resumes from the pause menu (so you never need the mouse)
-    if (G.state === 'paused' && edge(0) && G.setPaused) G.setPaused(false);
   };
 })();
