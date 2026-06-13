@@ -22,63 +22,71 @@
     sub: 'Where it all began — a bombed-out bunker. Wonder weapon: Thundergun.',
     wonder: 'thunder',
     papRule: 'power',          // Pack-a-Punch unlocks when the power goes on
-    atmos: { sky: 0x14110c, fog: 0x16130d, density: 0.022 },
+    atmos: { sky: 0x14110c, fog: 0x16130d, density: 0.02 },
     GRID: [
-      '..........',
-      '.HHH.GGG..',  // H = Help Room, G = Generator Room (power + PaP)
-      '.HHH.GGG..',
-      '.HHH1GGG..',  // door 1: shortcut Help <-> Generator
-      '..2....3..',  // door 2: Spawn -> Help, door 3: Spawn -> Generator
-      '.SSSSSSS..',
-      '.SSSSSSS..',
-      '.SSSSSSS..',
-      '..........'
+      '...YYYYYYY...', // Y = Crash Site (outdoor, debris field)
+      '...YYYYYYY...',
+      '...YYYYYYY...',
+      '......1......', // 1: Crash Site <-> Spawn
+      'HHH.SSSSS.GGG', // H = Help Room   S = Spawn (main room)   G = Generator
+      'HHH2SSSSS3GGG', // 2: Help <-> Spawn   3: Spawn <-> Generator
+      'HHH.SSSSS.GGG',
+      'HHH.SSSSS.GGG',
+      '......4......', // 4: Spawn <-> Bunker
+      '...UUUUUUU...', // U = Bunker (power + Pack-a-Punch)
+      '...UUUUUUU...',
+      '...UUUUUUU...',
+      '.............'
     ],
     ROOMS: {
-      S: { name: 'Spawn Bunker',   floor: 0x3a3328, light: 0x997755 },
+      S: { name: 'Spawn Room',     floor: 0x3a3328, light: 0xb08858 },
+      Y: { name: 'Crash Site',     floor: 0x2d2a22, light: 0x8895aa },
       H: { name: 'Help Room',      floor: 0x332e2a, light: 0xaa8866 },
-      G: { name: 'Generator Room', floor: 0x2e2c26, light: 0x88aa77 }
+      G: { name: 'Generator Room', floor: 0x2e2c26, light: 0x88aa77 },
+      U: { name: 'Lower Bunker',   floor: 0x282520, light: 0xcc8844 }
     },
     DOORS: {
-      1: { cost: 750,  name: 'Shortcut' },
-      2: { cost: 1000, name: 'Help Room' },
-      3: { cost: 1000, name: 'Generator Room' }
+      1: { cost: 1000, name: 'Crash Site' },
+      2: { cost: 750,  name: 'Help Room' },
+      3: { cost: 1000, name: 'Generator Room' },
+      4: { cost: 1250, name: 'Lower Bunker' }
     },
     WINDOWS: [
-      { cell: [1, 6], dir: 'W' },
-      { cell: [3, 7], dir: 'S' },
-      { cell: [5, 7], dir: 'S' },
-      { cell: [7, 6], dir: 'E' },
-      { cell: [1, 1], dir: 'W' },
-      { cell: [2, 1], dir: 'N' },
-      { cell: [6, 1], dir: 'N' },
-      { cell: [7, 2], dir: 'E' }
+      { cell: [3, 0],  dir: 'N' },   // Crash Site
+      { cell: [9, 0],  dir: 'N' },
+      { cell: [0, 5],  dir: 'W' },   // Help
+      { cell: [1, 4],  dir: 'N' },
+      { cell: [12, 5], dir: 'E' },   // Generator
+      { cell: [11, 4], dir: 'N' },
+      { cell: [4, 4],  dir: 'N' },   // Spawn (cracked ceiling)
+      { cell: [3, 11], dir: 'S' },   // Bunker
+      { cell: [9, 11], dir: 'S' }
     ],
     RISERS: [],
     PERK_MACHINES: [
-      { perk: 'revive', cell: [1, 7],  off: [-1.2, 1.2] },
-      { perk: 'jugg',   cell: [1, 1],  off: [-1.2, -1.2] },
-      { perk: 'speed',  cell: [5, 1],  off: [0, -1.2] },
-      { perk: 'dtap',   cell: [7, 7],  off: [1.2, 1.2] }
+      { perk: 'revive', cell: [5, 7],  off: [0, 0] },
+      { perk: 'jugg',   cell: [1, 5],  off: [0, 0] },
+      { perk: 'speed',  cell: [11, 5], off: [0, 0] },
+      { perk: 'dtap',   cell: [6, 1],  off: [0, 0] }
     ],
     WALLBUYS: [
-      { gun: 'm14',      cell: [4, 7], off: [0, 1.7],  face: 'S' },
-      { gun: 'olympia',  cell: [6, 7], off: [0, 1.7],  face: 'S' },
-      { gun: 'mp5k',     cell: [3, 2], off: [1.7, 0],  face: 'E' },
-      { gun: 'stakeout', cell: [1, 3], off: [-1.7, 0], face: 'W' },
-      { gun: 'mp40',     cell: [7, 3], off: [1.7, 0],  face: 'E' },
-      { gun: 'frags',    cell: [5, 5], off: [0, -1.7], face: 'N' }
+      { gun: 'm14',      cell: [4, 7],  off: [0, 1.6],  face: 'S' },
+      { gun: 'olympia',  cell: [8, 7],  off: [0, 1.6],  face: 'S' },
+      { gun: 'mp5k',     cell: [0, 6],  off: [-1.6, 0], face: 'W' },
+      { gun: 'stakeout', cell: [12, 6], off: [1.6, 0],  face: 'E' },
+      { gun: 'mp40',     cell: [4, 0],  off: [0, -1.6], face: 'N' },
+      { gun: 'frags',    cell: [4, 11], off: [0, 1.6],  face: 'S' }
     ],
     BOX_SPOTS: [
-      { cell: [2, 2], off: [0, 0.5] },
-      { cell: [6, 2], off: [-0.8, 0.5] },
-      { cell: [3, 6], off: [0, 0] }
+      { cell: [4, 5],  off: [0, 0] },
+      { cell: [8, 1],  off: [0, 0] },
+      { cell: [4, 10], off: [0, 0] }
     ],
     TELEPORTERS: [],
     MAINFRAME: null,
-    PAP: { cell: [5, 2], off: [-0.5, 0.5] },
-    POWER: { cell: [7, 1], off: [1.0, -1.0] },
-    PLAYER_SPAWN: { cell: [4, 6], off: [0, 0.5] }
+    PAP: { cell: [6, 10], off: [0, 0] },
+    POWER: { cell: [8, 10], off: [0, 0] },
+    PLAYER_SPAWN: { cell: [6, 6], off: [0, 0.5] }
   };
 
   /* ------------------------------------------------------- DER RIESE --- */
