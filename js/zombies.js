@@ -13,7 +13,7 @@
   var MELEE_START = 1.25;
   var MELEE_HIT = 1.4;
   // zombies climb in once a barricade is torn down to this many boards (of 6)
-  var BREAK_GAP = 3;
+  var BREAK_GAP = 0;   // zombies only climb in once ALL boards are torn off
 
   var Z = G.zombies = {
     list: [],

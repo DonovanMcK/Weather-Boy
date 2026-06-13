@@ -313,6 +313,14 @@ function bootChecks(ctx, mapId) {
   ok(G.map.windows.length === G.CFG.WINDOWS.length, 'windows built (' + G.map.windows.length + ')');
   ok(Object.keys(G.map.doors).length === Object.keys(G.CFG.DOORS).length, 'doors built');
   ok(G.weapons.slots.length === 1 && G.weapons.slots[0].id === 'm1911', 'starts with M1911');
+  // every window starts with 5 boards; mystery box spots never sit in a doorway
+  ok(G.map.windows.every(function (w) { return w.boards === 5; }), 'windows have 5 boards');
+  var boxClear = G.map.boxSpots.every(function (b) {
+    return Object.keys(G.map.doors).every(function (id) {
+      return b.pos.distanceTo(G.map.doors[id].pos) >= 3.0;
+    });
+  });
+  ok(boxClear, 'no mystery box spot blocks a door');
   G.zombies.list.length = 0;
   ctx.step(60 * 6);
   ok(G.zombies.round === 1, 'round 1 started');

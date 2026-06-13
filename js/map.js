@@ -138,6 +138,39 @@
     return new THREE.CanvasTexture(cv);
   }
 
+  // big inverted gradient dome: deep zenith -> tinted horizon haze + soft clouds
+  function skyDome(atmos) {
+    var w = 1024, h = 512, cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    var c = cv.getContext('2d');
+    var zen = new THREE.Color(atmos.sky).multiplyScalar(0.7);
+    var hor = new THREE.Color(atmos.fog).lerp(new THREE.Color(0x8a93b5), 0.4);
+    var g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#' + zen.getHexString());
+    g.addColorStop(0.62, '#' + new THREE.Color(atmos.sky).lerp(hor, 0.5).getHexString());
+    g.addColorStop(1, '#' + hor.getHexString());
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    // soft cloud bands near the horizon
+    for (var i = 0; i < 26; i++) {
+      var y = h * (0.45 + Math.random() * 0.5);
+      var cw = 60 + Math.random() * 220, ch = 10 + Math.random() * 26;
+      var cg = c.createRadialGradient(0, 0, 0, 0, 0, cw);
+      var alpha = 0.05 + Math.random() * 0.12;
+      cg.addColorStop(0, 'rgba(200,210,235,' + alpha + ')');
+      cg.addColorStop(1, 'rgba(200,210,235,0)');
+      c.save();
+      c.translate(Math.random() * w, y);
+      c.scale(1, ch / cw);
+      c.fillStyle = cg;
+      c.beginPath(); c.arc(0, 0, cw, 0, Math.PI * 2); c.fill();
+      c.restore();
+    }
+    var tex2 = new THREE.CanvasTexture(cv);
+    var dome = new THREE.Mesh(new THREE.SphereGeometry(300, 32, 20),
+      new THREE.MeshBasicMaterial({ map: tex2, side: THREE.BackSide, fog: false, depthWrite: false }));
+    return dome;
+  }
+
   /* ------------------------------------------------------------- helpers */
   function mat(color, opts) {
     var m = new THREE.MeshLambertMaterial({ color: color });
@@ -445,8 +478,26 @@
       }
     }
 
+    // --- skybox: a big gradient dome with drifting cloud bands + horizon haze
+    var sky = skyDome(atmos);
+    G.scene.add(sky);
+    map.sky = sky;
+
+    // distant silhouette ring (mountains / structures) for depth + personality
+    var ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(atmos.sky).multiplyScalar(1.6),
+      fog: true, side: THREE.DoubleSide });
+    for (var rg = 0; rg < 46; rg++) {
+      var ra = rg / 46 * Math.PI * 2;
+      var rdist = 150 + Math.random() * 30;
+      var rh = 14 + Math.random() * 40;
+      var ridge = new THREE.Mesh(new THREE.ConeGeometry(10 + Math.random() * 18, rh, 4), ringMat);
+      ridge.position.set(Math.cos(ra) * rdist, rh / 2 - 6, Math.sin(ra) * rdist);
+      ridge.rotation.y = Math.random() * Math.PI;
+      G.scene.add(ridge);
+    }
+
     // outer ground, stars, moon
-    var ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400),
+    var ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500),
       new THREE.MeshLambertMaterial({ color: 0x232920 }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.02;
@@ -479,19 +530,19 @@
         dir: info.dirVec,
         outside: center.clone().addScaledVector(info.dirVec, 2.2),
         inside: center.clone().addScaledVector(info.dirVec, -1.4),
-        boards: 6, boardMeshes: [], tearer: null
+        boards: 5, boardMeshes: [], tearer: null
       };
-      for (var b = 0; b < 6; b++) {
-        var bm = addBox(info.alongX ? 2.6 : 0.09, 0.26, info.alongX ? 0.09 : 2.6,
-          info.cx, 1.15 + b * 0.28, info.cz, G.mats.plank);
+      for (var b = 0; b < 5; b++) {
+        var bm = addBox(info.alongX ? 2.6 : 0.09, 0.28, info.alongX ? 0.09 : 2.6,
+          info.cx, 1.1 + b * 0.34, info.cz, G.mats.plank);
         bm.rotation.y = (Math.random() - 0.5) * 0.12;
         bm.rotation.z = (Math.random() - 0.5) * 0.08;
         win.boardMeshes.push(bm);
       }
       win.setBoards = function (n) {
-        n = Math.max(0, Math.min(6, n));
+        n = Math.max(0, Math.min(5, n));
         this.boards = n;
-        for (var i = 0; i < 6; i++) this.boardMeshes[i].visible = i < n;
+        for (var i = 0; i < 5; i++) this.boardMeshes[i].visible = i < n;
       };
       win.tearBoard = function () {
         if (this.boards <= 0) return false;
@@ -630,6 +681,16 @@
 
     CFG.BOX_SPOTS.forEach(function (bs, i) {
       var p = place(bs);
+      // never let a box sit in a doorway: if it's within 3.2m of any door,
+      // push it directly away from that door so it can't block the opening
+      Object.keys(map.doors).forEach(function (id) {
+        var dp = map.doors[id].pos;
+        var dx = p.x - dp.x, dz = p.z - dp.z, d = Math.hypot(dx, dz);
+        if (d < 3.2) {
+          var push = (3.4 - d) / (d || 1);
+          p.x += dx * push; p.z += dz * push;
+        }
+      });
       occupy(p);
       map.boxSpots.push({ idx: i, pos: p });
     });
