@@ -166,7 +166,7 @@
       c.restore();
     }
     var tex2 = new THREE.CanvasTexture(cv);
-    var dome = new THREE.Mesh(new THREE.SphereGeometry(300, 32, 20),
+    var dome = new THREE.Mesh(new THREE.SphereGeometry(280, 32, 20),
       new THREE.MeshBasicMaterial({ map: tex2, side: THREE.BackSide, fog: false, depthWrite: false }));
     return dome;
   }
@@ -322,6 +322,9 @@
 
     update: function (dt) {
       var self = this;
+      // keep the sky dome centered on the camera so its far side never crosses
+      // the far clip plane (otherwise looking up clips a black hole in the sky)
+      if (this.sky && G.camera) this.sky.position.copy(G.camera.position);
       Object.keys(this.doors).forEach(function (id) {
         var d = self.doors[id];
         if (d.open && d.anim !== undefined && d.anim < 1) {
