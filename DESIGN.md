@@ -226,3 +226,33 @@ Momentum-based movement modeled on Black Ops 3's feel. All constants in `CFG.MOV
 
 Crouch is bound to **C** only — Ctrl+W (slide while running) would close the
 browser tab.
+
+## 16. Deep Visual Polish + Arsenal Update (v4)
+
+- **Lighting root-cause fix:** three.js r160 defaults to physical light units
+  which crushed the point lights — the renderer now uses classic units with
+  ACES filmic tone mapping (exposure 1.25). Rooms are lit by visible hanging
+  lamp fixtures (cone + emissive bulb, subtle flicker), two per large room;
+  hemisphere 0.55 pre-power → 0.8 post; thinner fog; moon sprite + dual
+  starfield layers.
+- **Procedural textures** (zero asset files): concrete walls with panel lines,
+  grime streaks and baked baseboards; 2×2 tile floors with cracks, tinted per
+  room; wood grain for doors/boards/crates; brushed metal for machines.
+  Auto-placed barrels and crates dress rooms (kept clear of interactables).
+- **Character models v2:** zombies with hunched chests, two-segment arms/legs
+  (elbows + knees flex in the gait), chattering jaws, lolling heads, gore
+  patches, glowing eyes, size variation, blob shadows, blood particles on hits.
+  Hellhounds with necks, snouts, burning spines/ears/paws, galloping gait and
+  wagging tails.
+- **Gun factory:** every weapon's viewmodel is assembled from a parts spec —
+  receivers, rails, barrels, handguards, iron sights, curved/straight/drum/
+  tube mags, pumps, wood/polymer/skeleton stocks, scopes with emissive lenses,
+  bullpup layouts, twin barrels, revolver drums, a six-barrel minigun cluster —
+  with specular Phong materials and per-gun accents.
+- **Arsenal: 56 weapons** across 8 classes with 29 distinct damage values;
+  PaP names for all (defaults: ×2.2 dmg, ×1.6 mag, ×2 reserve when not
+  hand-tuned). Snipers get deep ADS zoom + scope overlay; launchers fire
+  rockets; the Death Machine spits 1400 rpm.
+- **Input modes:** auto-detects Macs → "simple aim" (no ADS; 0.55× hip spread
+  + 8° bullet-magnetism cone toward chest center); mouse machines keep full
+  ADS. Menu button overrides, persisted in localStorage.

@@ -213,8 +213,10 @@
     P._prevCrouch = crouchKey;
     var hSpeed = Math.hypot(P.vel.x, P.vel.z);
 
-    // ADS (cancels sprint; blocked during reload/switch/knife)
-    var adsTarget = (playing && W.adsHeld && W.reloading <= 0 &&
+    // ADS (cancels sprint; blocked during reload/switch/knife;
+    // disabled entirely in simple-aim/trackpad mode)
+    var adsAllowed = !G.settings || G.settings.aimMode !== 'simple';
+    var adsTarget = (playing && adsAllowed && W.adsHeld && W.reloading <= 0 &&
                      W.switching <= 0 && W.knifing <= 0) ? 1 : 0;
     P.ads += (adsTarget - P.ads) * Math.min(1, dt * MV.adsSpeed);
     if (P.ads < 0.002 && !adsTarget) P.ads = 0;
@@ -350,10 +352,12 @@
     P.swayX *= Math.exp(-dt * 9);
     P.swayY *= Math.exp(-dt * 9);
 
-    // FOV: sprint/slide widen, ADS narrows (ADS wins)
+    // FOV: sprint/slide widen, ADS narrows (ADS wins); snipers zoom deeper
     var fovHip = MV.fov + MV.fovSprint * P.sprintAmt * (1 - P.slideAmt) +
                  MV.fovSlide * P.slideAmt;
-    var fov = fovHip + (MV.fovAds - fovHip) * P.ads;
+    var curGun = W.current && W.current();
+    var adsFov = (curGun && G.CFG.WEAPONS[curGun.id].adsFov) || MV.fovAds;
+    var fov = fovHip + (adsFov - fovHip) * P.ads;
     if (Math.abs(G.camera.fov - fov) > 0.01) {
       G.camera.fov = fov;
       G.camera.updateProjectionMatrix();

@@ -1,7 +1,8 @@
 /* ===========================================================================
-   DER WETTERJUNGE — weapons.js
-   Viewmodels, hitscan + projectiles, reload, Pack-a-Punch camo, knife,
-   grenades and monkey bombs.
+   DER WETTERJUNGE & FRIENDS — weapons.js
+   Data-driven gun factory (56 weapons), hitscan + projectiles, reload,
+   Pack-a-Punch camo, knife, grenades, monkey bombs, wonder weapons,
+   blood particles, ADS / simple-aim (trackpad) modes.
    =========================================================================== */
 (function () {
   'use strict';
@@ -12,11 +13,14 @@
     slots: [], cur: 0, maxSlots: 2,
     reloading: 0, switching: 0, knifing: 0, fireCd: 0,
     mouseDown: false, semiLatch: false, adsHeld: false,
-    projectiles: [], tracers: [], flashes: [], vortices: [],
+    projectiles: [], tracers: [], flashes: [], vortices: [], particles: [],
     vmRoot: null, muzzle: null, camoTex: null
   };
 
   /* ----------------------------------------------------------- materials */
+  var matCache = {};
+  var camoMat = null;
+
   function makeCamoTexture() {
     var cv = document.createElement('canvas');
     cv.width = cv.height = 128;
@@ -34,91 +38,234 @@
     return t;
   }
 
-  function gunMat(papped, color) {
+  function gm(key, opts) {
+    if (matCache[key]) return matCache[key];
+    var m = new THREE.MeshPhongMaterial(opts);
+    matCache[key] = m;
+    return m;
+  }
+  function gunMats(papped) {
     if (papped) {
-      return new THREE.MeshLambertMaterial({
-        map: W.camoTex, emissive: new THREE.Color(0x331155), emissiveIntensity: 0.55
-      });
+      if (!camoMat) {
+        camoMat = new THREE.MeshPhongMaterial({
+          map: W.camoTex, emissive: new THREE.Color(0x331155),
+          emissiveIntensity: 0.55, shininess: 30, specular: new THREE.Color(0x555588)
+        });
+      }
+      return { dark: camoMat, mid: camoMat, poly: camoMat, wood: camoMat };
     }
-    return new THREE.MeshLambertMaterial({ color: color });
+    return {
+      dark: gm('dark', { color: 0x2b2e33, map: G.tex.metal, shininess: 40, specular: new THREE.Color(0x666e77) }),
+      mid: gm('mid', { color: 0x4a4f57, map: G.tex.metal, shininess: 35, specular: new THREE.Color(0x778088) }),
+      poly: gm('poly', { color: 0x232529, shininess: 14, specular: new THREE.Color(0x444a50) }),
+      wood: gm('woodg', { color: 0xb89066, map: G.tex.wood, shininess: 10, specular: new THREE.Color(0x553) })
+    };
+  }
+  function accentMat(col, papped) {
+    if (papped) return camoMat;
+    return gm('acc' + col, { color: col, map: G.tex.metal, shininess: 25, specular: new THREE.Color(0x667) });
   }
 
-  /* ----------------------------------------------------------- viewmodel */
-  function buildModel(cls, papped) {
+  /* --------------------------------------------------------- gun factory */
+  var CLS_VM = {
+    pistol: { len: 1.0, stock: 'none', mag: 'grip' },
+    smg: { len: 0.9, stock: 'solid', mag: 'straight' },
+    rifle: { len: 1.25, stock: 'solid', mag: 'straight' },
+    shotgun: { len: 1.2, stock: 'solid', mag: 'tube' },
+    lmg: { len: 1.35, stock: 'solid', mag: 'box' },
+    sniper: { len: 1.6, stock: 'solid', mag: 'straight', scope: 1 },
+    launcher: { len: 1.0 },
+    minigun: { len: 1.0 }
+  };
+
+  function buildModel(id, papped) {
+    var def = CFG.WEAPONS[id];
+    var cls = def.cls;
+    var vm = {};
+    Object.keys(CLS_VM[cls] || {}).forEach(function (k) { vm[k] = CLS_VM[cls][k]; });
+    Object.keys(def.vm || {}).forEach(function (k) { vm[k] = def.vm[k]; });
+
     var g = new THREE.Group();
-    var metal = gunMat(papped, 0x3c3f44);
-    var dark = gunMat(papped, 0x26282c);
-    var wood = gunMat(papped, 0x6b4a2f);
-    function part(w, h, d, x, y, z, m) {
-      var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m || metal);
-      b.position.set(x, y, z); g.add(b); return b;
+    var M = gunMats(papped);
+    var body = vm.col ? accentMat(vm.col, papped) : M.dark;
+    var furniture = vm.wood ? M.wood : M.poly;
+
+    function box(w, h, d, x, y, z, m, rx, rz) {
+      var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m || M.dark);
+      b.position.set(x, y, z);
+      if (rx) b.rotation.x = rx;
+      if (rz) b.rotation.z = rz;
+      g.add(b); return b;
     }
+    function cylZ(r1, r2, len, x, y, z, m, seg) {
+      var c = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, seg || 10), m || M.mid);
+      c.rotation.x = Math.PI / 2;
+      c.position.set(x, y, z);
+      g.add(c); return c;
+    }
+    function cylX(r, len, x, y, z, m, seg) {
+      var c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg || 10), m || M.mid);
+      c.rotation.z = Math.PI / 2;
+      c.position.set(x, y, z);
+      g.add(c); return c;
+    }
+
     var tipZ = -0.5;
+
     if (cls === 'pistol') {
-      part(0.06, 0.09, 0.26, 0, 0, -0.1);
-      part(0.05, 0.13, 0.07, 0, -0.1, 0.02, dark);
-      tipZ = -0.25;
-    } else if (cls === 'smg') {
-      part(0.08, 0.11, 0.42, 0, 0, -0.12);
-      part(0.045, 0.045, 0.3, 0, 0.01, -0.45);
-      part(0.05, 0.2, 0.07, 0, -0.14, -0.1, dark);
-      part(0.05, 0.1, 0.06, 0, -0.08, 0.08, dark);
-      tipZ = -0.62;
-    } else if (cls === 'rifle') {
-      part(0.07, 0.1, 0.5, 0, 0, -0.15);
-      part(0.04, 0.04, 0.4, 0, 0.01, -0.55);
-      part(0.05, 0.16, 0.06, 0, -0.12, -0.05, dark);
-      part(0.06, 0.1, 0.2, 0, -0.02, 0.18, wood);
-      tipZ = -0.76;
-    } else if (cls === 'shotgun') {
-      part(0.08, 0.1, 0.5, 0, 0, -0.18);
-      part(0.07, 0.07, 0.5, 0, -0.075, -0.18, dark);
-      part(0.07, 0.1, 0.22, 0, -0.02, 0.16, wood);
-      tipZ = -0.55;
-    } else if (cls === 'lmg') {
-      part(0.09, 0.13, 0.55, 0, 0, -0.15);
-      part(0.05, 0.05, 0.4, 0, 0.01, -0.6);
-      part(0.1, 0.22, 0.16, 0, -0.16, -0.12, dark);
-      part(0.06, 0.12, 0.08, 0, -0.1, 0.1, dark);
-      tipZ = -0.82;
+      var sl = 0.2 * vm.len;
+      box(0.052, 0.07, sl + 0.06, 0, 0.02, -sl / 2, body);                 // slide
+      box(0.048, 0.05, 0.16, 0, -0.035, -0.03, M.mid);                    // frame
+      box(0.042, 0.13, 0.062, 0, -0.115, 0.035, furniture, 0.22);         // grip
+      box(0.04, 0.02, 0.05, 0, -0.045, -0.045, M.dark);                   // trigger guard
+      box(0.012, 0.028, 0.012, 0, 0.066, -sl - 0.02, M.dark);             // front sight
+      box(0.036, 0.022, 0.014, 0, 0.064, 0.03, M.dark);                   // rear sight
+      if (vm.mag === 'cyl') {
+        cylZ(0.034, 0.034, 0.085, 0, -0.005, -0.06, M.mid, 8);            // revolver drum
+        cylZ(0.018, 0.018, sl + 0.12, 0, 0.02, -sl / 2 - 0.06, body);
+        tipZ = -(sl + 0.13);
+      } else {
+        cylZ(0.013, 0.013, 0.05, 0, 0.018, -sl - 0.04, M.mid);            // muzzle
+        tipZ = -(sl + 0.07);
+      }
+    } else if (cls === 'launcher') {
+      var tl = 0.6 * vm.len;
+      cylZ(0.052, 0.056, tl, 0, 0.02, -tl / 2 + 0.1, body, 12);           // tube
+      cylZ(0.062, 0.062, 0.05, 0, 0.02, -tl + 0.12, M.mid, 12);           // muzzle bell
+      cylZ(0.06, 0.06, 0.045, 0, 0.02, 0.1, M.mid, 12);                   // breech
+      box(0.04, 0.11, 0.06, 0, -0.075, 0.02, furniture, 0.25);            // grip
+      box(0.04, 0.09, 0.05, 0, -0.065, -0.16, furniture, 0.1);            // front grip
+      box(0.012, 0.06, 0.012, 0, 0.1, -0.1, M.dark);                      // sight frame
+      if (vm.pump) box(0.05, 0.045, 0.12, 0, -0.04, -0.22, furniture);
+      tipZ = -(tl - 0.08);
+    } else if (cls === 'minigun') {
+      var bl = 0.5;
+      cylZ(0.075, 0.085, 0.26, 0, 0, 0.02, body, 12);                     // motor body
+      for (var mb = 0; mb < 6; mb++) {
+        var ang = mb / 6 * Math.PI * 2;
+        cylZ(0.011, 0.011, bl, Math.cos(ang) * 0.032, Math.sin(ang) * 0.032, -bl / 2 - 0.1, M.mid, 6);
+      }
+      cylZ(0.045, 0.045, 0.06, 0, 0, -bl - 0.12, M.dark, 12);             // barrel clamp
+      box(0.09, 0.13, 0.12, 0, -0.12, 0.06, M.dark);                      // ammo box
+      box(0.045, 0.1, 0.06, 0, -0.1, 0.14, furniture, 0.25);              // grip
+      tipZ = -(bl + 0.16);
     } else if (cls === 'raygun') {
-      var rg = gunMat(papped, 0x8a1212);
-      part(0.1, 0.12, 0.3, 0, 0, -0.08, rg);
-      var coil = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.25, 8),
-        new THREE.MeshLambertMaterial({ color: 0x22ff66, emissive: 0x115522 }));
+      box(0.1, 0.12, 0.3, 0, 0, -0.08, accentMat(0x8a1212, papped));
+      var coil = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.25, 10),
+        new THREE.MeshPhongMaterial({ color: 0x22ff66, emissive: 0x115522, shininess: 60 }));
       coil.rotation.x = Math.PI / 2; coil.position.set(0, 0.02, -0.3); g.add(coil);
-      part(0.05, 0.13, 0.07, 0, -0.11, 0.03, dark);
-      tipZ = -0.45;
+      cylZ(0.02, 0.03, 0.1, 0, 0.02, -0.45, M.mid);
+      box(0.05, 0.13, 0.07, 0, -0.11, 0.03, M.poly, 0.2);
+      var dial = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8),
+        new THREE.MeshPhongMaterial({ color: 0x66ff88, emissive: 0x114422 }));
+      dial.position.set(0, 0.08, 0.02); g.add(dial);
+      tipZ = -0.5;
+    } else if (cls === 'thunder') {
+      var t1 = cylZ(0.07, 0.09, 0.6, 0, 0, -0.2, accentMat(0x55585e, papped), 12);
+      cylZ(0.11, 0.13, 0.2, 0, 0, -0.5, gm('tg', {
+        color: 0x222230, emissive: new THREE.Color(0x2244aa), emissiveIntensity: 0.6, shininess: 40
+      }), 12);
+      cylZ(0.05, 0.05, 0.18, 0, 0.085, -0.1, M.mid);                      // top tank
+      cylZ(0.05, 0.05, 0.18, 0, -0.085, -0.1, M.mid);                     // bottom tank
+      box(0.06, 0.14, 0.08, 0, -0.12, 0.08, furniture, 0.25);
+      tipZ = -0.62;
+      void t1;
     } else if (cls === 'wunder') {
-      part(0.07, 0.12, 0.3, 0, -0.03, 0.12, wood);
-      part(0.08, 0.1, 0.44, 0, 0, -0.2);
+      box(0.07, 0.12, 0.3, 0, -0.03, 0.12, M.wood);                       // stock
+      box(0.08, 0.1, 0.44, 0, 0, -0.2, body);                             // body
       for (var ci = 0; ci < 3; ci++) {
-        var coilM = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.07, 8),
-          new THREE.MeshLambertMaterial({ color: 0x223344, emissive: 0x33ccff, emissiveIntensity: 0.9 }));
+        var coilM = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.07, 10),
+          new THREE.MeshPhongMaterial({ color: 0x223344, emissive: 0x33ccff, emissiveIntensity: 0.9, shininess: 80 }));
         coilM.position.set(0, 0.085, -0.1 - ci * 0.14);
         g.add(coilM);
       }
-      part(0.05, 0.14, 0.07, 0, -0.13, 0.02, dark);
-      tipZ = -0.52;
+      cylZ(0.018, 0.018, 0.12, 0, 0.0, -0.48, M.mid);
+      box(0.05, 0.14, 0.07, 0, -0.13, 0.02, M.wood, 0.2);
+      tipZ = -0.56;
     } else if (cls === 'storm') {
-      var st = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.55, 8),
-        gunMat(papped, 0x4a525c));
-      st.rotation.x = Math.PI / 2; st.position.set(0, 0, -0.18); g.add(st);
-      var orb = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 10),
-        new THREE.MeshLambertMaterial({ color: 0x113355, emissive: 0x55ccff, emissiveIntensity: 1.0 }));
+      var st = cylZ(0.06, 0.08, 0.55, 0, 0, -0.18, accentMat(0x4a525c, papped), 12);
+      var orb = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 12),
+        new THREE.MeshPhongMaterial({ color: 0x113355, emissive: 0x55ccff, emissiveIntensity: 1.0, shininess: 90 }));
       orb.position.set(0, 0.09, -0.05); g.add(orb);
-      part(0.05, 0.14, 0.08, 0, -0.12, 0.06, dark);
-      tipZ = -0.5;
-    } else if (cls === 'thunder') {
-      var t1 = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.6, 8),
-        gunMat(papped, 0x55585e));
-      t1.rotation.x = Math.PI / 2; t1.position.set(0, 0, -0.2); g.add(t1);
-      var t2 = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.2, 8),
-        new THREE.MeshLambertMaterial({ color: 0x222230, emissive: 0x2244aa, emissiveIntensity: 0.6 }));
-      t2.rotation.x = Math.PI / 2; t2.position.set(0, 0, -0.5); g.add(t2);
-      part(0.06, 0.14, 0.08, 0, -0.12, 0.05, dark);
-      tipZ = -0.62;
+      cylZ(0.09, 0.02, 0.12, 0, 0, -0.5, M.mid, 12);                      // funnel muzzle
+      box(0.05, 0.14, 0.08, 0, -0.12, 0.06, M.poly, 0.25);
+      box(0.04, 0.05, 0.18, 0, -0.07, -0.25, M.poly);
+      tipZ = -0.56;
+      void st;
+    } else {
+      /* ------------------ generic long gun: smg / rifle / shotgun / lmg / sniper */
+      var L = vm.len;
+      var rl = vm.bullpup ? 0.36 : 0.3;                                   // receiver length
+      var rz0 = vm.bullpup ? 0.06 : -0.1;                                 // receiver center
+      box(0.07, 0.095, rl, 0, 0, rz0, body);                              // receiver
+      box(0.05, 0.018, rl - 0.04, 0, 0.057, rz0, M.mid);                  // top rail
+      var bFront = rz0 - rl / 2;
+      var bl = 0.3 * L;                                                   // barrel length
+      cylZ(0.02, 0.022, bl, 0, 0.012, bFront - bl / 2, M.mid);            // barrel
+      tipZ = bFront - bl - 0.02;
+      if (vm.twin) {
+        cylZ(0.018, 0.018, bl, -0.022, 0.012, bFront - bl / 2, M.mid);
+        cylZ(0.018, 0.018, bl, 0.022, 0.012, bFront - bl / 2, M.mid);
+      }
+      if (vm.supp) cylZ(0.032, 0.032, 0.12, 0, 0.012, tipZ + 0.04, M.poly, 12);
+      // handguard
+      var hgLen = Math.min(0.2, bl * 0.6);
+      box(0.06, 0.068, hgLen, 0, -0.005, bFront - hgLen / 2 + 0.02, furniture);
+      // sights
+      box(0.012, 0.04, 0.012, 0, 0.085, tipZ + 0.05, M.dark);             // front post
+      if (!vm.scope) box(0.04, 0.026, 0.016, 0, 0.082, rz0 + rl / 2 - 0.03, M.dark);
+      if (vm.carryHandle) {
+        box(0.016, 0.05, 0.16, 0, 0.09, rz0, M.dark);
+        box(0.05, 0.016, 0.16, 0, 0.115, rz0, M.dark);
+      }
+      // grip + trigger guard
+      box(0.042, 0.125, 0.065, 0, -0.115, vm.bullpup ? -0.06 : 0.03, furniture, 0.25);
+      box(0.04, 0.018, 0.06, 0, -0.052, vm.bullpup ? -0.09 : 0, M.dark);
+      // magazine
+      var magZ = vm.bullpup ? 0.16 : rz0 + 0.04;
+      if (vm.mag === 'straight') {
+        box(0.045, 0.14 * (vm.magLen || 1), 0.075, 0, -0.115, magZ, M.mid, 0.06);
+      } else if (vm.mag === 'curved') {
+        box(0.045, 0.1, 0.075, 0, -0.1, magZ, M.mid, 0.12);
+        box(0.045, 0.09, 0.07, 0.0, -0.175, magZ + 0.035, M.mid, 0.5);
+      } else if (vm.mag === 'drum') {
+        cylX(0.075, 0.06, 0, -0.115, magZ, M.dark, 14);
+      } else if (vm.mag === 'box') {
+        box(0.085, 0.12, 0.12, 0, -0.115, magZ, M.dark);
+      } else if (vm.mag === 'tube') {
+        cylZ(0.016, 0.016, bl * 0.85, 0, -0.035, bFront - bl * 0.42, M.mid);
+      }
+      // pump
+      if (vm.pump) box(0.055, 0.05, 0.13, 0, -0.035, bFront - hgLen / 2 - 0.04, furniture);
+      // stock
+      var stockZ = rz0 + rl / 2;
+      if (vm.bullpup) {
+        box(0.062, 0.085, 0.1, 0, -0.01, stockZ + 0.04, furniture);       // butt block
+      } else if (vm.stock === 'solid') {
+        box(0.05, 0.075, 0.17, 0, -0.02, stockZ + 0.08, furniture, 0.06);
+        box(0.055, 0.1, 0.03, 0, -0.03, stockZ + 0.165, furniture);
+      } else if (vm.stock === 'skeleton') {
+        box(0.014, 0.014, 0.16, 0, 0.02, stockZ + 0.08, M.mid);
+        box(0.014, 0.014, 0.16, 0, -0.045, stockZ + 0.08, M.mid, 0.12);
+        box(0.014, 0.08, 0.014, 0, -0.012, stockZ + 0.16, M.mid);
+      }
+      // scope
+      if (vm.scope) {
+        cylZ(0.026, 0.026, 0.15, 0, 0.1, rz0 - 0.02, M.dark, 12);
+        cylZ(0.032, 0.026, 0.03, 0, 0.1, rz0 - 0.1, M.dark, 12);
+        var lens = new THREE.Mesh(new THREE.CircleGeometry(0.022, 12),
+          new THREE.MeshPhongMaterial({ color: 0x113344, emissive: 0x224466, shininess: 90 }));
+        lens.position.set(0, 0.1, rz0 - 0.115);
+        lens.rotation.y = Math.PI;
+        g.add(lens);
+        box(0.012, 0.03, 0.02, 0, 0.075, rz0 + 0.02, M.dark);             // mount
+      }
+      // ejection port detail
+      box(0.004, 0.03, 0.06, 0.037, 0.01, rz0 - 0.02, M.mid);
+      // bolt handle
+      box(0.03, 0.012, 0.012, 0.05, 0.02, rz0 + 0.05, M.mid);
     }
+
     var tip = new THREE.Object3D();
     tip.position.set(0, 0.01, tipZ);
     g.add(tip);
@@ -150,8 +297,14 @@
   W.stats = function (gun) {
     var base = CFG.WEAPONS[gun.id];
     var s = {};
-    Object.keys(base).forEach(function (k) { if (k !== 'pap') s[k] = base[k]; });
-    if (gun.papped) Object.keys(base.pap).forEach(function (k) { s[k] = base.pap[k]; });
+    Object.keys(base).forEach(function (k) { if (k !== 'pap' && k !== 'vm') s[k] = base[k]; });
+    if (gun.papped) {
+      // PaP defaults for anything the pap block doesn't override
+      s.dmg = Math.round(s.dmg * 2.2);
+      s.mag = Math.round(s.mag * 1.6);
+      s.reserve = Math.round(s.reserve * 2);
+      Object.keys(base.pap).forEach(function (k) { s[k] = base.pap[k]; });
+    }
     if (G.player.hasPerk('dtap')) { s.dmg *= 2; s.rpm *= 1.33; }
     return s;
   };
@@ -168,7 +321,6 @@
       W.slots.push(gun);
       W.equip(W.slots.length - 1, true);
     } else {
-      // replace current
       if (W.current() && W.current().model) W.vmRoot.remove(W.current().model);
       W.slots[W.cur] = gun;
       W.equip(W.cur, true);
@@ -187,8 +339,7 @@
     W.cur = i;
     while (W.vmRoot.children.length) W.vmRoot.remove(W.vmRoot.children[0]);
     var gun = W.slots[i];
-    var cls = CFG.WEAPONS[gun.id].cls;
-    gun.model = buildModel(cls, gun.papped);
+    gun.model = buildModel(gun.id, gun.papped);
     W.vmRoot.add(gun.model);
     W.muzzle = gun.model.userData.tip;
     W.switching = instant ? 0 : 0.3;
@@ -247,12 +398,48 @@
     G.hud.setAmmo();
   }
 
+  /* ------------------------------------------------------ blood particles */
+  W.blood = function (pos, n) {
+    if (W.particles.length > 50) return;
+    for (var i = 0; i < (n || 5); i++) {
+      var m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05),
+        gm('blood', { color: 0x7a0d0d, shininess: 5 }));
+      m.position.copy(pos);
+      m.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 2.5,
+                                         (Math.random() - 0.5) * 3);
+      m.userData.life = 0.45;
+      G.scene.add(m);
+      W.particles.push(m);
+    }
+  };
+
   /* -------------------------------------------------------------- firing */
   var _ray = new THREE.Raycaster();
   var _dir = new THREE.Vector3();
 
+  // simple-aim mode (trackpads): nudge the shot toward the closest zombie
+  // inside a small cone — bullet magnetism instead of ADS
+  function aimAssist(dir) {
+    if (!G.settings || G.settings.aimMode !== 'simple') return dir;
+    var best = null, bestDot = Math.cos(8 * Math.PI / 180);
+    G.zombies.list.forEach(function (z) {
+      if (z.dead) return;
+      var to = z.mesh.position.clone();
+      to.y += 1.35; // chest center
+      to.sub(G.camera.position);
+      var dist = to.length();
+      if (dist > 45) return;
+      to.normalize();
+      var dot = to.dot(dir);
+      if (dot > bestDot) { bestDot = dot; best = to; }
+    });
+    if (best) dir.lerp(best, 0.65).normalize();
+    return dir;
+  }
+
   function shootRay(spreadDeg, dmg, headMult, range, isKnife) {
     _dir.set(0, 0, -1).applyEuler(G.camera.rotation);
+    if (!isKnife) aimAssist(_dir);
     if (spreadDeg) {
       var sp = spreadDeg * Math.PI / 180;
       _dir.x += (Math.random() - 0.5) * sp;
@@ -274,6 +461,7 @@
       if (range && hit.distance > range) d *= 0.3;
       G.audio.hitmark(isHead);
       G.hud.hitmarker();
+      W.blood(hit.point, isHead ? 7 : 4);
       G.zombies.damageZombie(z, d, { head: isHead, knife: isKnife });
       return true;
     }
@@ -316,8 +504,9 @@
     W.fireCd = 60 / s.rpm;
     G.audio.shoot(s.cls, gun.papped);
     muzzleFlash();
-    G.player.kick(s.cls === 'shotgun' || s.cls === 'thunder' ? 1.6 : 0.45);
-    if (gun.model) gun.model.position.z = 0.07;
+    var heavy = s.cls === 'shotgun' || s.cls === 'thunder' || s.cls === 'sniper' || s.cls === 'launcher';
+    G.player.kick(heavy ? 1.6 : 0.45);
+    if (gun.model) gun.model.position.z = heavy ? 0.1 : 0.06;
     G.hud.setAmmo();
 
     if (s.projectile === 'wind') { fireThunder(); return; }
@@ -326,8 +515,9 @@
     if (s.projectile === 'ray') { spawnProjectile('ray', s); return; }
     if (s.projectile === 'rocket') { spawnProjectile('rocket', s); return; }
 
-    // ADS tightens spread, sprinting loosens it
+    // ADS tightens spread, sprinting loosens it; simple-aim gets a flat bonus
     var spreadMult = (1 - 0.7 * G.player.ads) * (1 + 0.5 * G.player.sprintAmt);
+    if (G.settings && G.settings.aimMode === 'simple') spreadMult *= 0.55;
     var pellets = s.pellets || 1;
     for (var i = 0; i < pellets; i++) {
       shootRay(s.spread * spreadMult, s.dmg, s.head, s.range, false);
@@ -354,6 +544,7 @@
   function fireWunderwaffe(s) {
     G.player.shake(0.5);
     _dir.set(0, 0, -1).applyEuler(G.camera.rotation);
+    aimAssist(_dir);
     _ray.set(G.camera.position, _dir);
     _ray.far = 90;
     var targets = G.zombies.shootables().concat(G.map.solidMeshes);
@@ -367,7 +558,6 @@
     var first = hits.length && hits[0].object.userData.zombie
       ? hits[0].object.userData.zombie : null;
     if (!first || first.dead) return;
-    // chain to nearest neighbors of anything already electrified
     var chained = [first];
     var pool = G.zombies.list.filter(function (z) { return !z.dead && z !== first; });
     while (chained.length < (s.chain || 10)) {
@@ -430,7 +620,6 @@
       v.cone.rotation.y += dt * 7;
       v.inner.rotation.y -= dt * 11;
       v.light.intensity = 1.2 + Math.random() * 1.2;
-      // suck zombies in
       G.zombies.list.forEach(function (z) {
         if (z.dead || (z.state !== 'chase' && z.state !== 'attack')) return;
         var dx = v.mesh.position.x - z.mesh.position.x;
@@ -440,7 +629,6 @@
         z.mesh.position.x += dx / d * dt * 4;
         z.mesh.position.z += dz / d * dt * 4;
       });
-      // periodic lightning ticks
       v.tick -= dt;
       if (v.tick <= 0) {
         v.tick = 0.45;
@@ -468,6 +656,7 @@
     var pos = W.muzzle ? W.muzzle.getWorldPosition(new THREE.Vector3())
                        : G.camera.position.clone();
     var dir = new THREE.Vector3(0, 0, -1).applyEuler(G.camera.rotation);
+    aimAssist(dir);
     var mesh, vel, opts;
     if (type === 'ray') {
       mesh = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8),
@@ -541,7 +730,6 @@
     opts = opts || {};
     G.audio.explosion();
     G.player.shake(0.7);
-    // flash
     var flash = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.55, 12, 12),
       new THREE.MeshBasicMaterial({ color: opts.color || 0xffaa33, transparent: true, opacity: 0.85 }));
     flash.position.copy(pos);
@@ -551,15 +739,14 @@
     l.position.copy(pos);
     G.scene.add(l);
     W.flashes.push({ mesh: l, life: 0.22, isLight: true });
-    // zombies
     G.zombies.list.slice().forEach(function (z) {
       if (z.dead) return;
       var d = z.mesh.position.distanceTo(pos);
       if (d > radius) return;
       var fall = 1 - 0.6 * (d / radius);
+      W.blood(z.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)), 3);
       G.zombies.damageZombie(z, dmg * fall, { boom: true, crawlers: opts.crawlers });
     });
-    // self damage
     if (opts.selfDmg) {
       var pd = G.player.pos.distanceTo(pos);
       if (pd < radius * 0.8) G.player.damage(Math.round(45 * (1 - pd / radius)));
@@ -579,14 +766,12 @@
       var detonate = false;
 
       if (p.type === 'monkey' && p.landed) {
-        // sitting there luring
         p.lure -= dt;
         if (Math.floor(p.lure * 2) !== Math.floor((p.lure + dt) * 2)) G.audio.monkeyJingle();
         if (p.lure <= 0) detonate = true;
       } else if (hitWall || hitFloor) {
         if (p.opts.bounce) {
           if (hitFloor && Math.abs(p.vel.y) < 1.2) {
-            // settled
             p.mesh.position.y = 0.1;
             p.vel.set(0, 0, 0);
             if (p.type === 'monkey' && !p.landed) {
@@ -599,12 +784,11 @@
             if (hitFloor) { p.mesh.position.y = 0.12; p.vel.y *= -0.4; p.vel.x *= 0.6; p.vel.z *= 0.6; }
             if (hitWall) { p.vel.x *= -0.4; p.vel.z *= -0.4; }
           }
-        } else detonate = true; // rockets and rays pop on contact
+        } else detonate = true;
       } else {
         p.mesh.position.set(nx, ny, nz);
       }
 
-      // proximity detonation vs zombies for rockets/rays/storm orbs
       if (!detonate && (p.type === 'ray' || p.type === 'rocket' || p.type === 'storm')) {
         for (var j = 0; j < G.zombies.list.length; j++) {
           var z = G.zombies.list[j];
@@ -652,8 +836,7 @@
       if (W.reloading <= 0) finishReload();
     }
 
-    // trigger (sprint must ramp out first — holding fire drops sprintAmt,
-    // so this gate produces the BO3 sprint-out delay automatically)
+    // trigger (sprint must ramp out first — the BO3 sprint-out delay)
     if (G.state === 'playing' && !G.player.downed && !G.player.locked &&
         G.player.sprintAmt < 0.45 &&
         gun && W.reloading <= 0 && W.switching <= 0 && W.knifing <= 0 && W.fireCd <= 0) {
@@ -666,8 +849,7 @@
     }
     if (!W.mouseDown) W.semiLatch = false;
 
-    // viewmodel animation: hip<->ADS lerp, sprint pose, sway, bob, then the
-    // per-gun reload/knife/recoil offsets on the gun model itself
+    // viewmodel composition: hip<->ADS, sprint pose, sway, bob
     var Pl = G.player;
     var ads = Pl.ads, sprint = Pl.sprintAmt * (1 - ads);
     var hipX = 0.3, hipY = -0.28, hipZ = -0.5;
@@ -681,6 +863,10 @@
     W.vmRoot.rotation.x = 0.3 * sprint + 0.12 * Pl.slideAmt + Pl.swayY * -0.0009;
     W.vmRoot.rotation.z = -Pl.roll * 0.6 - 0.12 * sprint;
     G.hud.setAds(ads);
+    // sniper scope overlay when fully aimed
+    var scoped = gun && CFG.WEAPONS[gun.id].cls === 'sniper' && ads > 0.75;
+    G.hud.setScope(!!scoped);
+    if (gun && gun.model) gun.model.visible = !scoped && gun.model.userData.show !== false;
 
     if (gun && gun.model) {
       var m = gun.model;
@@ -707,6 +893,16 @@
       if (fl.isLight) fl.mesh.intensity *= 0.8;
       else { fl.mesh.scale.multiplyScalar(1.08); fl.mesh.material.opacity *= 0.8; }
       if (fl.life <= 0) { G.scene.remove(fl.mesh); W.flashes.splice(f, 1); }
+    }
+    for (var b = W.particles.length - 1; b >= 0; b--) {
+      var pa = W.particles[b];
+      pa.userData.life -= dt;
+      pa.userData.vel.y -= 9 * dt;
+      pa.position.addScaledVector(pa.userData.vel, dt);
+      if (pa.userData.life <= 0 || pa.position.y < 0) {
+        G.scene.remove(pa);
+        W.particles.splice(b, 1);
+      }
     }
   };
 })();

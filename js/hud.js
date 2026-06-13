@@ -105,6 +105,12 @@
     cross.style.transform = 'translate(-50%, -50%) scale(' + (1 - 0.35 * ads) + ')';
   };
 
+  H.setScope = function (on) {
+    if (H._scope === on) return;
+    H._scope = on;
+    document.getElementById('hud-scope').style.display = on ? 'block' : 'none';
+  };
+
   H.setVignette = function (level) {
     H.vig.style.opacity = Math.max(0, Math.min(0.92, level * 1.1));
   };

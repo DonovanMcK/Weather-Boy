@@ -22,7 +22,7 @@
     sub: 'Where it all began — a bombed-out bunker. Wonder weapon: Thundergun.',
     wonder: 'thunder',
     papRule: 'power',          // Pack-a-Punch unlocks when the power goes on
-    atmos: { sky: 0x0b0805, fog: 0x0e0a06, density: 0.038 },
+    atmos: { sky: 0x14110c, fog: 0x16130d, density: 0.022 },
     GRID: [
       '..........',
       '.HHH.GGG..',  // H = Help Room, G = Generator Room (power + PaP)
@@ -88,7 +88,7 @@
     sub: "The giant's factory — link the teleporters. Wonder weapon: Wunderwaffe DG-2.",
     wonder: 'wunderwaffe',
     papRule: 'teleporters',
-    atmos: { sky: 0x090c09, fog: 0x0c100c, density: 0.032 },
+    atmos: { sky: 0x0f130f, fog: 0x111611, density: 0.02 },
     GRID: [
       '.LLL....FFF.',  // L = Animal Lab (Tele A), F = Furnace (Tele B)
       '.LLL....FFF.',
@@ -175,7 +175,7 @@
     sub: 'Storm research station — custom map. Wonder weapon: the Wettermacher.',
     wonder: 'stormcaller',
     papRule: 'teleporters',
-    atmos: { sky: 0x07090f, fog: 0x0a0d14, density: 0.03 },
+    atmos: { sky: 0x0c1018, fog: 0x0e1320, density: 0.018 },
     GRID: [
       '.....DDD.....', // D = Radar Dome (power, Teleporter C, Stamin-Up)
       '.....DDD.....',
@@ -293,51 +293,129 @@
 
   /* -------------------------------------------------------------- weapons */
   // dmg per bullet (pellets multiply), rpm, mag, reserve, reload (s),
-  // mode: 'auto' | 'semi' | 'pump', spread in degrees, cls drives the viewmodel.
+  // mode: 'auto' | 'semi' | 'pump', spread in degrees, cls drives the
+  // viewmodel template + sound; vm:{} overrides model parts (see weapons.js).
+  // PaP defaults (if not overridden): dmg x2.2, mag x1.6, reserve x2.
   // wonder:true guns only appear in the box on the map whose wonder they are.
   CFG.WEAPONS = {
+    /* ----------------------------------------------------------- pistols */
     m1911: {
       name: 'M1911', cls: 'pistol', dmg: 30, head: 3, rpm: 360, mag: 8,
       reserve: 32, reload: 1.4, mode: 'semi', spread: 1.6,
       pap: { name: 'Mustang & Sally', dmg: 900, mag: 6, reserve: 36,
              projectile: 'rocket', rpm: 200, spread: 0.5 }
     },
-    m14: {
-      name: 'M14', cls: 'rifle', dmg: 100, head: 2.5, rpm: 300, mag: 8,
-      reserve: 96, reload: 1.9, mode: 'semi', spread: 0.9, wall: 500,
-      pap: { name: 'Mnesia', dmg: 220, mag: 16, reserve: 192 }
+    makarov: {
+      name: 'Makarov', cls: 'pistol', dmg: 35, head: 3, rpm: 320, mag: 8,
+      reserve: 64, reload: 1.5, mode: 'semi', spread: 1.5, box: 0.7,
+      pap: { name: '9mm Mauler' }
     },
-    olympia: {
-      name: 'Olympia', cls: 'shotgun', dmg: 30, head: 1.5, pellets: 8, rpm: 120,
-      mag: 2, reserve: 38, reload: 1.8, mode: 'semi', spread: 5.5, wall: 500,
-      range: 14,
-      pap: { name: 'Hades', dmg: 65, mag: 4, reserve: 60, range: 18 }
+    python: {
+      name: 'Python', cls: 'pistol', dmg: 150, head: 4, rpm: 240, mag: 6,
+      reserve: 84, reload: 2.2, mode: 'semi', spread: 1.0, box: 1,
+      vm: { mag: 'cyl', len: 1.4 },
+      pap: { name: 'Cobra', dmg: 300, mag: 12, reserve: 96 }
     },
-    mp40: {
-      name: 'MP40', cls: 'smg', dmg: 40, head: 2, rpm: 520, mag: 32,
-      reserve: 192, reload: 2.1, mode: 'auto', spread: 2.4, wall: 1000,
-      pap: { name: 'The Afterburner', dmg: 80, mag: 64, reserve: 256 }
+    cz75: {
+      name: 'CZ75', cls: 'pistol', dmg: 45, head: 2.5, rpm: 750, mag: 15,
+      reserve: 120, reload: 1.6, mode: 'auto', spread: 2.2, box: 0.9,
+      pap: { name: 'Calamity' }
     },
+    fiveseven: {
+      name: 'Five-Seven', cls: 'pistol', dmg: 50, head: 2.8, rpm: 450, mag: 20,
+      reserve: 140, reload: 1.5, mode: 'semi', spread: 1.3, box: 0.9,
+      pap: { name: 'Ultra' }
+    },
+    b23r: {
+      name: 'B23R', cls: 'pistol', dmg: 40, head: 2.5, rpm: 850, mag: 15,
+      reserve: 135, reload: 1.6, mode: 'auto', spread: 2.0, box: 0.9,
+      pap: { name: 'B34R' }
+    },
+    executioner: {
+      name: 'Executioner', cls: 'pistol', dmg: 30, head: 1.6, pellets: 5,
+      rpm: 150, mag: 5, reserve: 40, reload: 2.4, mode: 'semi', spread: 4.0,
+      range: 10, box: 0.7, vm: { mag: 'cyl', len: 1.1 },
+      pap: { name: 'Voice of Justice', dmg: 65, range: 14 }
+    },
+    kap40: {
+      name: 'KAP-40', cls: 'pistol', dmg: 38, head: 2.5, rpm: 800, mag: 12,
+      reserve: 108, reload: 1.5, mode: 'auto', spread: 2.1, box: 0.8,
+      pap: { name: 'KAP-Punisher' }
+    },
+    /* -------------------------------------------------------------- SMGs */
     mp5k: {
       name: 'MP5K', cls: 'smg', dmg: 35, head: 2, rpm: 750, mag: 30,
       reserve: 120, reload: 1.9, mode: 'auto', spread: 2.6, wall: 1000,
       pap: { name: 'MP115 Kollider', dmg: 70, mag: 40, reserve: 200 }
     },
+    mp40: {
+      name: 'MP40', cls: 'smg', dmg: 40, head: 2, rpm: 520, mag: 32,
+      reserve: 192, reload: 2.1, mode: 'auto', spread: 2.4, wall: 1000,
+      vm: { mag: 'straight', magLen: 1.4, col: 0x3d3a33 },
+      pap: { name: 'The Afterburner', dmg: 80, mag: 64, reserve: 256 }
+    },
     ak74u: {
       name: 'AK-74u', cls: 'smg', dmg: 45, head: 2.2, rpm: 700, mag: 20,
       reserve: 160, reload: 2.2, mode: 'auto', spread: 2.5, wall: 1200,
+      vm: { mag: 'curved', wood: 1 },
       pap: { name: 'AK74fu2', dmg: 90, mag: 40, reserve: 280 }
+    },
+    pm63: {
+      name: 'PM63', cls: 'smg', dmg: 32, head: 2, rpm: 900, mag: 20,
+      reserve: 180, reload: 1.7, mode: 'auto', spread: 2.8, box: 0.8,
+      vm: { len: 0.7, stock: 'none' },
+      pap: { name: 'Tokyo & Rose', mag: 40 }
+    },
+    mpl: {
+      name: 'MPL', cls: 'smg', dmg: 40, head: 2, rpm: 750, mag: 24,
+      reserve: 144, reload: 1.8, mode: 'auto', spread: 2.5, box: 0.9,
+      pap: { name: 'MPL-LF' }
+    },
+    spectre: {
+      name: 'Spectre M4', cls: 'smg', dmg: 38, head: 2, rpm: 850, mag: 30,
+      reserve: 180, reload: 1.9, mode: 'auto', spread: 2.6, box: 0.9,
+      pap: { name: 'Phantom' }
+    },
+    thompson: {
+      name: 'M1A1 Thompson', cls: 'smg', dmg: 42, head: 2.1, rpm: 700, mag: 30,
+      reserve: 210, reload: 2.0, mode: 'auto', spread: 2.5, box: 0.9,
+      vm: { wood: 1, mag: 'drum', len: 1.1 },
+      pap: { name: 'Chicago Typewriter', mag: 50 }
+    },
+    pdw57: {
+      name: 'PDW-57', cls: 'smg', dmg: 45, head: 2.1, rpm: 850, mag: 50,
+      reserve: 200, reload: 2.2, mode: 'auto', spread: 2.4, box: 0.9,
+      vm: { bullpup: 1 },
+      pap: { name: 'Predictive Death Wish', mag: 75 }
+    },
+    msmc: {
+      name: 'MSMC', cls: 'smg', dmg: 48, head: 2.2, rpm: 800, mag: 30,
+      reserve: 150, reload: 1.9, mode: 'auto', spread: 2.3, box: 0.9,
+      pap: { name: 'Micro Sonic Massacre' }
+    },
+    vector: {
+      name: 'Vector K10', cls: 'smg', dmg: 40, head: 2, rpm: 1100, mag: 25,
+      reserve: 150, reload: 1.8, mode: 'auto', spread: 2.7, box: 0.85,
+      pap: { name: 'Insurrection', mag: 40 }
+    },
+    uzi: {
+      name: 'Uzi', cls: 'smg', dmg: 38, head: 2, rpm: 780, mag: 25,
+      reserve: 175, reload: 1.9, mode: 'auto', spread: 2.8, box: 0.8,
+      vm: { len: 0.65, stock: 'skeleton' },
+      pap: { name: 'Uncle Gal' }
+    },
+    /* ------------------------------------------------------------ rifles */
+    m14: {
+      name: 'M14', cls: 'rifle', dmg: 100, head: 2.5, rpm: 300, mag: 8,
+      reserve: 96, reload: 1.9, mode: 'semi', spread: 0.9, wall: 500,
+      vm: { wood: 1 },
+      pap: { name: 'Mnesia', dmg: 220, mag: 16, reserve: 192 }
     },
     m16: {
       name: 'M16', cls: 'rifle', dmg: 60, head: 3, rpm: 460, mag: 30,
       reserve: 120, reload: 2.0, mode: 'semi', spread: 1.1, wall: 1200,
+      vm: { carryHandle: 1 },
       pap: { name: 'Skullcrusher', dmg: 130, mag: 30, reserve: 270, mode: 'auto' }
-    },
-    stakeout: {
-      name: 'Stakeout', cls: 'shotgun', dmg: 40, head: 1.5, pellets: 8, rpm: 70,
-      mag: 6, reserve: 54, reload: 2.6, mode: 'pump', spread: 4.6, wall: 1500,
-      range: 16,
-      pap: { name: 'Raid', dmg: 80, mag: 10, reserve: 90, range: 22 }
     },
     commando: {
       name: 'Commando', cls: 'rifle', dmg: 45, head: 2.6, rpm: 750, mag: 30,
@@ -347,32 +425,116 @@
     galil: {
       name: 'Galil', cls: 'rifle', dmg: 50, head: 2.6, rpm: 750, mag: 35,
       reserve: 315, reload: 2.3, mode: 'auto', spread: 1.8, box: 1,
+      vm: { mag: 'curved', wood: 1 },
       pap: { name: 'Lamentation', dmg: 100, mag: 35, reserve: 490 }
     },
     famas: {
       name: 'FAMAS', cls: 'rifle', dmg: 40, head: 2.4, rpm: 900, mag: 30,
       reserve: 270, reload: 2.2, mode: 'auto', spread: 2.0, box: 1,
+      vm: { bullpup: 1 },
       pap: { name: 'G16-GL35', dmg: 80, mag: 45, reserve: 360 }
     },
     aug: {
       name: 'AUG', cls: 'rifle', dmg: 50, head: 2.6, rpm: 720, mag: 30,
       reserve: 270, reload: 2.1, mode: 'auto', spread: 1.6, box: 1,
+      vm: { bullpup: 1, scope: 1, col: 0x4a523e },
       pap: { name: 'AUG-50M3', dmg: 100, mag: 40, reserve: 360 }
+    },
+    fal: {
+      name: 'FN FAL', cls: 'rifle', dmg: 110, head: 2.8, rpm: 420, mag: 20,
+      reserve: 160, reload: 2.1, mode: 'semi', spread: 1.0, box: 0.9,
+      vm: { wood: 1, len: 1.15 },
+      pap: { name: 'EPC WN', mode: 'auto' }
+    },
+    g11: {
+      name: 'G11', cls: 'rifle', dmg: 55, head: 3, rpm: 600, mag: 48,
+      reserve: 144, reload: 2.5, mode: 'semi', spread: 0.8, box: 0.85,
+      vm: { bullpup: 1, scope: 1, col: 0x35383d },
+      pap: { name: 'G115 Generator', mode: 'auto' }
+    },
+    an94: {
+      name: 'AN-94', cls: 'rifle', dmg: 52, head: 2.6, rpm: 900, mag: 30,
+      reserve: 270, reload: 2.2, mode: 'auto', spread: 1.6, box: 0.9,
+      vm: { mag: 'curved' },
+      pap: { name: 'Actuated Neutralizer 94000' }
+    },
+    type25: {
+      name: 'Type 25', cls: 'rifle', dmg: 46, head: 2.4, rpm: 950, mag: 30,
+      reserve: 270, reload: 2.1, mode: 'auto', spread: 1.9, box: 0.9,
+      vm: { bullpup: 1 },
+      pap: { name: 'Strain 25' }
+    },
+    mtar: {
+      name: 'MTAR', cls: 'rifle', dmg: 50, head: 2.6, rpm: 750, mag: 30,
+      reserve: 270, reload: 2.0, mode: 'auto', spread: 1.6, box: 0.9,
+      vm: { bullpup: 1 },
+      pap: { name: 'Malevolent Taxonomic Anodized Redeemer' }
+    },
+    scarh: {
+      name: 'SCAR-H', cls: 'rifle', dmg: 60, head: 2.8, rpm: 650, mag: 30,
+      reserve: 240, reload: 2.1, mode: 'auto', spread: 1.4, box: 0.85,
+      vm: { col: 0x6e5f3f },
+      pap: { name: 'Agonizer' }
+    },
+    m27: {
+      name: 'M27', cls: 'rifle', dmg: 48, head: 2.5, rpm: 800, mag: 30,
+      reserve: 300, reload: 2.0, mode: 'auto', spread: 1.7, box: 0.9,
+      pap: { name: 'Mystifier' }
+    },
+    m8a1: {
+      name: 'M8A1', cls: 'rifle', dmg: 50, head: 2.6, rpm: 1000, mag: 32,
+      reserve: 256, reload: 2.0, mode: 'auto', spread: 1.8, box: 0.85,
+      vm: { bullpup: 1 },
+      pap: { name: 'Master of Anarchy' }
+    },
+    /* ---------------------------------------------------------- shotguns */
+    olympia: {
+      name: 'Olympia', cls: 'shotgun', dmg: 30, head: 1.5, pellets: 8, rpm: 120,
+      mag: 2, reserve: 38, reload: 1.8, mode: 'semi', spread: 5.5, wall: 500,
+      range: 14, vm: { twin: 1, wood: 1 },
+      pap: { name: 'Hades', dmg: 65, mag: 4, reserve: 60, range: 18 }
+    },
+    stakeout: {
+      name: 'Stakeout', cls: 'shotgun', dmg: 40, head: 1.5, pellets: 8, rpm: 70,
+      mag: 6, reserve: 54, reload: 2.6, mode: 'pump', spread: 4.6, wall: 1500,
+      range: 16, vm: { pump: 1, wood: 1 },
+      pap: { name: 'Raid', dmg: 80, mag: 10, reserve: 90, range: 22 }
     },
     spas12: {
       name: 'SPAS-12', cls: 'shotgun', dmg: 35, head: 1.5, pellets: 8, rpm: 180,
       mag: 8, reserve: 56, reload: 2.4, mode: 'semi', spread: 4.2, box: 1,
-      range: 15,
+      range: 15, vm: { stock: 'skeleton' },
       pap: { name: 'SPAZ-24', dmg: 70, mag: 24, reserve: 96, range: 20 }
     },
-    python: {
-      name: 'Python', cls: 'pistol', dmg: 150, head: 4, rpm: 240, mag: 6,
-      reserve: 84, reload: 2.2, mode: 'semi', spread: 1.0, box: 1,
-      pap: { name: 'Cobra', dmg: 300, mag: 12, reserve: 96 }
+    hs10: {
+      name: 'HS10', cls: 'shotgun', dmg: 35, head: 1.5, pellets: 6, rpm: 220,
+      mag: 4, reserve: 36, reload: 2.2, mode: 'semi', spread: 4.0, box: 0.8,
+      range: 13, vm: { len: 0.75, stock: 'none' },
+      pap: { name: 'Typhoid & Mary', mag: 8 }
     },
+    r870: {
+      name: 'R870 MCS', cls: 'shotgun', dmg: 45, head: 1.5, pellets: 8, rpm: 65,
+      mag: 7, reserve: 49, reload: 2.7, mode: 'pump', spread: 4.4, box: 0.9,
+      range: 17, vm: { pump: 1 },
+      pap: { name: 'Refitted 870', dmg: 90, range: 24 }
+    },
+    ksg: {
+      name: 'KSG', cls: 'shotgun', dmg: 300, head: 2.5, rpm: 100, mag: 12,
+      reserve: 48, reload: 2.5, mode: 'pump', spread: 1.2, box: 0.8,
+      range: 30, vm: { pump: 1, bullpup: 1 },
+      pap: { name: 'Krakatoa', dmg: 650, range: 45 }
+    },
+    m1216: {
+      name: 'M1216', cls: 'shotgun', dmg: 30, head: 1.5, pellets: 6, rpm: 300,
+      mag: 16, reserve: 64, reload: 2.8, mode: 'semi', spread: 4.5, box: 0.8,
+      range: 13, vm: { mag: 'drum' },
+      pap: { name: 'Sweeper', mag: 32 }
+    },
+    /* -------------------------------------------------------------- LMGs */
     rpk: {
       name: 'RPK', cls: 'lmg', dmg: 50, head: 2.4, rpm: 650, mag: 100,
       reserve: 400, reload: 3.4, mode: 'auto', spread: 2.2, box: 1,
+      vm: { mag: 'drum', wood: 1 },
       pap: { name: 'R115 Resonator', dmg: 100, mag: 125, reserve: 500 }
     },
     hk21: {
@@ -380,6 +542,67 @@
       reserve: 500, reload: 3.8, mode: 'auto', spread: 2.3, box: 1,
       pap: { name: 'H115 Oscillator', dmg: 110, mag: 150, reserve: 750 }
     },
+    lsat: {
+      name: 'LSAT', cls: 'lmg', dmg: 60, head: 2.4, rpm: 750, mag: 100,
+      reserve: 400, reload: 3.6, mode: 'auto', spread: 2.1, box: 0.9,
+      pap: { name: 'FSIRT' }
+    },
+    hamr: {
+      name: 'HAMR', cls: 'lmg', dmg: 65, head: 2.4, rpm: 650, mag: 75,
+      reserve: 375, reload: 3.3, mode: 'auto', spread: 2.0, box: 0.9,
+      vm: { scope: 1 },
+      pap: { name: 'SLDG HAMR' }
+    },
+    qbb: {
+      name: 'QBB LSW', cls: 'lmg', dmg: 58, head: 2.4, rpm: 800, mag: 75,
+      reserve: 300, reload: 3.2, mode: 'auto', spread: 2.2, box: 0.85,
+      vm: { bullpup: 1, mag: 'drum' },
+      pap: { name: 'The Heavy Water' }
+    },
+    deathmachine: {
+      name: 'Death Machine', cls: 'minigun', dmg: 45, head: 1.6, rpm: 1400,
+      mag: 150, reserve: 450, reload: 4.5, mode: 'auto', spread: 3.6, box: 0.4,
+      pap: { name: 'Meat Grinder', dmg: 90 }
+    },
+    /* ----------------------------------------------------------- snipers */
+    l96a1: {
+      name: 'L96A1', cls: 'sniper', dmg: 500, head: 6, rpm: 45, mag: 5,
+      reserve: 45, reload: 2.8, mode: 'pump', spread: 0.3, box: 0.7,
+      adsFov: 28, vm: { scope: 1, wood: 1 },
+      pap: { name: 'L115 Isolator', dmg: 1100 }
+    },
+    dragunov: {
+      name: 'Dragunov', cls: 'sniper', dmg: 400, head: 5, rpm: 220, mag: 10,
+      reserve: 60, reload: 2.6, mode: 'semi', spread: 0.5, box: 0.7,
+      adsFov: 30, vm: { scope: 1, wood: 1, mag: 'straight' },
+      pap: { name: 'D115 Disassembler', dmg: 880 }
+    },
+    dsr50: {
+      name: 'DSR 50', cls: 'sniper', dmg: 800, head: 6, rpm: 40, mag: 6,
+      reserve: 42, reload: 2.9, mode: 'pump', spread: 0.25, box: 0.65,
+      adsFov: 26, vm: { scope: 1, bullpup: 1 },
+      pap: { name: 'Dead Specimen Reactor 5000', dmg: 1800 }
+    },
+    ballista: {
+      name: 'Ballista', cls: 'sniper', dmg: 600, head: 6, rpm: 55, mag: 7,
+      reserve: 49, reload: 2.7, mode: 'pump', spread: 0.3, box: 0.7,
+      adsFov: 28, vm: { scope: 1 },
+      pap: { name: 'B115 Accelerator', dmg: 1350 }
+    },
+    /* --------------------------------------------------------- launchers */
+    m72law: {
+      name: 'M72 LAW', cls: 'launcher', dmg: 900, head: 1, rpm: 60, mag: 1,
+      reserve: 20, reload: 3.0, mode: 'semi', spread: 0.6, box: 0.5,
+      adsFov: 50, projectile: 'rocket',
+      pap: { name: 'M72 Anarchy', dmg: 1800, mag: 3, reserve: 30 }
+    },
+    chinalake: {
+      name: 'China Lake', cls: 'launcher', dmg: 700, head: 1, rpm: 45, mag: 2,
+      reserve: 20, reload: 3.2, mode: 'pump', spread: 0.8, box: 0.5,
+      adsFov: 52, projectile: 'rocket', vm: { pump: 1 },
+      pap: { name: 'China Beach', dmg: 1400, mag: 4, reserve: 40 }
+    },
+    /* ----------------------------------------------------------- wonders */
     raygun: {
       name: 'Ray Gun', cls: 'raygun', dmg: 1000, head: 1, rpm: 180, mag: 20,
       reserve: 160, reload: 3.0, mode: 'semi', spread: 0.4, box: 0.45,

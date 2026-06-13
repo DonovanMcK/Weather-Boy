@@ -49,9 +49,17 @@ other maps' wonder weapons never roll.
   boards off windows, vault in, and flow through the map toward you.
 - **Hellhound rounds every 5th round** — kill the last dog for a guaranteed **Max Ammo**.
 - **Points economy**: 10/hit, 60/kill, 100/headshot, 130/knife, 10/board.
-- **Wall buys** on every map, **mystery box** (assault rifles, LMGs, shotguns,
-  Python, Ray Gun, Monkey Bombs and the map's wonder weapon; teddy bear moves
-  the box).
+- **56-weapon arsenal** with genuinely different damage/handling: pistols,
+  SMGs, rifles, shotguns (incl. slug KSG), LMGs, a Death Machine minigun,
+  bolt snipers (with scope overlay), rocket launchers and 4 wonder weapons.
+  Wall buys on every map; the **mystery box** carries everything else
+  (teddy bear moves the box).
+- **Two aim modes, auto-detected**: Macs/trackpads default to *simple aim*
+  (no ADS needed — tighter hip-fire + bullet magnetism); mouse PCs get full
+  right-click ADS with per-gun zoom. Switchable on the start menu.
+- **Procedurally textured world**: concrete, tile, wood-grain and brushed-metal
+  surfaces, hanging flickering lamps, barrels/crates, a real moon and starfield,
+  filmic tone mapping — no asset files, everything generated at runtime.
 - **Two-gun limit**, magazine + reserve ammo, per-gun reload/fire characteristics.
 - **6 Perk-a-Colas**: Quick Revive (solo self-revive ×3), Juggernog, Speed Cola,
   Double Tap II, Stamin-Up, Mule Kick (max 4 perks).

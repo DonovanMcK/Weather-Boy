@@ -141,10 +141,25 @@ CFG.MAP_IDS.forEach(function (mapId) {
 
 // Weapon sanity (map-independent).
 console.log('\n=== weapons ===');
-Object.keys(CFG.WEAPONS).forEach(function (id) {
+var ids = Object.keys(CFG.WEAPONS);
+ok(ids.length >= 40, 'arsenal has ' + ids.length + ' weapons (>= 40)');
+var names = {}, CLASSES = ['pistol', 'smg', 'rifle', 'shotgun', 'lmg', 'sniper',
+                           'launcher', 'minigun', 'raygun', 'thunder', 'wunder', 'storm'];
+var fails0 = fails;
+ids.forEach(function (id) {
   var w = CFG.WEAPONS[id];
-  ok(!!w.pap && !!w.pap.name, 'weapon ' + id + ' has PaP upgrade');
+  if (!w.pap || !w.pap.name) { ok(false, 'weapon ' + id + ' has PaP upgrade'); }
+  if (names[w.name]) ok(false, 'duplicate weapon name ' + w.name);
+  names[w.name] = true;
+  if (!(w.rpm > 0 && w.mag > 0 && w.reserve > 0 && w.reload > 0)) ok(false, id + ' core stats positive');
+  if (['auto', 'semi', 'pump'].indexOf(w.mode) < 0) ok(false, id + ' mode valid');
+  if (CLASSES.indexOf(w.cls) < 0) ok(false, id + ' class valid (' + w.cls + ')');
+  if (w.dmg < 0 || (w.dmg === 0 && w.cls !== 'thunder')) ok(false, id + ' has damage');
 });
+ok(fails === fails0, 'every weapon has PaP name, unique name, sane stats, valid mode/class');
+var dmgs = {};
+ids.forEach(function (id) { dmgs[CFG.WEAPONS[id].dmg] = true; });
+ok(Object.keys(dmgs).length >= 15, 'damage values are varied (' + Object.keys(dmgs).length + ' distinct)');
 ok(new Set(CFG.MAP_IDS.map(function (id) { return CFG.MAPS[id].wonder; })).size === 3,
    'each map has a distinct wonder weapon');
 

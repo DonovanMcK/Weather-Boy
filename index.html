@@ -64,6 +64,13 @@
   /* overlays */
   #hud-vignette { position: fixed; inset: 0; pointer-events: none; opacity: 0;
     background: radial-gradient(ellipse at center, transparent 42%, rgba(140,0,0,0.85) 100%); }
+  #hud-scope { position: fixed; inset: 0; pointer-events: none; display: none;
+    background: radial-gradient(circle at center, transparent 26%, rgba(0,0,0,0.2) 30%,
+      #000 33%, #000 100%); }
+  #hud-scope::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
+    width: 1px; background: rgba(0,0,0,0.8); }
+  #hud-scope::after { content: ''; position: absolute; top: 50%; left: 0; right: 0;
+    height: 1px; background: rgba(0,0,0,0.8); }
   #hud-flash { position: fixed; inset: 0; pointer-events: none; background: #fff; opacity: 0; }
   #hud-downed { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
     background: rgba(60,0,0,0.45); font-size: 44px; color: #f88;
@@ -110,6 +117,7 @@
   <div id="hud-powerups"></div>
   <div id="hud-prompt"></div>
   <div id="hud-banner-wrap"><div id="hud-banner"></div><div id="hud-banner-sub"></div></div>
+  <div id="hud-scope"></div>
   <div id="hud-vignette"></div>
   <div id="hud-flash"></div>
   <div id="hud-downed">QUICK REVIVE...</div>
@@ -147,6 +155,8 @@
     Every box hides the Ray Gun, Monkey Bombs and the map's wonder weapon.
     Hellhounds attack every 5th round — the last one drops a Max Ammo.
   </div>
+  <button id="btn-aimmode" style="font-size:16px; padding:8px 22px; margin-bottom:6px;"></button>
+  <div id="aimmode-desc" style="font-size:13px; color:#887;"></div>
 </div>
 
 <div class="menu" id="menu-pause">

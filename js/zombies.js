@@ -23,78 +23,149 @@
   };
 
   /* ------------------------------------------------------------- models */
-  function zombieMaterials() {
-    var skins = [0x5a6a4a, 0x6a5a4a, 0x55604f, 0x4f5a62];
-    var cloths = [0x3a3a44, 0x44352a, 0x2f3a33, 0x3d2f3a];
-    return {
-      skin: G.util.mat(skins[(Math.random() * skins.length) | 0]),
-      cloth: G.util.mat(cloths[(Math.random() * cloths.length) | 0])
-    };
+  var zmats = null;
+  function zombiePalette() {
+    if (!zmats) {
+      var mk = function (c) { return new THREE.MeshLambertMaterial({ color: c }); };
+      zmats = {
+        skins: [0x7d8a62, 0x8a7a62, 0x6f8068, 0x6a7a85].map(mk),
+        cloths: [0x4f4f66, 0x655036, 0x40554a, 0x584358, 0x5a4a3a].map(mk),
+        pants: [0x3b3e48, 0x474038, 0x363f3b, 0x44363a].map(mk),
+        gore: mk(0x6a1212),
+        dark: mk(0x23262b)
+      };
+      zmats.gore.emissive = new THREE.Color(0x220404);
+    }
+    function pick(a) { return a[(Math.random() * a.length) | 0]; }
+    return { skin: pick(zmats.skins), cloth: pick(zmats.cloths), pants: pick(zmats.pants) };
+  }
+
+  function shadowBlob(scale) {
+    var sp = new THREE.Mesh(new THREE.PlaneGeometry(scale, scale),
+      new THREE.MeshBasicMaterial({ map: G.tex.blob, transparent: true, depthWrite: false }));
+    sp.rotation.x = -Math.PI / 2;
+    sp.position.y = 0.02;
+    return sp;
   }
 
   function buildZombieMesh(z) {
     var g = new THREE.Group();
-    var m = zombieMaterials();
+    var m = zombiePalette();
     function box(w, h, d, x, y, zz, mt) {
       var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mt);
       b.position.set(x, y, zz);
       return b;
     }
-    var torso = box(0.55, 0.7, 0.32, 0, 1.15, 0, m.cloth);
-    var head = box(0.32, 0.34, 0.32, 0, 1.72, 0, m.skin);
-    var eyeMat = new THREE.MeshBasicMaterial({ color: z.isDog ? 0xff3300 : 0xffcc33 });
-    var e1 = box(0.06, 0.05, 0.02, -0.08, 0.04, -0.17, eyeMat);
-    var e2 = box(0.06, 0.05, 0.02, 0.08, 0.04, -0.17, eyeMat);
-    head.add(e1); head.add(e2);
-    // arms pivoted at the shoulder, reaching forward
-    function limb(w, h, d, px, py, mt) {
-      var pivot = new THREE.Object3D();
-      pivot.position.set(px, py, 0);
-      var seg = box(w, h, d, 0, -h / 2, 0, mt);
-      pivot.add(seg);
-      return pivot;
+    function pivotAt(x, y, zz) {
+      var p = new THREE.Object3D();
+      p.position.set(x, y, zz);
+      g.add(p);
+      return p;
     }
-    var armL = limb(0.16, 0.62, 0.16, -0.36, 1.45, m.skin);
-    var armR = limb(0.16, 0.62, 0.16, 0.36, 1.45, m.skin);
-    armL.rotation.x = -1.35; armR.rotation.x = -1.35;
-    var legL = limb(0.2, 0.78, 0.2, -0.15, 0.8, m.cloth);
-    var legR = limb(0.2, 0.78, 0.2, 0.15, 0.8, m.cloth);
-    g.add(torso); g.add(head); g.add(armL); g.add(armR); g.add(legL); g.add(legR);
-    torso.userData = { zombie: z, part: 'body' };
-    head.userData = { zombie: z, part: 'head' };
-    z.parts = { torso: torso, head: head, armL: armL, armR: armR, legL: legL, legR: legR };
-    z.hitMeshes = [torso, head];
+    // hips + hunched chest
+    g.add(box(0.42, 0.24, 0.27, 0, 0.97, 0, m.pants));
+    var chest = box(0.55, 0.56, 0.32, 0, 1.32, -0.03, m.cloth);
+    chest.rotation.x = 0.14;
+    g.add(chest);
+    // torn collar + gore patches
+    chest.add(box(0.57, 0.08, 0.34, 0, 0.26, 0, m.skin));
+    for (var gp = 0; gp < 2; gp++) {
+      chest.add(box(0.12 + Math.random() * 0.12, 0.1 + Math.random() * 0.14, 0.02,
+        (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, -0.165, zmats.gore));
+    }
+    // head with jaw + glowing eyes
+    var headPivot = pivotAt(0, 1.66, -0.1);
+    var skull = box(0.3, 0.27, 0.3, 0, 0.1, 0, m.skin);
+    headPivot.add(skull);
+    headPivot.add(box(0.31, 0.07, 0.31, 0, 0.25, 0.01, zmats.dark));
+    var jaw = box(0.26, 0.09, 0.26, 0, -0.07, -0.02, m.skin);
+    headPivot.add(jaw);
+    var eyeMat = new THREE.MeshBasicMaterial({ color: 0xffcc33 });
+    skull.add(box(0.06, 0.045, 0.02, -0.08, 0.02, -0.155, eyeMat));
+    skull.add(box(0.06, 0.045, 0.02, 0.08, 0.02, -0.155, eyeMat));
+    // two-segment arms reaching forward
+    function arm(side) {
+      var sh = pivotAt(side * 0.345, 1.5, -0.02);
+      sh.add(box(0.14, 0.34, 0.14, 0, -0.17, 0, m.cloth));
+      var elbow = new THREE.Object3D();
+      elbow.position.set(0, -0.34, 0);
+      sh.add(elbow);
+      elbow.add(box(0.12, 0.3, 0.12, 0, -0.15, 0, m.skin));
+      elbow.add(box(0.13, 0.1, 0.15, 0, -0.34, -0.01, m.skin));
+      sh.rotation.x = -1.3;
+      elbow.rotation.x = -0.25;
+      return { sh: sh, elbow: elbow };
+    }
+    var aL = arm(-1), aR = arm(1);
+    // two-segment legs
+    function leg(side) {
+      var hip = pivotAt(side * 0.14, 0.95, 0);
+      hip.add(box(0.18, 0.4, 0.2, 0, -0.2, 0, m.pants));
+      var knee = new THREE.Object3D();
+      knee.position.set(0, -0.4, 0);
+      hip.add(knee);
+      knee.add(box(0.15, 0.42, 0.16, 0, -0.21, 0, m.pants));
+      knee.add(box(0.16, 0.09, 0.27, 0, -0.46, -0.05, zmats.dark));
+      return { hip: hip, knee: knee };
+    }
+    var lL = leg(-1), lR = leg(1);
+    g.add(shadowBlob(1.2));
+    g.scale.setScalar(0.94 + Math.random() * 0.14);
+    chest.userData = { zombie: z, part: 'body' };
+    skull.userData = { zombie: z, part: 'head' };
+    z.parts = {
+      torso: chest, head: skull, headPivot: headPivot, jaw: jaw,
+      armL: aL.sh, armR: aR.sh, elbL: aL.elbow, elbR: aR.elbow,
+      legL: lL.hip, legR: lR.hip, kneeL: lL.knee, kneeR: lR.knee
+    };
+    z.hitMeshes = [chest, skull];
     return g;
   }
 
   function buildDogMesh(z) {
     var g = new THREE.Group();
-    var fire = new THREE.MeshLambertMaterial({ color: 0x331111, emissive: 0xbb3300, emissiveIntensity: 0.7 });
-    function box(w, h, d, x, y, zz) {
-      var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), fire);
+    var hide = new THREE.MeshLambertMaterial({ color: 0x2c1a12 });
+    var lava = new THREE.MeshLambertMaterial({ color: 0x441505, emissive: 0xcc3300, emissiveIntensity: 0.85 });
+    function box(w, h, d, x, y, zz, mt) {
+      var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mt || hide);
       b.position.set(x, y, zz);
       return b;
     }
-    var body = box(0.42, 0.42, 0.95, 0, 0.62, 0);
-    var head = box(0.3, 0.28, 0.4, 0, 0.85, -0.6);
-    var eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
-    var e1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.02), eyeMat);
-    e1.position.set(-0.08, 0.05, -0.21); head.add(e1);
-    var e2 = e1.clone(); e2.position.x = 0.08; head.add(e2);
+    var body = box(0.4, 0.4, 0.85, 0, 0.62, 0.05);
+    g.add(body);
+    body.add(box(0.42, 0.1, 0.6, 0, 0.18, -0.05, lava));
+    g.add(box(0.46, 0.44, 0.32, 0, 0.64, -0.42));
+    var neck = new THREE.Object3D();
+    neck.position.set(0, 0.78, -0.55);
+    g.add(neck);
+    var skull = box(0.26, 0.24, 0.28, 0, 0.05, -0.08);
+    neck.add(skull);
+    skull.add(box(0.15, 0.12, 0.22, 0, -0.04, -0.22));
+    var jaw = box(0.13, 0.05, 0.2, 0, -0.12, -0.2);
+    skull.add(jaw);
+    skull.add(box(0.06, 0.1, 0.04, -0.09, 0.16, 0.02, lava));
+    skull.add(box(0.06, 0.1, 0.04, 0.09, 0.16, 0.02, lava));
+    var eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+    skull.add(box(0.05, 0.04, 0.02, -0.07, 0.04, -0.22, eyeMat));
+    skull.add(box(0.05, 0.04, 0.02, 0.07, 0.04, -0.22, eyeMat));
+    var tail = new THREE.Object3D();
+    tail.position.set(0, 0.72, 0.48);
+    g.add(tail);
+    tail.add(box(0.06, 0.06, 0.3, 0, 0.05, 0.15, lava));
     var legs = [];
-    [[-0.15, -0.32], [0.15, -0.32], [-0.15, 0.32], [0.15, 0.32]].forEach(function (p) {
+    [[-0.15, -0.3], [0.15, -0.3], [-0.15, 0.34], [0.15, 0.34]].forEach(function (p) {
       var pivot = new THREE.Object3D();
-      pivot.position.set(p[0], 0.45, p[1]);
-      var seg = box(0.1, 0.45, 0.1, 0, -0.22, 0);
-      pivot.add(seg);
+      pivot.position.set(p[0], 0.48, p[1]);
+      pivot.add(box(0.1, 0.42, 0.11, 0, -0.2, 0));
+      pivot.add(box(0.11, 0.07, 0.15, 0, -0.44, -0.02, lava));
       g.add(pivot);
       legs.push(pivot);
     });
-    g.add(body); g.add(head);
+    g.add(shadowBlob(1.3));
     body.userData = { zombie: z, part: 'body' };
-    head.userData = { zombie: z, part: 'head' };
-    z.parts = { torso: body, head: head, legs: legs };
-    z.hitMeshes = [body, head];
+    skull.userData = { zombie: z, part: 'head' };
+    z.parts = { torso: body, body: body, head: skull, neck: neck, jaw: jaw, tail: tail, legs: legs };
+    z.hitMeshes = [body, skull];
     return g;
   }
 
@@ -310,7 +381,7 @@
     z.speed = Math.max(0.7, z.speed * 0.45);
     z.mesh.remove(z.parts.legL);
     z.mesh.remove(z.parts.legR);
-    z.crawlOffset = -0.72;
+    z.crawlOffset = -0.8;
   }
 
   function killZombie(z, opts) {
@@ -401,27 +472,45 @@
   function animate(z, dt, moving) {
     z.animT += dt * (moving ? z.speed * 2.4 : 1);
     var s = Math.sin(z.animT);
+    var P = z.parts;
     if (z.isDog) {
-      z.parts.legs.forEach(function (leg, i) {
-        leg.rotation.x = Math.sin(z.animT * 2 + i * 1.6) * 0.7;
+      // gallop: front pair and back pair alternate, body bounces, tail wags
+      P.legs.forEach(function (leg, i) {
+        leg.rotation.x = Math.sin(z.animT * 2 + (i < 2 ? 0 : Math.PI) + (i % 2) * 0.5) * 0.75;
       });
-    } else if (!z.crawler) {
-      z.parts.legL.rotation.x = s * 0.55;
-      z.parts.legR.rotation.x = -s * 0.55;
-      if (z.state !== 'tear') {
-        z.parts.armL.rotation.x = -1.35 + s * 0.18;
-        z.parts.armR.rotation.x = -1.35 - s * 0.18;
-      }
+      if (P.body) P.body.position.y = 0.62 + Math.abs(Math.sin(z.animT * 2)) * 0.06;
+      if (P.tail) P.tail.rotation.y = Math.sin(z.animT * 4) * 0.5;
+      if (P.neck) P.neck.rotation.x = Math.sin(z.animT * 2) * 0.08;
+      if (P.jaw) P.jaw.rotation.x = 0.15 + Math.max(0, Math.sin(z.animT * 3)) * 0.4;
     } else {
-      z.parts.armL.rotation.x = -1.6 + s * 0.5;
-      z.parts.armR.rotation.x = -1.6 - s * 0.5;
-    }
-    if (z.state === 'attack') {
-      var k = Math.sin(z.t * 12);
-      if (!z.isDog) {
-        z.parts.armL.rotation.x = -1.9 + k * 0.5;
-        z.parts.armR.rotation.x = -1.9 - k * 0.5;
+      // shamble: thighs swing, knees flex on the back-swing, head lolls
+      if (!z.crawler) {
+        P.legL.rotation.x = s * 0.55;
+        P.legR.rotation.x = -s * 0.55;
+        P.kneeL.rotation.x = Math.max(0, -s) * 0.85;
+        P.kneeR.rotation.x = Math.max(0, s) * 0.85;
       }
+      if (z.state !== 'tear' && z.state !== 'attack') {
+        var reach = z.crawler ? -1.6 : -1.3;
+        var sway = z.crawler ? 0.5 : 0.16;
+        P.armL.rotation.x = reach + s * sway;
+        P.armR.rotation.x = reach - s * sway;
+        P.elbL.rotation.x = -0.25 + Math.max(0, s) * 0.2;
+        P.elbR.rotation.x = -0.25 + Math.max(0, -s) * 0.2;
+      }
+      if (P.headPivot) {
+        P.headPivot.rotation.z = Math.sin(z.animT * 0.7) * 0.08;
+        P.headPivot.rotation.x = 0.1 + Math.sin(z.animT * 0.45) * 0.06;
+      }
+      if (P.jaw) P.jaw.rotation.x = 0.1 + Math.max(0, Math.sin(z.animT * 1.7)) * 0.35;
+    }
+    if (z.state === 'attack' && !z.isDog) {
+      var k = Math.sin(z.t * 12);
+      P.armL.rotation.x = -1.9 + k * 0.5;
+      P.armR.rotation.x = -1.9 - k * 0.5;
+      P.elbL.rotation.x = -0.5 - k * 0.3;
+      P.elbR.rotation.x = -0.5 + k * 0.3;
+      if (P.jaw) P.jaw.rotation.x = 0.5;
     }
     // states below manage their own y; everything else sits on the floor
     var freeY = z.state === 'rise' || z.state === 'dying' || z.state === 'flung' || z.state === 'vault';
@@ -459,7 +548,7 @@
     // lightning decay (dog rounds)
     if (Z.lightning > 0) {
       Z.lightning -= dt;
-      G.hemi.intensity = (G.map.power ? 0.5 : 0.25) + Z.lightning * 6;
+      G.hemi.intensity = (G.map.power ? 0.8 : 0.55) + Z.lightning * 6;
     }
 
     // ambient groans

@@ -73,6 +73,12 @@
       else if (cls === 'raygun') { tone(900, 0.18, 'sawtooth', 0.25, 120); tone(1400, 0.12, 'square', 0.1, 300); }
       else if (cls === 'thunder') {
         noise(0.7, 300, 0.8); tone(60, 0.7, 'sawtooth', 0.5, 20); tone(45, 0.9, 'triangle', 0.5, 15);
+      } else if (cls === 'sniper') {
+        noise(0.35, 700, 0.65); tone(85, 0.3, 'triangle', 0.4, 30); tone(2400, 0.06, 'square', 0.08, 800);
+      } else if (cls === 'launcher') {
+        noise(0.4, 350, 0.55); tone(70, 0.45, 'sine', 0.5, 30);
+      } else if (cls === 'minigun') {
+        noise(0.09, 2000, 0.35); tone(170, 0.06, 'sawtooth', 0.18, 80);
       } else if (cls === 'wunder') {
         tone(1500, 0.35, 'sawtooth', 0.3, 90); noise(0.3, 5000, 0.25, 'highpass');
       } else if (cls === 'storm') {

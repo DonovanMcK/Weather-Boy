@@ -195,7 +195,7 @@
         I.papBusy = true;
         G.player.locked = true;
         G.audio.papChug();
-        if (gun.model) gun.model.visible = false;
+        if (gun.model) { gun.model.userData.show = false; gun.model.visible = false; }
         G.hud.banner('UPGRADING...', '#fb5', 2);
         setTimeout(function () {
           G.player.locked = false;

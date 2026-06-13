@@ -12,22 +12,53 @@
 
   G.bestKey = function () { return 'wj_best_' + G.CFG.cur.id; };
 
+  /* ------------------------------------------------- input mode detection
+     Macs (usually trackpads) default to "simple" aim: no ADS, tighter
+     hip-fire and bullet magnetism. Mouse machines get full ADS. The start
+     menu button overrides the auto-detect and persists. */
+  function detectAimMode() {
+    var saved = localStorage.getItem('wj_aim');
+    if (saved === 'mouse' || saved === 'simple') return saved;
+    var nav = typeof navigator !== 'undefined' ? navigator : {};
+    var ua = (nav.platform || '') + ' ' + (nav.userAgent || '');
+    return /Mac|iPhone|iPad/i.test(ua) ? 'simple' : 'mouse';
+  }
+  G.settings = { aimMode: 'mouse' };
+
+  function refreshAimButton() {
+    var btn = document.getElementById('btn-aimmode');
+    var desc = document.getElementById('aimmode-desc');
+    if (!btn) return;
+    if (G.settings.aimMode === 'simple') {
+      btn.textContent = 'Aiming: TRACKPAD (auto-aim, no RMB)';
+      desc.textContent = 'Tighter hip-fire + bullet magnetism. Best for MacBooks. Click to switch.';
+    } else {
+      btn.textContent = 'Aiming: MOUSE (RMB to aim)';
+      desc.textContent = 'Full aim-down-sights on right mouse button. Click to switch.';
+    }
+  }
+
   function boot() {
     var canvas = document.getElementById('game');
     G.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     G.renderer.setSize(window.innerWidth, window.innerHeight);
     G.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    // r160 defaults to physical light units which crush small point lights —
+    // use the classic units and filmic tone mapping for a readable image
+    G.renderer.useLegacyLights = true;
+    G.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    G.renderer.toneMappingExposure = 1.25;
 
     G.scene = new THREE.Scene();
-    G.scene.background = new THREE.Color(0x07090f);
-    G.scene.fog = new THREE.FogExp2(0x0a0d14, 0.03);
+    G.scene.background = new THREE.Color(0x0c1018);
+    G.scene.fog = new THREE.FogExp2(0x0e1320, 0.02);
 
     G.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 300);
     G.scene.add(G.camera);
 
-    G.hemi = new THREE.HemisphereLight(0x445577, 0x1a1410, 0.25);
+    G.hemi = new THREE.HemisphereLight(0x8899bb, 0x3a2f24, 0.55);
     G.scene.add(G.hemi);
-    var moon = new THREE.DirectionalLight(0x8899cc, 0.35);
+    var moon = new THREE.DirectionalLight(0xaabbdd, 0.5);
     moon.position.set(30, 50, -20);
     G.scene.add(moon);
 
@@ -46,6 +77,13 @@
       var best = localStorage.getItem('wj_best_' + id);
       var span = document.getElementById('best-' + id);
       if (span && best) span.textContent = 'Best: round ' + best;
+    });
+    G.settings.aimMode = detectAimMode();
+    refreshAimButton();
+    document.getElementById('btn-aimmode').addEventListener('click', function () {
+      G.settings.aimMode = G.settings.aimMode === 'simple' ? 'mouse' : 'simple';
+      localStorage.setItem('wj_aim', G.settings.aimMode);
+      refreshAimButton();
     });
     document.getElementById('btn-resume').addEventListener('click', resume);
     document.getElementById('btn-restart').addEventListener('click', function () { location.reload(); });

@@ -26,13 +26,16 @@ function createGame() {
     return obj;
   }
   function ctx2d() {
-    return new Proxy({}, {
+    // every unknown method returns the stub itself so chained objects
+    // (gradients etc.) keep working: g.addColorStop(...), m.width, ...
+    var stub = new Proxy({}, {
       get: function (t, p) {
         if (p in t) return t[p];
-        return function () { return { width: 10 }; };
+        return function () { return stub; };
       },
       set: function (t, p, v) { t[p] = v; return true; }
     });
+    return stub;
   }
   function canvasStub() {
     var cv = makeEmitter({ width: 300, height: 150, style: {} });
@@ -166,9 +169,9 @@ function testWonderWeapon(ctx) {
   G.player.yaw = 0; G.player.pitch = 0;
   ctx.step(2);
   var zs = [
-    G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 4.5)),
-    G.zombies.spawnAt(new THREE.Vector3(c.x + 0.9, 0, c.z - 5.5)),
-    G.zombies.spawnAt(new THREE.Vector3(c.x - 0.9, 0, c.z - 6))
+    G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 3.0)),
+    G.zombies.spawnAt(new THREE.Vector3(c.x + 0.8, 0, c.z - 3.8)),
+    G.zombies.spawnAt(new THREE.Vector3(c.x - 0.8, 0, c.z - 4.4))
   ];
   ctx.step(2);
   var ammoBefore = G.weapons.current().ammo;
@@ -297,7 +300,39 @@ async function runQuick(mapId) {
   openAllDoors(ctx);
   unlockPap(ctx);
   testWonderWeapon(ctx);
-  if (mapId === 'nacht') testMovement(ctx); // big open spawn room
+  if (mapId === 'nacht') {
+    testMovement(ctx); // big open spawn room
+    testSimpleAim(ctx);
+  }
+}
+
+/* simple-aim (trackpad) mode: bullet magnetism lands slightly-off shots */
+function testSimpleAim(ctx) {
+  var G = ctx.G;
+  G.settings.aimMode = 'simple';
+  // clear the field so the magnetism can only pick our target
+  G.zombies.toSpawn = 0;
+  G.zombies.list.slice().forEach(function (zz) {
+    if (!zz.dead) G.zombies.damageZombie(zz, 1e9, { boom: true });
+  });
+  ctx.step(70); // let corpses despawn
+  var c = roomCenter(G, 'S');
+  ctx.moveTo(c);
+  G.player.yaw = 0; G.player.pitch = 0;
+  ctx.step(2);
+  // ~4.5 degrees off the crosshair — would miss without assist
+  var z = G.zombies.spawnAt(new THREE.Vector3(c.x + 0.35, 0, c.z - 4.4));
+  ctx.step(2);
+  G.weapons.equip(0, true); // M1911
+  var gun = G.weapons.current();
+  gun.ammo = 8;
+  var hpBefore = z.hp;
+  G.weapons.mouseDown = true;
+  ctx.step(6);
+  G.weapons.mouseDown = false;
+  ok(z.dead || z.hp < hpBefore, 'aim assist landed an off-axis shot');
+  ok(G.player.ads === 0, 'ADS stays off in simple mode');
+  G.settings.aimMode = 'mouse';
 }
 
 async function runFull(mapId) {
@@ -443,13 +478,17 @@ async function runFull(mapId) {
   ok(G.state === 'over', 'game over without quick revive');
 }
 
-(async function () {
-  await runFull('wetterjunge');
-  await runQuick('nacht');
-  await runQuick('derriese');
-  console.log(fails ? '\n' + fails + ' FAILURES' : '\nSMOKE TEST PASSED');
-  process.exit(fails ? 1 : 0);
-})().catch(function (e) {
-  console.error('CRASH:', e);
-  process.exit(1);
-});
+if (require.main === module) {
+  (async function () {
+    await runFull('wetterjunge');
+    await runQuick('nacht');
+    await runQuick('derriese');
+    console.log(fails ? '\n' + fails + ' FAILURES' : '\nSMOKE TEST PASSED');
+    process.exit(fails ? 1 : 0);
+  })().catch(function (e) {
+    console.error('CRASH:', e);
+    process.exit(1);
+  });
+}
+// importable for ad-hoc debugging: require('./tests/smoke.js').createGame()
+module.exports = { createGame: createGame, roomCenter: roomCenter };
