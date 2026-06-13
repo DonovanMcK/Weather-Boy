@@ -215,6 +215,9 @@ function testMovement(ctx) {
   step(60);
   ok(P.sprintAmt > 0.85, 'sprint ramped in');
   ok(hSpeed() > 6.0, 'sprint speed ~6.6 (' + hSpeed().toFixed(2) + ')');
+  var fwd = new THREE.Vector3(0, 0, -1).applyEuler(G.camera.rotation);
+  var dirDot = (P.vel.x * fwd.x + P.vel.z * fwd.z) / (hSpeed() || 1);
+  ok(dirDot > 0.92, 'movement aligned with camera forward (dot ' + dirDot.toFixed(2) + ')');
   ok(G.camera.fov > 79, 'sprint FOV kick (' + G.camera.fov.toFixed(1) + ')');
 
   /* slide: speed boost, low camera, wider FOV */
@@ -466,12 +469,16 @@ async function runFull(mapId) {
   /* downs */
   G.player.damage = origDamage;
   ok(G.player.hasPerk('revive'), 'still has quick revive');
+  G.zombies.spawnAt(G.player.pos.clone().add(new THREE.Vector3(2, 0, 0)));
   G.player.hp = 1;
   G.player.damage(50);
   ok(G.player.downed, 'player downed');
   ok(!G.player.hasPerk('jugg'), 'perks lost on down');
+  ok(G.zombies.aliveCount() === 0, 'horde despawns while downed');
   step(60 * 6);
-  ok(!G.player.downed && G.player.hp === G.player.maxHp, 'quick revive brought player back');
+  ok(!G.player.downed && G.player.hp === G.player.maxHp, 'quick revive brought player back (4s)');
+  ok(G.player.invuln > 0, 'mercy invulnerability after revive');
+  step(60 * 3); // let the mercy window expire
   G.player.hp = 1;
   G.player.damage(50);
   step(5);

@@ -254,7 +254,8 @@
       animT: Math.random() * 9
     };
     var sprint = Math.random() < CFG.sprinterFraction(Z.round);
-    z.speed = sprint ? 3.4 + Math.random() * 0.9 : 1.5 + Math.random() * 0.8;
+    var roundBump = Math.min(1.1, Z.round * 0.045); // rounds get progressively faster
+    z.speed = (sprint ? 3.4 + Math.random() * 0.9 : 1.5 + Math.random() * 0.8) + roundBump;
     z.mesh = buildZombieMesh(z);
     var spot = pickWindow();
     if (spot.riser) {
@@ -414,6 +415,22 @@
     G.player.addPoints(CFG.PTS.hit);
   };
 
+  // when the player goes down, the horde fades out and respawns after the
+  // revive instead of camping the body
+  Z.despawnForDown = function () {
+    var n = 0;
+    Z.list.forEach(function (z) {
+      if (!z.dead) {
+        z.dead = true;
+        z.state = 'dying';
+        z.t = 0;
+        n++;
+      }
+    });
+    Z.toSpawn += n;
+    Z._shootablesDirty = true;
+  };
+
   Z.killAll = function () {
     Z.list.forEach(function (z) {
       if (!z.dead) killZombie(z, { boom: true, silent: true });
@@ -528,7 +545,7 @@
     } else if (Z.toSpawn > 0) {
       Z.spawnTimer -= dt;
       var interval = Z.mode === 'dogs' ? 1.6 : CFG.spawnInterval(Z.round);
-      if (Z.spawnTimer <= 0 && Z.aliveCount() < CFG.MAX_ALIVE) {
+      if (Z.spawnTimer <= 0 && Z.aliveCount() < CFG.MAX_ALIVE && !G.player.downed) {
         Z.spawnTimer = interval;
         Z.toSpawn--;
         if (Z.mode === 'dogs') spawnDog(); else spawnZombie();
@@ -569,6 +586,25 @@
       z.attackCd -= dt;
       var moving = false;
 
+      // failsafe: a zombie that hasn't moved for ~15s (and isn't busy at a
+      // window or on the player) respawns so rounds can never stall
+      z._chk = (z._chk || 0) + dt;
+      if (z._chk > 5) {
+        z._chk = 0;
+        var movedD = z._anchor ? z.mesh.position.distanceTo(z._anchor) : 99;
+        if (movedD < 0.6 && z.state !== 'tear' && !z.dead &&
+            z.mesh.position.distanceTo(G.player.pos) > 6) z._stuck = (z._stuck || 0) + 1;
+        else z._stuck = 0;
+        z._anchor = z.mesh.position.clone();
+        if (z._stuck >= 3) {
+          G.scene.remove(z.mesh);
+          Z.list.splice(i, 1);
+          Z.toSpawn++;
+          Z._shootablesDirty = true;
+          continue;
+        }
+      }
+
       switch (z.state) {
         case 'rise':
           z.mesh.position.y += dt * 1.7;
@@ -593,6 +629,13 @@
           // claw animation
           z.parts.armL.rotation.x = -1.8 + Math.sin(z.t * 8) * 0.6;
           z.parts.armR.rotation.x = -1.8 - Math.sin(z.t * 8) * 0.6;
+          // swipe through the window if the player hugs the barricade
+          if (z.attackCd <= 0 && !G.player.downed &&
+              G.player.pos.distanceTo(z.window.inside) < 1.5) {
+            z.attackCd = 1.3;
+            G.player.damage(CFG.ZOMBIE_DMG);
+            G.audio.zombieAttack();
+          }
           if (z.tearTimer <= 0) {
             z.tearTimer = 2.0;
             if (!z.window.tearBoard()) { /* none left */ }

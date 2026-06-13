@@ -299,7 +299,7 @@
       });
       // lamp flicker
       this.lamps.forEach(function (l, i) {
-        var base = self.power ? 1.3 : 0.5;
+        var base = self.power ? 1.7 : 0.75;
         var fl = 1 + Math.sin(G.time * 9 + i * 7) * 0.04 + Math.sin(G.time * 23 + i * 3) * 0.025;
         l.light.intensity = base * fl;
         l.bulb.material.emissiveIntensity = (self.power ? 1.0 : 0.35) * fl;
@@ -308,7 +308,8 @@
 
     setPower: function () {
       this.power = true;
-      G.hemi.intensity = 0.8;
+      G.hemi.intensity = 0.95;
+      if (G.amb) G.amb.intensity = 0.7;
       this.perkMachines.forEach(function (p) { if (p.light) p.light.intensity = 0.9; });
     }
   };
@@ -337,11 +338,23 @@
     G.scene.background = new THREE.Color(atmos.sky);
     G.scene.fog.color.setHex(atmos.fog);
     G.scene.fog.density = atmos.density;
-    G.hemi.intensity = 0.55;
+    G.hemi.intensity = 0.65;
+    if (G.amb) G.amb.intensity = 0.5;
 
     map.risers = (CFG.RISERS || []).map(function (cr) {
       var wc = CFG.cellToWorld(cr[0], cr[1]);
       return { pos: new THREE.Vector3(wc.x, 0, wc.z), room: P.cells[cr[1]][cr[0]].room };
+    });
+
+    // room centers up front (machine decals + lights + AI all use them)
+    Object.keys(P.rooms).forEach(function (rid) {
+      var cx = 0, cz = 0;
+      P.rooms[rid].cells.forEach(function (cr) {
+        var w = CFG.cellToWorld(cr[0], cr[1]);
+        cx += w.x; cz += w.z;
+      });
+      P.rooms[rid].center = new THREE.Vector3(cx / P.rooms[rid].cells.length, 0,
+                                              cz / P.rooms[rid].cells.length);
     });
 
     var winLookup = {};
@@ -515,17 +528,55 @@
     var occupied = []; // keep auto props clear of everything interactive
     function occupy(p) { occupied.push(p); }
 
-    // perk machines: colored cabinet + emissive panel + glass top
+    // perk machines: vending cabinets with a lit bottle decal facing the room
+    function perkDecalTexture(def) {
+      var cv = document.createElement('canvas');
+      cv.width = 128; cv.height = 256;
+      var c = cv.getContext('2d');
+      c.fillStyle = '#101216'; c.fillRect(0, 0, 128, 256);
+      var col = '#' + new THREE.Color(def.color).getHexString();
+      c.strokeStyle = col; c.lineWidth = 4;
+      c.strokeRect(8, 8, 112, 240);
+      // bottle silhouette
+      c.fillStyle = col;
+      c.fillRect(54, 60, 20, 16);   // neck
+      c.beginPath();
+      c.moveTo(48, 76); c.lineTo(80, 76); c.lineTo(86, 96); c.lineTo(86, 170);
+      c.lineTo(42, 170); c.lineTo(42, 96); c.closePath();
+      c.fill();
+      c.fillStyle = '#101216';
+      c.fillRect(48, 110, 32, 26);  // label band
+      c.fillStyle = '#fff';
+      c.font = 'bold 26px Georgia, serif'; c.textAlign = 'center';
+      c.fillText(def.icon, 64, 131);
+      c.fillStyle = col;
+      c.font = 'bold 17px Georgia, serif';
+      c.fillText(def.name.split(' ')[0].toUpperCase(), 64, 212);
+      return new THREE.CanvasTexture(cv);
+    }
+
     CFG.PERK_MACHINES.forEach(function (pm) {
       var def = CFG.PERKS[pm.perk];
       var pos = place(pm);
       occupy(pos);
       var body = addBox(0.95, 1.85, 0.75, pos.x, 0.92, pos.z,
         new THREE.MeshLambertMaterial({ map: G.tex.metal, color: def.color }), { collide: true, solid: true });
-      addBox(0.8, 0.55, 0.78, pos.x, 1.42, pos.z,
-        mat(0x16181c, { emissive: new THREE.Color(def.color), emissiveIntensity: 0.7 }));
       addBox(0.99, 0.12, 0.79, pos.x, 1.9, pos.z, G.mats.metal);
       addBox(0.99, 0.1, 0.79, pos.x, 0.06, pos.z, mat(0x1a1c20));
+      // decal on the face pointing toward the room interior
+      var roomCtr = P.rooms[map.roomAt(pos.x, pos.z)] ? P.rooms[map.roomAt(pos.x, pos.z)].center : null;
+      var dx = roomCtr ? roomCtr.x - pos.x : 0, dz = roomCtr ? roomCtr.z - pos.z : 1;
+      var decal = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 1.5),
+        new THREE.MeshLambertMaterial({ map: perkDecalTexture(def), transparent: true,
+          emissive: new THREE.Color(def.color), emissiveIntensity: 0.35, emissiveMap: null }));
+      if (Math.abs(dx) > Math.abs(dz)) {
+        decal.position.set(pos.x + Math.sign(dx) * 0.39, 1.0, pos.z);
+        decal.rotation.y = dx > 0 ? Math.PI / 2 : -Math.PI / 2;
+      } else {
+        decal.position.set(pos.x, 1.0, pos.z + (dz >= 0 ? 0.39 : -0.39));
+        decal.rotation.y = dz >= 0 ? 0 : Math.PI;
+      }
+      G.scene.add(decal);
       var label = textSprite(def.name + ' — ' + def.cost, '#fff', 2.6);
       label.position.set(pos.x, 2.4, pos.z);
       G.scene.add(label);
@@ -651,7 +702,7 @@
       fixture.add(rod);
       fixture.position.set(x, WALL_H - 0.55, z);
       G.scene.add(fixture);
-      var light = new THREE.PointLight(color, 0.5, 17, 1);
+      var light = new THREE.PointLight(color, 0.75, 18, 1);
       light.position.set(x, WALL_H - 0.9, z);
       G.scene.add(light);
       G.map.roomLights.push(light);

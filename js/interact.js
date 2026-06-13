@@ -96,6 +96,7 @@
           if (pm.perk === 'revive') G.player.qrBuys++;
           G.audio.drink();
           G.audio.perkJingle();
+          G.weapons.switching = 1.1; // lower the gun while drinking
           G.player.addPerk(pm.perk);
           G.hud.banner(def.name + '!', '#' + new THREE.Color(def.color).getHexString(), 2);
         }

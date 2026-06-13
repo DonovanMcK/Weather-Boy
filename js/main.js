@@ -47,7 +47,7 @@
     // use the classic units and filmic tone mapping for a readable image
     G.renderer.useLegacyLights = true;
     G.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    G.renderer.toneMappingExposure = 1.25;
+    G.renderer.toneMappingExposure = 1.35;
 
     G.scene = new THREE.Scene();
     G.scene.background = new THREE.Color(0x0c1018);
@@ -56,9 +56,13 @@
     G.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 300);
     G.scene.add(G.camera);
 
-    G.hemi = new THREE.HemisphereLight(0x8899bb, 0x3a2f24, 0.55);
+    // ambient floor guarantees the scene is never pitch black, regardless of
+    // how the renderer treats point-light units
+    G.amb = new THREE.AmbientLight(0x55607a, 0.5);
+    G.scene.add(G.amb);
+    G.hemi = new THREE.HemisphereLight(0x8899bb, 0x3a2f24, 0.65);
     G.scene.add(G.hemi);
-    var moon = new THREE.DirectionalLight(0xaabbdd, 0.5);
+    var moon = new THREE.DirectionalLight(0xaabbdd, 0.55);
     moon.position.set(30, 50, -20);
     G.scene.add(moon);
 

@@ -23,7 +23,7 @@
     frags: 2, monkeys: 0, hasMonkeys: false,
     regenTimer: 0,
     onGround: true,
-    downed: false, downTimer: 0,
+    downed: false, downTimer: 0, invuln: 0, _hb: 0,
     kickPitch: 0,
     shakeAmt: 0,
     bobT: 0, bobX: 0, bobY: 0, vmBobX: 0, vmBobY: 0,
@@ -45,7 +45,7 @@
     var s = G.CFG.PLAYER_SPAWN;
     var w = G.CFG.cellToWorld(s.cell[0], s.cell[1]);
     P.pos.set(w.x + s.off[0], 0, w.z + s.off[1]);
-    P.yaw = Math.PI; // face north into the map
+    P.yaw = 0; // face -z, into the map (spawn rooms sit on the south edge)
   };
 
   P.hasPerk = function (id) { return P.perks.indexOf(id) >= 0; };
@@ -79,7 +79,7 @@
   };
 
   P.damage = function (dmg) {
-    if (P.downed || G.state !== 'playing') return;
+    if (P.downed || P.invuln > 0 || G.state !== 'playing') return;
     P.hp -= dmg;
     P.regenTimer = 0;
     G.audio.hurt();
@@ -87,13 +87,17 @@
     if (P.hp <= 0) P.down();
   };
 
+  // Solo Quick Revive rules: 4s blackout with a countdown, then back up at
+  // full health with a short mercy window — all perks (QR included) are lost.
   P.down = function () {
     if (P.hasPerk('revive')) {
       P.downed = true;
-      P.downTimer = 5;
+      P.downTimer = 4;
+      P._hb = 0;
       G.audio.downed();
       G.hud.showDowned(true);
       P.losePerks();
+      G.zombies.despawnForDown(); // the horde fades out instead of camping you
     } else {
       G.gameOver();
     }
@@ -182,13 +186,18 @@
 
     if (P.downed) {
       P.downTimer -= dt;
+      P._hb -= dt;
+      if (P._hb <= 0) { P._hb = 0.95; G.audio.heartbeat(); }
+      G.hud.setDownedTimer(P.downTimer);
       if (P.downTimer <= 0) {
         P.downed = false;
         P.hp = P.maxHp;
+        P.invuln = 2.5;        // mercy window so the horde can't re-down you instantly
         G.hud.showDowned(false);
-        G.hud.banner('GET UP', '#6f6', 1.5);
+        G.hud.banner('BACK ON YOUR FEET', '#6f6', 2, 'All perks lost');
       }
     }
+    if (P.invuln > 0) P.invuln -= dt;
 
     // regen
     P.regenTimer += dt;
@@ -196,6 +205,7 @@
       P.hp = Math.min(P.maxHp, P.hp + G.CFG.REGEN_RATE * dt);
     }
     G.hud.setVignette(1 - P.hp / P.maxHp);
+    G.hud.setHealth(P.hp, P.maxHp);
 
     var playing = G.state === 'playing' && !P.downed && !P.locked;
 
@@ -273,10 +283,11 @@
       targetSpeed *= 1 - (1 - MV.adsMove) * P.ads;
       if (P.downed) targetSpeed = 0;
 
+      // world wish: forward = (-sin yaw, -cos yaw), right = (cos yaw, -sin yaw)
       var len = Math.hypot(ix, iz) || 1;
       var sin = Math.sin(P.yaw), cos = Math.cos(P.yaw);
-      var wx = (ix * cos - iz * sin) / len * targetSpeed;
-      var wz = (-ix * sin - iz * cos) / len * targetSpeed * -1;
+      var wx = (ix * cos + iz * sin) / len * targetSpeed;
+      var wz = (-ix * sin + iz * cos) / len * targetSpeed;
 
       if (P.onGround) {
         var k = hasInput ? MV.accel : MV.friction;

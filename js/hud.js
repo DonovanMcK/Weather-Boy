@@ -137,6 +137,22 @@
   H.showDowned = function (on) {
     H.downedEl.style.display = on ? 'flex' : 'none';
   };
+  H.setDownedTimer = function (t) {
+    H.downedEl.textContent = 'QUICK REVIVE — ' + Math.max(0, t).toFixed(1) + 's';
+  };
+
+  // health bar: width scales with max HP so Juggernog visibly grows it
+  H.setHealth = function (hp, maxHp) {
+    var key = Math.round(hp) + '/' + maxHp;
+    if (H._hpKey === key) return;
+    H._hpKey = key;
+    var wrap = el('hud-health');
+    var fill = el('hud-health-fill');
+    wrap.style.width = Math.round(maxHp / 250 * 220) + 'px';
+    var frac = Math.max(0, hp / maxHp);
+    fill.style.width = (frac * 100) + '%';
+    fill.style.background = frac > 0.6 ? '#cfe3cf' : (frac > 0.3 ? '#e3b94f' : '#d33');
+  };
 
   H.update = function (dt) {
     if (H.bannerTimer > 0) {

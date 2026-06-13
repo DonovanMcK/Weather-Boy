@@ -30,6 +30,10 @@
   #hud-round { position: fixed; left: 26px; bottom: 18px; font-size: 52px; color: #a00;
     text-shadow: 0 0 14px #f00, 0 0 4px #000; font-style: italic; }
   #hud-round.pulse { animation: roundpulse 2.2s; }
+  #hud-health { position: fixed; left: 110px; bottom: 38px; height: 10px; width: 88px;
+    background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.35); border-radius: 3px; }
+  #hud-health-fill { height: 100%; width: 100%; background: #cfe3cf; border-radius: 2px;
+    transition: width 0.15s; }
   @keyframes roundpulse { 0% { transform: scale(1); filter: brightness(3); }
     50% { transform: scale(1.5); } 100% { transform: scale(1); filter: brightness(1); } }
 
@@ -108,6 +112,7 @@
   <div id="hud-hitmarker">✕</div>
   <div id="hud-points-wrap"><span id="hud-points">500</span><div id="hud-ticker"></div></div>
   <div id="hud-round">1</div>
+  <div id="hud-health"><div id="hud-health-fill"></div></div>
   <div id="hud-ammo-wrap">
     <div id="hud-gun"></div>
     <div id="hud-ammo"></div>
