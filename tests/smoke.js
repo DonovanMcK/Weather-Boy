@@ -331,10 +331,31 @@ async function runQuick(mapId) {
   unlockPap(ctx);
   testWonderWeapon(ctx);
   if (mapId === 'nacht') {
+    testBreakIn(ctx);
     testMovement(ctx); // big open spawn room
     testSimpleAim(ctx);
     testGamepad(ctx);
   }
+}
+
+// zombies must actually break through windows and reach the player quickly,
+// not just mill around outside the barricades
+function testBreakIn(ctx) {
+  var G = ctx.G;
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+  ctx.step(60);
+  G.map.windows.forEach(function (w) { w.setBoards(6); });
+  ctx.moveTo(roomCenter(G, 'S'));
+  G.zombies.mode = 'active'; G.zombies.round = 2; G.zombies.toSpawn = 10; G.zombies.spawnTimer = 0;
+  var brokeIn = false;
+  for (var i = 0; i < 60 * 9 && !brokeIn; i++) {
+    ctx.step(1);
+    brokeIn = G.zombies.list.some(function (z) {
+      return !z.dead && (z.state === 'chase' || z.state === 'attack');
+    });
+  }
+  ok(brokeIn, 'a zombie breaks through a barricade and reaches the player within ~9s');
+  ok(G.map.windows.some(function (w) { return w.boards <= 3; }), 'a barricade was torn to a climb-through gap');
 }
 
 /* controller-only menu navigation: focus, select, pause, resume */
@@ -391,6 +412,14 @@ function testGamepad(ctx) {
   ok(Math.hypot(P.vel.x, P.vel.z) > 3, 'player moves from the stick (' + Math.hypot(P.vel.x, P.vel.z).toFixed(1) + ' m/s)');
   pad.axes[1] = 0;
   step(40);
+
+  // sub-deadzone stick drift must NOT inject movement (the "stuck drifting" bug)
+  pad.axes[0] = 0.18; pad.axes[1] = 0.12;  // magnitude ~0.22 < deadzone 0.26
+  step(20);
+  ok(G.gamepad.moveX === 0 && G.gamepad.moveZ === 0, 'sub-deadzone drift injects no movement');
+  ok(Math.hypot(P.vel.x, P.vel.z) < 0.4, 'player does not drift from stick noise');
+  pad.axes[0] = 0; pad.axes[1] = 0;
+  step(20);
 
   // right stick turns the view
   var yaw0 = P.yaw;

@@ -30,7 +30,7 @@
   // KeyF stuck down, which would continuously rebuild barricades)
   GP.consumeTap = function () { var t = GP._tap; GP._tap = false; return t; };
 
-  var DEAD = 0.22;          // stick deadzone
+  var DEAD = 0.26;          // stick deadzone (generous — tolerates worn sticks)
   var LOOK = 3.1;           // look speed (rad/s at full deflection)
   var prev = [];            // previous button states for edge detection
 
@@ -62,6 +62,15 @@
 
   function dz(v) { return Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD); }
 
+  // radial deadzone: zero the stick unless its overall magnitude clears DEAD,
+  // then rescale so you still reach full deflection. Stops drift dead.
+  function stick(x, y) {
+    var m = Math.hypot(x, y);
+    if (m < DEAD) return { x: 0, y: 0, m: 0 };
+    var s = (m - DEAD) / (1 - DEAD) / m;
+    return { x: x * s, y: y * s, m: (m - DEAD) / (1 - DEAD) };
+  }
+
   function tapKey(code) {
     if (typeof KeyboardEvent === 'undefined') return;
     window.dispatchEvent(new KeyboardEvent('keydown', { code: code }));
@@ -72,10 +81,20 @@
     GP.sprint = GP.jump = GP.crouch = GP.fire = GP.ads = GP.interactHeld = false;
   }
 
+  function setIndicator(on) {
+    if (GP._ind === on) return;
+    GP._ind = on;
+    if (typeof document !== 'undefined' && document.getElementById) {
+      var ind = document.getElementById('hud-pad');
+      if (ind) ind.style.display = on ? 'block' : 'none';
+    }
+  }
+
   GP.update = function (dt) {
     var p = activePad();
-    if (!p) { GP.connected = false; reset(); return; }
+    if (!p) { GP.connected = false; reset(); setIndicator(false); return; }
     GP.connected = true;
+    setIndicator(true);
     var b = p.buttons, a = p.axes, P = G.player;
     function down(i) { return !!(b[i] && b[i].pressed); }
     function val(i) { return b[i] ? b[i].value : (down(i) ? 1 : 0); }
@@ -83,22 +102,25 @@
 
     var playing = G.state === 'playing';
 
+    // radial deadzone per stick — kills analog drift that would otherwise inject
+    // a constant strafe ("stuck drifting") even when you're holding nothing
+    var L = stick(a[0] || 0, a[1] || 0);
+    var R = stick(a[2] || 0, a[3] || 0);
+
     // ---- movement intent (left stick) ----
-    var lx = dz(a[0] || 0), ly = dz(a[1] || 0);
-    GP.moveX = playing ? lx : 0;
-    GP.moveZ = playing ? ly : 0;
-    GP.sprint = playing && (down(10) || ly < -0.85);
+    GP.moveX = playing ? L.x : 0;
+    GP.moveZ = playing ? L.y : 0;
+    GP.sprint = playing && (down(10) || L.y < -0.85);
     GP.jump = playing && down(0);
     GP.crouch = playing && down(1);
 
     // ---- look (right stick), squared for fine aim, applied directly ----
     if (P && playing) {
-      var rx = dz(a[2] || 0), ry = dz(a[3] || 0);
       var sens = LOOK * (G.camera ? G.camera.fov / 75 : 1);
-      P.yaw -= rx * Math.abs(rx) * sens * dt;
-      P.pitch -= ry * Math.abs(ry) * sens * dt;
+      P.yaw -= R.x * Math.abs(R.x) * sens * dt;
+      P.pitch -= R.y * Math.abs(R.y) * sens * dt;
       P.pitch = Math.max(-1.45, Math.min(1.45, P.pitch));
-      P.swayX += rx * 6; P.swayY += ry * 6;
+      P.swayX += R.x * 6; P.swayY += R.y * 6;
     }
 
     // ---- triggers: RT shoot / LT aim ----

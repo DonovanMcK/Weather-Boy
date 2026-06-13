@@ -12,6 +12,8 @@
   // swing, and still this close at the swing's apex for it to land.
   var MELEE_START = 1.25;
   var MELEE_HIT = 1.4;
+  // zombies climb in once a barricade is torn down to this many boards (of 6)
+  var BREAK_GAP = 3;
 
   var Z = G.zombies = {
     list: [],
@@ -235,6 +237,7 @@
       if (!G.map.reachableRooms[w.room]) return;
       var d = w.pos.distanceTo(G.player.pos);
       var weight = 1 / (1 + d * 0.06);
+      if (w.boards <= BREAK_GAP) weight *= 2.5;   // funnel through already-open holes
       pool.push({ w: w, weight: weight });
     });
     var playerRoom = G.map.roomAt(G.player.pos.x, G.player.pos.z);
@@ -627,28 +630,28 @@
           moving = true;
           moveToward(z, z.window.outside, dt);
           if (z.mesh.position.distanceTo(z.window.outside) < 0.7) {
-            z.state = z.window.boards > 0 ? 'tear' : 'vault';
+            // climb straight in if there's already a gap, otherwise tear first
+            z.state = z.window.boards > BREAK_GAP ? 'tear' : 'vault';
             z.vaultT = 0;
-            z.tearTimer = 1.2;
+            z.tearTimer = 0.6;
           }
           break;
 
         case 'tear':
-          // a zombie at the window only tears boards — it cannot reach the
-          // player through an intact barricade (real-zombies behavior)
+          // tear boards until there's a gap big enough to climb through
           z.tearTimer -= dt;
           z.parts.armL.rotation.x = -1.8 + Math.sin(z.t * 8) * 0.6;
           z.parts.armR.rotation.x = -1.8 - Math.sin(z.t * 8) * 0.6;
           if (z.tearTimer <= 0) {
-            z.tearTimer = 2.0;
-            if (!z.window.tearBoard()) { /* none left */ }
+            z.tearTimer = 0.75;
+            z.window.tearBoard();
           }
-          if (z.window.boards <= 0) { z.state = 'vault'; z.vaultT = 0; }
+          if (z.window.boards <= BREAK_GAP) { z.state = 'vault'; z.vaultT = 0; }
           break;
 
         case 'vault':
           z.vaultT += dt;
-          var k = Math.min(1, z.vaultT / 1.0);
+          var k = Math.min(1, z.vaultT / 0.7);
           z.mesh.position.lerpVectors(z.window.outside, z.window.inside, k);
           z.mesh.position.y = Math.sin(k * Math.PI) * 0.9;
           if (k >= 1) { z.mesh.position.y = 0; z.state = 'chase'; }

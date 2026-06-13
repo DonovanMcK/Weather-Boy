@@ -602,19 +602,27 @@
       map.perkMachines.push({ perk: pm.perk, pos: pos, mesh: body, light: light });
     });
 
-    // wall buys
+    // wall buys — chalk drawn flush on the inner wall face (was floating in the
+    // room before, which read as "showing through" from across the map)
     CFG.WALLBUYS.forEach(function (wb) {
-      var pos = place(wb);
+      var pos = place(wb);          // where the player stands to buy
       occupy(pos);
       var o = OFF[wb.face];
-      var wallPos = pos.clone();
-      wallPos.x += o[0] * 0.095; wallPos.z += o[1] * 0.095;
+      var wc = CFG.cellToWorld(wb.cell[0], wb.cell[1]);
+      // keep the tangential part of the offset, pin the wall-normal part to the face
+      var off = wb.off || [0, 0];
+      var proj = off[0] * o[0] + off[1] * o[1];
+      var tx = off[0] - proj * o[0], tz = off[1] - proj * o[1];
+      var FACE = CELL / 2 - WALL_T / 2 - 0.03;   // just inside the inner wall surface
+      var wallPos = new THREE.Vector3(wc.x + tx + o[0] * FACE, 1.7, wc.z + tz + o[1] * FACE);
       var isFrags = wb.gun === 'frags';
       var def = isFrags ? { name: 'Frag Grenades' } : CFG.WEAPONS[wb.gun];
       var cost = isFrags ? CFG.FRAGS_COST : def.wall;
-      var plane = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8),
-        new THREE.MeshBasicMaterial({ map: chalkTexture([def.name, cost + ' pts']), transparent: true }));
-      plane.position.set(wallPos.x, 1.7, wallPos.z);
+      var plane = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6),
+        new THREE.MeshBasicMaterial({ map: chalkTexture([def.name, cost + ' pts']),
+          transparent: true, depthWrite: false, side: THREE.FrontSide,
+          polygonOffset: true, polygonOffsetFactor: -2 }));
+      plane.position.copy(wallPos);
       plane.rotation.y = { N: Math.PI, S: 0, E: -Math.PI / 2, W: Math.PI / 2 }[wb.face] + Math.PI;
       G.scene.add(plane);
       map.wallbuys.push({ gun: wb.gun, isFrags: isFrags, cost: cost, pos: pos, mesh: plane });
@@ -762,24 +770,31 @@
         return Math.hypot(w.inside.x - p.x, w.inside.z - p.z) > dist;
       });
     }
+    // sparse dressing only: one prop tucked into a corner of larger non-spawn
+    // rooms, hugging the wall so it never blocks a walking lane (keeps the map
+    // open). Decorative-only props don't get colliders.
     Object.keys(P.rooms).forEach(function (roomId) {
+      if (roomId === 'S') return;                 // keep spawn clear
       var cells = P.rooms[roomId].cells;
-      [cells[0], cells[cells.length - 1]].forEach(function (cr, pi) {
-        var wc = CFG.cellToWorld(cr[0], cr[1]);
-        var p = new THREE.Vector3(wc.x + (pi ? 1.3 : -1.3), 0, wc.z + (pi ? 1.3 : -1.3));
-        if (!clearOf(p, 1.9)) return;
-        if ((cr[0] + cr[1] + pi) % 2) {
-          var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.4, 1.0, 12),
-            new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x6a7a55 }));
-          barrel.position.set(p.x, 0.5, p.z);
-          G.scene.add(barrel);
-          G.map.solidMeshes.push(barrel);
-          map.addCollider(p.x - 0.4, p.z - 0.4, p.x + 0.4, p.z + 0.4);
-        } else {
-          addBox(0.9, 0.9, 0.9, p.x, 0.45, p.z, G.mats.wood, { collide: true, solid: true });
-          addBox(0.7, 0.5, 0.7, p.x + 0.25, 1.15, p.z + 0.2, G.mats.plank, { solid: true });
-        }
-      });
+      if (cells.length < 6) return;               // only roomy rooms
+      var cr = cells[0];
+      // shove toward the room edge furthest from the centre
+      var wc = CFG.cellToWorld(cr[0], cr[1]);
+      var ctr = P.rooms[roomId].center;
+      var dx = Math.sign(wc.x - ctr.x) || 1, dz = Math.sign(wc.z - ctr.z) || 1;
+      var p = new THREE.Vector3(wc.x + dx * 1.45, 0, wc.z + dz * 1.45);
+      if (!clearOf(p, 2.0)) return;
+      if ((cr[0] + cr[1]) % 2) {
+        var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.95, 12),
+          new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x6a7a55 }));
+        barrel.position.set(p.x, 0.48, p.z);
+        G.scene.add(barrel);
+        G.map.solidMeshes.push(barrel);
+        map.addCollider(p.x - 0.36, p.z - 0.36, p.x + 0.36, p.z + 0.36);
+      } else {
+        addBox(0.85, 0.85, 0.85, p.x, 0.42, p.z, G.mats.wood, { collide: true, solid: true });
+        addBox(0.6, 0.45, 0.6, p.x + 0.2, 1.05, p.z + 0.15, G.mats.plank, { solid: true });
+      }
     });
 
     map.recomputeReachable();
