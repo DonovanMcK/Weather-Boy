@@ -1,4 +1,4 @@
-# WEATHER-BOY ZOMBIES
+# TOTENSTURM — Undead Protocol
 
 A Black Ops 1/2-style **round-based zombies FPS** with **three maps**, each with
 its own wonder weapon. Fully 3D (Three.js), fully offline, zero build step,
@@ -46,13 +46,18 @@ other maps' wonder weapons never roll.
 ## Features
 
 - **Round-based survival** with the classic count/health curves; zombies tear
-  boards off windows, vault in, and flow through the map toward you.
+  boards off windows, vault in, and flow toward you. **Melee is contact-based**
+  — a zombie at a boarded window can't touch you, and running past one makes
+  its swing whiff (no hits through barriers or thin air).
+- **BO3 health scaling**: 3 swipes to go down, 5 with Juggernog early on;
+  zombie melee ramps up at high rounds so they stay deadly.
 - **Hellhound rounds every 5th round** — kill the last dog for a guaranteed **Max Ammo**.
 - **Points economy**: 10/hit, 60/kill, 100/headshot, 130/knife, 10/board.
-- **56-weapon arsenal** with genuinely different damage/handling: pistols,
-  SMGs, rifles, shotguns (incl. slug KSG), LMGs, a Death Machine minigun,
-  bolt snipers (with scope overlay), rocket launchers and 4 wonder weapons.
-  Wall buys on every map; the **mystery box** carries everything else
+- **68-weapon arsenal** drawn from Black Ops 1/2/3 (M14, Olympia, Commando,
+  Ray Gun, PPSh-41, Galil, FAL, KN-44, Kuda, Gorgon, Locus and many more) with
+  authentic COD-style damage profiles: shotguns and snipers one-shot bodies
+  for many rounds, marksman rifles one-shot early, SMGs/ARs are 3-shot, pistols
+  are weak. Wall buys on every map; the **mystery box** carries everything else
   (teddy bear moves the box).
 - **Two aim modes, auto-detected**: Macs/trackpads default to *simple aim*
   (no ADS needed — tighter hip-fire + bullet magnetism); mouse PCs get full

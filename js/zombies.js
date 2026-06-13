@@ -7,6 +7,12 @@
   var G = window.G;
   var CFG = null;
 
+  // melee contact ranges (horizontal metres). Player radius ~0.42 + zombie
+  // body ~0.35 + a short arm reach. A zombie must be this close to start a
+  // swing, and still this close at the swing's apex for it to land.
+  var MELEE_START = 1.25;
+  var MELEE_HIT = 1.4;
+
   var Z = G.zombies = {
     list: [],
     lure: null,            // {pos, proj} monkey bomb override
@@ -387,6 +393,7 @@
 
   function killZombie(z, opts) {
     if (z.dead) return;
+    if (!opts.silent) G.audio.deathGurgle(z.mesh.position.distanceTo(G.player.pos));
     z.dead = true;
     z.state = 'dying';
     z.t = 0;
@@ -571,12 +578,14 @@
     // ambient groans
     Z.groanTimer -= dt;
     if (Z.groanTimer <= 0) {
-      Z.groanTimer = 0.8 + Math.random() * 2;
+      Z.groanTimer = 0.5 + Math.random() * 1.6;
       var alive = Z.list.filter(function (zz) { return !zz.dead; });
       if (alive.length) {
         var zz = alive[(Math.random() * alive.length) | 0];
         var d = zz.mesh.position.distanceTo(G.player.pos);
-        if (zz.isDog) G.audio.dogGrowl(d); else G.audio.zombieGroan(d);
+        if (zz.isDog) G.audio.dogGrowl(d);
+        else if (zz.speed > 3 && d < 16 && Math.random() < 0.45) G.audio.zombieScream(d);
+        else G.audio.zombieGroan(d);
       }
     }
 
@@ -625,17 +634,11 @@
           break;
 
         case 'tear':
+          // a zombie at the window only tears boards — it cannot reach the
+          // player through an intact barricade (real-zombies behavior)
           z.tearTimer -= dt;
-          // claw animation
           z.parts.armL.rotation.x = -1.8 + Math.sin(z.t * 8) * 0.6;
           z.parts.armR.rotation.x = -1.8 - Math.sin(z.t * 8) * 0.6;
-          // swipe through the window if the player hugs the barricade
-          if (z.attackCd <= 0 && !G.player.downed &&
-              G.player.pos.distanceTo(z.window.inside) < 1.5) {
-            z.attackCd = 1.3;
-            G.player.damage(CFG.ZOMBIE_DMG);
-            G.audio.zombieAttack();
-          }
           if (z.tearTimer <= 0) {
             z.tearTimer = 2.0;
             if (!z.window.tearBoard()) { /* none left */ }
@@ -653,9 +656,11 @@
 
         case 'chase':
           var tpos = Z.lure ? Z.lure.pos : G.player.pos;
-          var dist = z.mesh.position.distanceTo(tpos);
-          if (!Z.lure && dist < 1.5 && !G.player.downed) {
-            z.state = 'attack'; z.t = 0;
+          // horizontal distance only (a vaulting/airborne zombie shouldn't
+          // count as "reaching" you, and y never matters for melee)
+          var dist = Math.hypot(z.mesh.position.x - tpos.x, z.mesh.position.z - tpos.z);
+          if (!Z.lure && dist < MELEE_START && !G.player.downed && z.attackCd <= 0) {
+            z.state = 'attack'; z.t = 0; z.hasHit = false;
           } else if (Z.lure && dist < 1.2) {
             // crowd around the monkey
           } else {
@@ -674,17 +679,22 @@
           break;
 
         case 'attack':
-          if (z.t > 0.32 && !z.hasHit) {
+          // the swing only connects if the zombie is STILL in contact range at
+          // the apex — run past it and the claw whiffs (no hit through air)
+          moveToward(z, G.player.pos, dt * 0.35); // small lunge into the swipe
+          if (z.t > 0.34 && !z.hasHit) {
             z.hasHit = true;
-            if (z.mesh.position.distanceTo(G.player.pos) < 1.9 && !G.player.downed) {
-              G.player.damage(z.isDog ? 40 : CFG.ZOMBIE_DMG);
+            var hd = Math.hypot(z.mesh.position.x - G.player.pos.x,
+                                z.mesh.position.z - G.player.pos.z);
+            if (hd < MELEE_HIT && !G.player.downed) {
+              G.player.damage(z.isDog ? Math.round(CFG.zombieMeleeDamage(Z.round) * 0.8)
+                                      : CFG.zombieMeleeDamage(Z.round));
               G.audio.zombieAttack();
             }
           }
-          if (z.t > 0.7) {
-            z.hasHit = false;
+          if (z.t > 0.62) {
             z.state = 'chase';
-            z.attackCd = 0.4;
+            z.attackCd = 0.55;       // recovery before it can swing again
           }
           break;
 

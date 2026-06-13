@@ -256,3 +256,33 @@ browser tab.
 - **Input modes:** auto-detects Macs → "simple aim" (no ADS; 0.55× hip spread
   + 8° bullet-magnetism cone toward chest center); mouse machines keep full
   ADS. Menu button overrides, persisted in localStorage.
+
+## 17. Combat Realism + Arsenal Pass (v5) — "TOTENSTURM"
+
+Renamed the game **TOTENSTURM** ("death storm" — Group 935 / storm theme).
+
+- **Authentic COD damage profiles** (web-checked against BO1 zombies values):
+  shotguns (Olympia 8×160, Stakeout 8×200) one-shot bodies into rounds 8–12;
+  snipers (L96 1500, DSR-50 2000) one-shot into the teens; marksman rifles
+  (M14 150, FAL 250) one-shot the body early; SMGs/ARs are 3-shot archetypes;
+  pistols are weak. Verified by deterministic shots-to-kill assertions.
+- **68-weapon arsenal** spanning Black Ops 1/2/3, now including the **PPSh-41**
+  (71-round drum, 1000 rpm) plus BO3 guns (KN-44, ICR-1, Man-O-War, Sheiva,
+  HVK-30, Kuda, VMP, Weevil, Gorgon, Locus, Drakon).
+- **Contact-based melee** (no more hits through barriers): a zombie only damages
+  you when it's in `attack` state AND still within ~1.4 m horizontally at the
+  swing's apex. Zombies clawing an intact barricade can't reach you; a swing
+  whiffs if you leave contact range mid-animation. Window-swipe-through removed.
+- **BO3 player scaling**: 150 HP (3 swipes to down), 250 with Juggernog (5);
+  `zombieMeleeDamage(round)` holds 50 early then climbs to a 2-hit-down by ~r20.
+- **Readable, look-gated prompts**: removed the always-floating 3D labels that
+  clipped through walls; door cost now shows as a crisp chip, and the full
+  "Open X — cost" / perk / PaP text appears in the HUD only when you look at the
+  object (facing-gated, with a point-blank fallback).
+- **Asset polish**: mystery box rebuilt (steel-banded crate, corner posts,
+  latch, hinged lid, glowing ? panel + light); Pack-a-Punch rebuilt (plinth,
+  sloped hopper, glowing feed slot, gold output tray); perk machines wear lit
+  bottle decals.
+- **Zombie vocals**: sprinters scream on approach, every death gurgles, groans
+  fire more often — all synthesized (wave-shaped saws through vocal formant
+  filters). Drop-in real SFX still supported via `sounds/`.

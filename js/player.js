@@ -46,6 +46,8 @@
     var w = G.CFG.cellToWorld(s.cell[0], s.cell[1]);
     P.pos.set(w.x + s.off[0], 0, w.z + s.off[1]);
     P.yaw = 0; // face -z, into the map (spawn rooms sit on the south edge)
+    P.maxHp = G.CFG.PLAYER_HP;
+    P.hp = P.maxHp;
   };
 
   P.hasPerk = function (id) { return P.perks.indexOf(id) >= 0; };

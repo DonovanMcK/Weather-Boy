@@ -173,6 +173,23 @@
     return sp;
   }
 
+  // small crisp price chip (just the number) shown over buyable debris doors
+  function costChip(cost) {
+    var cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 128;
+    var c = cv.getContext('2d');
+    c.font = 'bold 70px Arial, sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 9; c.strokeStyle = 'rgba(0,0,0,0.85)';
+    c.strokeText(cost, 128, 64);
+    c.fillStyle = '#ffe27a';
+    c.fillText(cost, 128, 64);
+    var tx = new THREE.CanvasTexture(cv);
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false }));
+    sp.scale.set(1.6, 0.8, 1);
+    return sp;
+  }
+
   function chalkTexture(lines) {
     var cv = document.createElement('canvas');
     cv.width = 256; cv.height = 256;
@@ -509,12 +526,14 @@
         mesh.add(pm);
       }
       var collider = map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2);
-      var sprite = textSprite(cd.name + ' — ' + cd.cost, '#ffe9a0', 3.4);
-      sprite.position.set(wc.x, 2.6, wc.z);
-      G.scene.add(sprite);
+      // a small glowing cost chip on the debris so you can spot a buyable door;
+      // the full "Open X — cost" text shows in the HUD when you look at it
+      var chip = costChip(cd.cost);
+      chip.position.set(wc.x, 2.05, wc.z);
+      G.scene.add(chip);
       map.doors[id] = {
         id: +id, cost: cd.cost, name: cd.name, rooms: pd.rooms, open: false,
-        mesh: mesh, collider: collider, sprite: sprite, baseY: mesh.position.y,
+        mesh: mesh, collider: collider, sprite: chip, baseY: mesh.position.y,
         pos: new THREE.Vector3(wc.x, 0, wc.z)
       };
     });
@@ -577,9 +596,6 @@
         decal.rotation.y = dz >= 0 ? 0 : Math.PI;
       }
       G.scene.add(decal);
-      var label = textSprite(def.name + ' — ' + def.cost, '#fff', 2.6);
-      label.position.set(pos.x, 2.4, pos.z);
-      G.scene.add(label);
       var light = new THREE.PointLight(def.color, pm.perk === 'revive' ? 0.8 : 0.25, 7);
       light.position.set(pos.x, 2.2, pos.z);
       G.scene.add(light);
@@ -627,9 +643,6 @@
       var light = new THREE.PointLight(0x22ddff, 0, 7);
       light.position.set(pos.x, 2, pos.z);
       G.scene.add(light);
-      var label = textSprite('Teleporter ' + t.id, '#9ef', 2.4);
-      label.position.set(pos.x, 3.1, pos.z);
-      G.scene.add(label);
       map.teleporters.push({ id: t.id, pos: pos, ring: ring, light: light, linked: false, linking: false, linkTimer: 0 });
     });
 
@@ -644,21 +657,31 @@
       G.scene.add(mfPad);
       addBox(0.5, 2.8, 0.5, mf.x - 2.2, 1.4, mf.z, G.mats.metal, { collide: true, solid: true });
       addBox(0.7, 0.5, 0.2, mf.x - 2.2, 2.0, mf.z, mat(0x111418, { emissive: new THREE.Color(0x22cc66), emissiveIntensity: 0.6 }));
-      var mfLabel = textSprite('MAINFRAME', '#9ef', 2.6);
-      mfLabel.position.set(mf.x, 2.6, mf.z);
-      G.scene.add(mfLabel);
       map.mainframe = { pos: mf, pad: mfPad };
     }
 
-    // pack-a-punch + force field
+    // pack-a-punch: a chunkier machine — base, sloped hopper, glowing feed
+    // slot and a gold output tray
     var pp = place(CFG.PAP);
     occupy(pp);
-    var papBody = addBox(1.7, 1.1, 0.9, pp.x, 0.55, pp.z,
-      mat(0x2a2a3d, { emissive: new THREE.Color(0x4411aa), emissiveIntensity: 0.45 }), { collide: true, solid: true });
-    addBox(0.5, 0.4, 0.95, pp.x, 1.25, pp.z, mat(0xc9a030));
-    var papLabel = textSprite('Pack-a-Punch — 5000', '#fb5', 3.0);
-    papLabel.position.set(pp.x, 2.3, pp.z);
-    G.scene.add(papLabel);
+    var papDark = new THREE.MeshPhongMaterial({ map: G.tex.metal, color: 0x26262f, shininess: 30,
+      specular: new THREE.Color(0x44447a) });
+    var papGlow = mat(0x140a2a, { emissive: new THREE.Color(0x7a33ff), emissiveIntensity: 0.7 });
+    var papGold = new THREE.MeshPhongMaterial({ color: 0xc9a030, shininess: 80, specular: new THREE.Color(0xfff0b0) });
+    var papBody = addBox(1.5, 1.2, 0.95, pp.x, 0.6, pp.z, papDark, { collide: true, solid: true });
+    addBox(1.6, 0.18, 1.05, pp.x, 0.09, pp.z, papDark);             // base plinth
+    // sloped hopper on top
+    var hopper = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.62, 0.7, 4),
+      papDark);
+    hopper.rotation.y = Math.PI / 4;
+    hopper.position.set(pp.x, 1.55, pp.z);
+    G.scene.add(hopper);
+    addBox(0.95, 0.5, 0.12, pp.x, 0.85, pp.z + 0.5, papGlow);       // glowing feed slot
+    addBox(0.7, 0.1, 0.45, pp.x, 0.38, pp.z + 0.62, papGold);       // output tray
+    addBox(1.56, 0.1, 1.0, pp.x, 1.18, pp.z, papGold);              // gold trim band
+    var papL = new THREE.PointLight(0x8844ff, 0.7, 6);
+    papL.position.set(pp.x, 1.3, pp.z + 0.6);
+    G.scene.add(papL);
     var field = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.0, 3.4, 16, 1, true),
       new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.28, side: THREE.DoubleSide }));
     field.position.set(pp.x, 1.7, pp.z);
@@ -680,10 +703,7 @@
     occupy(pw);
     var lever = addBox(0.8, 1.4, 0.3, pw.x, 1.3, pw.z, mat(0x7c2a22, { emissive: new THREE.Color(0x330000) }), { solid: true });
     addBox(0.16, 0.5, 0.12, pw.x, 1.55, pw.z + 0.18, G.mats.metal);
-    var pwLabel = textSprite('POWER', '#f66', 2.0);
-    pwLabel.position.set(pw.x, 2.4, pw.z);
-    G.scene.add(pwLabel);
-    map.powerSwitch = { pos: pw, mesh: lever, label: pwLabel };
+    map.powerSwitch = { pos: pw, mesh: lever };
     occupy(place(CFG.PLAYER_SPAWN));
 
     /* ------------------------------------------------- lights + fixtures */

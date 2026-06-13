@@ -271,20 +271,51 @@
   /* --------------------------------------------------------- mystery box */
   function buildBoxMesh(pos) {
     var grp = new THREE.Group();
-    var body = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.8, 0.9), G.util.mat(0x6b4a2f));
-    body.position.y = 0.4;
-    grp.add(body);
-    var lid = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.15, 0.9),
-      G.util.mat(0x222233, { emissive: new THREE.Color(0x4466ff), emissiveIntensity: 0.4 }));
-    lid.position.y = 0.85;
-    grp.add(lid);
-    var q = G.util.textSprite('?', '#9cf', 1.2);
-    q.position.y = 1.4;
-    grp.add(q);
+    var woodMat = new THREE.MeshPhongMaterial({ map: G.tex.wood, color: 0x9a7448, shininess: 8 });
+    var bandMat = new THREE.MeshPhongMaterial({ map: G.tex.metal, color: 0x6b7079, shininess: 45,
+      specular: new THREE.Color(0x888f99) });
+    var glowMat = new THREE.MeshPhongMaterial({ color: 0x101830,
+      emissive: new THREE.Color(0x3a6bff), emissiveIntensity: 0.6, shininess: 60 });
+    function part(w, h, d, x, y, z, m) {
+      var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      b.position.set(x, y, z); grp.add(b); return b;
+    }
+    // crate body + corner posts + steel banding
+    part(1.7, 0.8, 0.9, 0, 0.42, 0, woodMat);
+    [[-0.82, -0.42], [0.82, -0.42], [-0.82, 0.42], [0.82, 0.42]].forEach(function (c) {
+      part(0.1, 0.84, 0.1, c[0], 0.42, c[1], bandMat);
+    });
+    part(1.74, 0.1, 0.94, 0, 0.18, 0, bandMat);     // lower band
+    part(1.74, 0.1, 0.94, 0, 0.66, 0, bandMat);     // upper band
+    part(0.22, 0.34, 0.06, 0, 0.42, 0.46, bandMat); // front latch plate
+    part(0.1, 0.12, 0.05, 0, 0.3, 0.49, glowMat);   // latch
+    // hinged lid (animated open via userData.lid.position.y)
+    var lid = part(1.74, 0.16, 0.94, 0, 0.9, 0, woodMat);
+    lid.add(new THREE.Mesh(new THREE.BoxGeometry(1.78, 0.06, 0.98), bandMat));
+    // glowing blue question mark panel on the lid
+    var qTex = questionTexture();
+    var q = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5),
+      new THREE.MeshBasicMaterial({ map: qTex, transparent: true }));
+    q.position.set(0, 0.09, 0); q.rotation.x = -Math.PI / 2;
+    lid.add(q);
+    var glow = new THREE.PointLight(0x4a7bff, 0.6, 4);
+    glow.position.y = 1.1; grp.add(glow);
     grp.position.copy(pos);
     G.scene.add(grp);
     grp.userData.lid = lid;
     return grp;
+  }
+
+  function questionTexture() {
+    var cv = document.createElement('canvas');
+    cv.width = cv.height = 128;
+    var c = cv.getContext('2d');
+    c.fillStyle = 'rgba(10,20,50,0.85)'; c.fillRect(0, 0, 128, 128);
+    c.strokeStyle = '#6ea8ff'; c.lineWidth = 5; c.strokeRect(6, 6, 116, 116);
+    c.font = 'bold 96px Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = '#bcd8ff'; c.shadowColor = '#3a6bff'; c.shadowBlur = 18;
+    c.fillText('?', 64, 70);
+    return new THREE.CanvasTexture(cv);
   }
 
   I.moveBox = function (idx, silent) {
@@ -413,12 +444,23 @@
       }
     }
 
-    // nearest usable interactable
+    // nearest usable interactable IN VIEW — prompts reveal when you look at
+    // an object (camera roughly facing it), with a point-blank fallback so you
+    // can always interact when standing right on top of it
+    var fwd = G.camera ? new THREE.Vector3(0, 0, -1).applyEuler(G.camera.rotation) : null;
     var best = null, bd = 1e9;
     for (var i = 0; i < I.list.length; i++) {
       var it = I.list[i];
-      var d = Math.hypot(it.pos.x - G.player.pos.x, it.pos.z - G.player.pos.z);
-      if (d < it.r && d < bd && it.prompt()) { bd = d; best = it; }
+      var dx = it.pos.x - G.player.pos.x, dz = it.pos.z - G.player.pos.z;
+      var d = Math.hypot(dx, dz);
+      if (d >= it.r || d >= bd || !it.prompt()) continue;
+      var facing = true;
+      if (fwd && d > 1.7) {
+        var len = d || 1e-6;
+        var dot = (fwd.x * dx + fwd.z * dz) / len;
+        facing = dot > 0.4;        // within ~66° of where you're looking
+      }
+      if (facing) { bd = d; best = it; }
     }
     G.hud.setPrompt(best ? ((best.holdable ? '' : '[F] ') + best.prompt()) : null);
 

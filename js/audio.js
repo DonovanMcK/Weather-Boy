@@ -304,6 +304,21 @@
       if (playSample('growl', vol * 2, 0.15)) return;
       growl({ vol: vol });
     },
+    zombieScream: function (dist) {
+      var vol = Math.max(0.03, 0.4 - dist * 0.013);
+      if (playSample('scream', vol * 2, 0.12)) return;
+      growl({ vol: vol, f0: 150 + Math.random() * 70, f1: 880, f2: 1900,
+              trem: 17, dur: 0.7 + Math.random() * 0.35, att: 0.05,
+              sweep: 1.45, bend: 1.35 });
+      noise({ dur: 0.5, hp: 1200, vol: vol * 0.5, att: 0.08, send: 0.5 });
+    },
+    deathGurgle: function (dist) {
+      var vol = Math.max(0.02, 0.3 - dist * 0.012);
+      if (playSample('death', vol * 2, 0.15)) return;
+      growl({ vol: vol, f0: 75, bend: 0.4, dur: 0.5, f1: 430, f2: 880,
+              trem: 21, att: 0.02, sweep: 0.45 });
+      noise({ dur: 0.3, lp: 700, vol: vol * 0.6 });
+    },
     zombieAttack: function () {
       if (playSample('attack', 0.7, 0.1)) return;
       growl({ vol: 0.4, dur: 0.45, f0: 95, f1: 700, f2: 1500, trem: 14, att: 0.03, sweep: 1.3 });

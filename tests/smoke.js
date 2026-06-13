@@ -124,13 +124,23 @@ function roomCenter(G, room) {
   return G.map.parsed.rooms[room].center;
 }
 
+// walk onto an interactable, let collision settle, FACE it (prompts are now
+// look-gated), then press F — mirrors how a real player buys something
+function useAt(ctx, pos) {
+  ctx.moveTo(pos);
+  ctx.step(3);
+  var P = ctx.G.player;
+  var dx = pos.x - P.pos.x, dz = pos.z - P.pos.z;
+  if (Math.hypot(dx, dz) > 0.05) P.yaw = Math.atan2(-dx, -dz);
+  ctx.pressF();
+  ctx.step(5);
+}
+
 function openAllDoors(ctx) {
   var G = ctx.G;
   G.player.points = 200000;
   Object.keys(G.map.doors).forEach(function (id) {
-    ctx.moveTo(G.map.doors[id].pos);
-    ctx.pressF();
-    ctx.step(5);
+    useAt(ctx, G.map.doors[id].pos);
   });
   ok(Object.keys(G.map.doors).every(function (id) { return G.map.doors[id].open; }),
      'all doors opened');
@@ -140,18 +150,16 @@ function openAllDoors(ctx) {
 
 function unlockPap(ctx) {
   var G = ctx.G;
-  ctx.moveTo(G.map.powerSwitch.pos);
-  ctx.pressF();
-  ctx.step(5);
+  useAt(ctx, G.map.powerSwitch.pos);
   ok(G.map.power, 'power turned on');
   if (G.CFG.cur.papRule === 'power') {
     ok(G.map.pap.unlocked, 'PaP unlocked by power (papRule=power)');
   } else {
     ok(!G.map.pap.unlocked, 'PaP still locked until teleporters linked');
     G.map.teleporters.forEach(function (t) {
-      ctx.moveTo(t.pos); ctx.pressF(); ctx.step(5);
+      useAt(ctx, t.pos);
       ok(t.linking, 'teleporter ' + t.id + ' activated');
-      ctx.moveTo(G.map.mainframe.pos); ctx.pressF(); ctx.step(5);
+      useAt(ctx, G.map.mainframe.pos);
       ok(t.linked, 'teleporter ' + t.id + ' linked');
     });
     ok(G.map.pap.unlocked, 'PaP unlocked after 3 links');
@@ -338,11 +346,59 @@ function testSimpleAim(ctx) {
   G.settings.aimMode = 'mouse';
 }
 
+// contact-based melee: zombies can't reach through a boarded window, a zombie
+// in contact lands its swing, and a swing whiffs if you leave contact range
+function testContactMelee(ctx) {
+  var G = ctx.G;
+  var c = roomCenter(G, 'S');
+  G.zombies.toSpawn = 0;
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+  ctx.step(70);
+
+  // 1. zombie clawing an intact barricade cannot touch you
+  var win = G.map.windows[0];
+  win.setBoards(6);
+  G.player.pos.copy(win.inside);
+  G.player.vel.set(0, 0, 0);
+  G.player.downed = false; G.player.invuln = 0;
+  G.player.hp = G.player.maxHp;
+  var zb = G.zombies.spawnAt(win.outside.clone());
+  zb.window = win; zb.state = 'tear'; zb.tearTimer = 1.4; zb.attackCd = 0;
+  var hp0 = G.player.hp;
+  ctx.step(60 * 2.5);
+  ok(G.player.hp === hp0, 'zombie at a boarded window cannot hit you (' + win.boards + ' boards left)');
+  if (!zb.dead) G.zombies.damageZombie(zb, 1e9, { boom: true });
+  ctx.step(40);
+
+  // 2. a zombie in contact range lands its swing
+  G.player.pos.set(c.x, 0, c.z);
+  G.player.hp = G.player.maxHp; G.player.invuln = 0;
+  var zc = G.zombies.spawnAt(new THREE.Vector3(c.x + 0.6, 0, c.z));
+  zc.state = 'chase'; zc.attackCd = 0;
+  ctx.step(60);
+  ok(G.player.hp < G.player.maxHp, 'a zombie in contact range lands a hit');
+  if (!zc.dead) G.zombies.damageZombie(zc, 1e9, { boom: true });
+  ctx.step(40);
+
+  // 3. running out of contact mid-swing makes the claw whiff
+  G.player.pos.set(c.x, 0, c.z);
+  G.player.hp = G.player.maxHp; G.player.invuln = 0;
+  var zw = G.zombies.spawnAt(new THREE.Vector3(c.x + 0.6, 0, c.z));
+  zw.state = 'attack'; zw.t = 0; zw.hasHit = false;
+  G.player.pos.set(c.x + 25, 0, c.z); // gone before the apex
+  ctx.step(40);
+  ok(G.player.hp === G.player.maxHp, 'a swing whiffs when you leave contact range');
+  if (!zw.dead) G.zombies.damageZombie(zw, 1e9, { boom: true });
+  ctx.step(40);
+  G.player.pos.set(c.x, 0, c.z);
+}
+
 async function runFull(mapId) {
   console.log('\n=== full: ' + mapId + ' ===');
   var ctx = createGame();
   var G = ctx.G, step = ctx.step, pressF = ctx.pressF, moveTo = ctx.moveTo;
   bootChecks(ctx, mapId);
+  testContactMelee(ctx);            // run with real damage before we stub it
   var origDamage = G.player.damage;
   G.player.damage = function () {};
   step(60 * 25);
@@ -375,31 +431,31 @@ async function runFull(mapId) {
 
   /* wall buy */
   var wb = G.map.wallbuys.filter(function (w) { return !w.isFrags; })[0];
-  moveTo(wb.pos); pressF(); step(5);
+  useAt(ctx, wb.pos);
   ok(G.weapons.hasWeapon(wb.gun), 'bought ' + wb.gun + ' off the wall');
 
   /* perks: gated by power except revive */
   var pmJugg = G.map.perkMachines.filter(function (p) { return p.perk === 'jugg'; })[0];
-  moveTo(pmJugg.pos); pressF(); step(5);
+  useAt(ctx, pmJugg.pos);
   ok(!G.player.hasPerk('jugg'), 'juggernog denied before power');
   var pmQR = G.map.perkMachines.filter(function (p) { return p.perk === 'revive'; })[0];
-  moveTo(pmQR.pos); pressF(); step(5);
+  useAt(ctx, pmQR.pos);
   ok(G.player.hasPerk('revive'), 'quick revive bought before power');
 
   unlockPap(ctx);
-  moveTo(pmJugg.pos); pressF(); step(5);
+  useAt(ctx, pmJugg.pos);
   ok(G.player.hasPerk('jugg') && G.player.maxHp === 250, 'juggernog bought, 250 hp');
 
   /* teleporter travel (teleporter maps) */
   if (G.map.mainframe) {
     var tA = G.map.teleporters[0];
-    moveTo(tA.pos); pressF(); step(5);
+    useAt(ctx, tA.pos);
     ok(G.player.pos.distanceTo(G.map.mainframe.pos) < 4, 'teleported to mainframe');
   }
 
   /* pack-a-punch */
   G.weapons.equip(0, true);
-  moveTo(G.map.pap.pos); pressF(); step(5);
+  useAt(ctx, G.map.pap.pos);
   ok(G.player.locked, 'PaP machine took the gun');
   await sleep(3700);
   step(5);
@@ -408,7 +464,7 @@ async function runFull(mapId) {
 
   /* mystery box */
   var spot = G.map.boxSpots[G.interact.box.spotIdx];
-  moveTo(spot.pos); pressF(); step(5);
+  useAt(ctx, spot.pos);
   ok(G.interact.box.rolling, 'mystery box rolling');
   await sleep(3300);
   step(5);

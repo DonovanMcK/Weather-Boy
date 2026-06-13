@@ -163,5 +163,37 @@ ok(Object.keys(dmgs).length >= 15, 'damage values are varied (' + Object.keys(dm
 ok(new Set(CFG.MAP_IDS.map(function (id) { return CFG.MAPS[id].wonder; })).size === 3,
    'each map has a distinct wonder weapon');
 
+// ---- damage profiles: shots-to-kill follows the COD archetypes ----
+console.log('\n=== damage profiles ===');
+function shots(id, round, head) {
+  var w = CFG.WEAPONS[id];
+  var perShot = w.dmg * (w.pellets || 1) * (head ? w.head : 1);
+  return Math.ceil(CFG.zombieHealth(round) / perShot);
+}
+// shotguns one-shot the body deep into the game (close range, all pellets)
+ok(shots('olympia', 8) === 1, 'Olympia one-shots a body through round 8 (got r8=' + shots('olympia', 8) + ')');
+ok(shots('stakeout', 10) === 1, 'Stakeout one-shots a body through round 10');
+ok(shots('olympia', 2) === 1, 'Olympia one-shots a body on round 2 (the reported bug)');
+// marksman rifles one-shot the body early, headshots last longer
+ok(shots('m14', 1) === 1, 'M14 one-shots a body on round 1');
+ok(shots('fal', 2) === 1, 'FAL one-shots a body through round 2');
+// snipers one-shot bodies well into double digits
+ok(shots('l96a1', 10) === 1, 'L96A1 one-shots a body through round 10');
+ok(shots('dsr50', 13) === 1, 'DSR-50 one-shots a body through round 13');
+// SMGs/ARs take several body shots early (3-shot archetype)
+ok(shots('mp5k', 1) >= 2 && shots('mp5k', 1) <= 4, 'MP5K is a 2-4 shot body on round 1 (got ' + shots('mp5k', 1) + ')');
+ok(shots('ppsh', 1) >= 2 && shots('ppsh', 1) <= 4, 'PPSh-41 is a 2-4 shot body on round 1');
+// pistols are weak (more shots than an SMG)
+ok(shots('m1911', 1) > shots('mp5k', 1), 'starting pistol weaker than an SMG');
+// headshots always beat body shots
+ok(shots('m16', 3, true) <= shots('m16', 3, false), 'headshots kill at least as fast as body');
+// player melee scaling: 3 hits base, 5 with Jugg on early rounds
+ok(Math.ceil(CFG.PLAYER_HP / CFG.zombieMeleeDamage(1)) === 3, 'player downs in 3 hits at base (BO3 scaling)');
+ok(Math.ceil(CFG.JUGG_HP / CFG.zombieMeleeDamage(1)) === 5, 'player downs in 5 hits with Juggernog');
+ok(CFG.zombieMeleeDamage(20) > CFG.zombieMeleeDamage(1), 'zombie melee scales up with rounds');
+// PPSh present (the requested gun) + 30+ arsenal
+ok(!!CFG.WEAPONS.ppsh, 'PPSh-41 is in the arsenal');
+ok(ids.length >= 30, 'at least 30 distinct guns (' + ids.length + ')');
+
 console.log(fails ? '\n' + fails + ' FAILURES' : '\nALL CHECKS PASSED');
 process.exit(fails ? 1 : 0);
