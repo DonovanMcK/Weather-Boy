@@ -790,9 +790,17 @@
       }
 
       if (!detonate && (p.type === 'ray' || p.type === 'rocket' || p.type === 'storm')) {
+        // height-aware contact: the orb flies at chest/eye height while a
+        // zombie's origin is at its feet, so test horizontal range + a body
+        // column (otherwise the shot sails straight over open-map hordes)
         for (var j = 0; j < G.zombies.list.length; j++) {
           var z = G.zombies.list[j];
-          if (!z.dead && z.mesh.position.distanceTo(p.mesh.position) < 0.9) { detonate = true; break; }
+          if (z.dead) continue;
+          var zp = z.mesh.position;
+          var horiz = Math.hypot(zp.x - p.mesh.position.x, zp.z - p.mesh.position.z);
+          if (horiz < 0.85 && p.mesh.position.y > -0.2 && p.mesh.position.y < 2.2) {
+            detonate = true; break;
+          }
         }
       }
       if (p.t > p.opts.fuse) detonate = true;

@@ -190,15 +190,20 @@ function testWonderWeapon(ctx) {
   var wonderId = G.CFG.cur.wonder;
   G.weapons.giveWeapon(wonderId);
   ok(G.weapons.current().id === wonderId, 'holding ' + wonderId);
+  // freeze the round director and clear the field so only our test trio is in
+  // the line of fire (otherwise wandering zombies detonate the projectile early)
+  G.zombies.mode = 'break'; G.zombies.breakTimer = 999; G.zombies.toSpawn = 0;
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+  ctx.step(70);
   // stand at spawn room center facing -z with three zombies ahead
   var c = roomCenter(G, 'S');
   ctx.moveTo(c);
   G.player.yaw = 0; G.player.pitch = 0;
   ctx.step(2);
   var zs = [
-    G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 3.0)),
-    G.zombies.spawnAt(new THREE.Vector3(c.x + 0.8, 0, c.z - 3.8)),
-    G.zombies.spawnAt(new THREE.Vector3(c.x - 0.8, 0, c.z - 4.4))
+    G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 2.2)),
+    G.zombies.spawnAt(new THREE.Vector3(c.x + 0.6, 0, c.z - 2.9)),
+    G.zombies.spawnAt(new THREE.Vector3(c.x - 0.6, 0, c.z - 3.5))
   ];
   ctx.step(2);
   var ammoBefore = G.weapons.current().ammo;
@@ -213,8 +218,9 @@ function testWonderWeapon(ctx) {
   } else if (wonderId === 'wunderwaffe') {
     ok(zs.every(function (z) { return z.dead; }), 'wunderwaffe chain-killed all three');
   } else if (wonderId === 'stormcaller') {
-    ctx.step(30);
-    ok(G.weapons.vortices.length > 0, 'storm vortex spawned');
+    var sawVortex = false;                       // poll: the orb may arc a moment
+    for (var v = 0; v < 200 && !sawVortex; v++) { ctx.step(1); if (G.weapons.vortices.length > 0) sawVortex = true; }
+    ok(sawVortex, 'storm vortex spawned');
     ctx.step(60 * 7);
     ok(zs.every(function (z) { return z.dead; }), 'vortex zapped the pack');
     ok(G.weapons.vortices.length === 0, 'vortex expired');

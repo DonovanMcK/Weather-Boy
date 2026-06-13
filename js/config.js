@@ -169,94 +169,103 @@
   };
 
   /* -------------------------------------------------- DER WETTERJUNGE --- */
+  // Showpiece custom map: a huge OUTDOOR courtyard hub (C) ringed by indoor
+  // rooms — Radar Dome (D, N), Generator (A, NW), Comms Tower (B, NE),
+  // Laboratory (L, W), Storage (R, E), Spawn (S, S). Rooms are real spaces
+  // separated by walls with doored gaps + catwalk loops, not corridors.
   CFG.MAPS.wetterjunge = {
     id: 'wetterjunge',
     name: 'DER WETTERJUNGE',
     sub: 'Storm research station — custom map. Wonder weapon: the Wettermacher.',
     wonder: 'stormcaller',
     papRule: 'teleporters',
-    atmos: { sky: 0x0c1018, fog: 0x0e1320, density: 0.018 },
+    atmos: { sky: 0x10131f, fog: 0x121726, density: 0.014 },
     GRID: [
-      '.....DDD.....', // D = Radar Dome (power, Teleporter C, Stamin-Up)
-      '.....DDD.....',
-      '......7......', // door 7: Dome <-> Courtyard
-      'LLL.CCCCC.RRR', // L = Lab (Tele A), C = Courtyard, R = Storage (Tele B)
-      'LLL5CCCCC6RRR',
-      'LLL.CCCCC.RRR',
-      '...CCCCCCC...',
-      '...3.....4...',
-      '.AAA.....BBB.', // A/B = L-shaped corridors
-      '.A.........B.',
-      '.AAA1SSS2BBB.', // S = Spawn room
-      '.....SSS.....'
+      'AAAA.DDDDD.BBBB', // A=Generator  D=Radar Dome  B=Comms Tower
+      'AAAA6DDDDD8BBBB', // 6: Gen↔Dome catwalk   8: Dome↔Comms catwalk
+      'AAAA.DDDDD.BBBB',
+      'AAAA.DDDDD.BBBB',
+      '..2....7....5..', // 2: Gen↔Lab   7: Dome↔Courtyard   5: Comms↔Storage
+      'LLLL.CCCCC.RRRR', // L=Laboratory  C=COURTYARD (outdoor)  R=Storage
+      'LLLL.CCCCC.RRRR',
+      'LLLL3CCCCC4RRRR', // 3: Lab↔Courtyard   4: Courtyard↔Storage
+      'LLLL.CCCCC.RRRR',
+      'LLLL.CCCCC.RRRR',
+      '.......1.......', // 1: Courtyard↔Spawn
+      '.....SSSSS.....', // S=Spawn
+      '.....SSSSS.....',
+      '.....SSSSS.....',
+      '...............'
     ],
     ROOMS: {
-      S: { name: 'Spawn Room',  floor: 0x3a3530, light: 0x886655 },
-      A: { name: 'West Hall',   floor: 0x2f3338, light: 0x667788 },
-      B: { name: 'East Hall',   floor: 0x33302f, light: 0x778866 },
-      C: { name: 'Courtyard',   floor: 0x2c3a2e, light: 0x99aabb },
-      L: { name: 'Laboratory',  floor: 0x2e3640, light: 0x66ccdd },
-      R: { name: 'Storage',     floor: 0x3b3328, light: 0xddaa66 },
-      D: { name: 'Radar Dome',  floor: 0x342e3e, light: 0xbb88ff }
+      S: { name: 'Spawn',         floor: 0x3a3530, light: 0x9a8866 },
+      C: { name: 'Courtyard',     floor: 0x32392e, light: 0x9fb6c8 },
+      L: { name: 'Laboratory',    floor: 0x2e3640, light: 0x66ccdd },
+      R: { name: 'Storage',       floor: 0x3b3328, light: 0xddaa66 },
+      D: { name: 'Radar Dome',    floor: 0x342e3e, light: 0xbb88ff },
+      A: { name: 'Generator',     floor: 0x33302a, light: 0xffaa55 },
+      B: { name: 'Comms Tower',   floor: 0x2c3436, light: 0x66ddcc }
     },
     DOORS: {
-      1: { cost: 750,  name: 'Spawn → West Hall' },
-      2: { cost: 1000, name: 'Spawn → East Hall' },
-      3: { cost: 1250, name: 'West Hall → Courtyard' },
-      4: { cost: 1250, name: 'East Hall → Courtyard' },
-      5: { cost: 1250, name: 'Laboratory' },
-      6: { cost: 1250, name: 'Storage' },
-      7: { cost: 1750, name: 'Radar Dome' }
+      1: { cost: 750,  name: 'Courtyard' },
+      2: { cost: 1000, name: 'Laboratory Stair' },
+      3: { cost: 1000, name: 'Laboratory' },
+      4: { cost: 1000, name: 'Storage' },
+      5: { cost: 1000, name: 'Storage Stair' },
+      6: { cost: 1250, name: 'West Catwalk' },
+      7: { cost: 1500, name: 'Radar Dome' },
+      8: { cost: 1250, name: 'East Catwalk' }
     },
     WINDOWS: [
-      { cell: [5, 11], dir: 'S' },
-      { cell: [7, 11], dir: 'S' },
-      { cell: [1, 9],  dir: 'W' },
-      { cell: [11, 9], dir: 'E' },
-      { cell: [4, 3],  dir: 'N' },
-      { cell: [8, 3],  dir: 'N' },
-      { cell: [0, 4],  dir: 'W' },
-      { cell: [12, 4], dir: 'E' },
-      { cell: [5, 0],  dir: 'N' },
-      { cell: [7, 0],  dir: 'N' }
+      { cell: [0, 1],  dir: 'W' },   // Generator
+      { cell: [2, 0],  dir: 'N' },
+      { cell: [7, 0],  dir: 'N' },   // Dome
+      { cell: [12, 0], dir: 'N' },   // Comms
+      { cell: [14, 1], dir: 'E' },
+      { cell: [0, 7],  dir: 'W' },   // Lab
+      { cell: [14, 7], dir: 'E' },   // Storage
+      { cell: [5, 9],  dir: 'S' },   // Courtyard (outdoor)
+      { cell: [9, 9],  dir: 'S' },
+      { cell: [5, 13], dir: 'S' },   // Spawn
+      { cell: [9, 13], dir: 'S' }
     ],
-    RISERS: [[5, 5], [7, 5], [6, 6]],
+    RISERS: [[6, 8], [8, 8]],
     PERK_MACHINES: [
-      { perk: 'revive',  cell: [7, 11], off: [1.2, 1.2] },
-      { perk: 'jugg',    cell: [4, 5],  off: [-1.5, 0] },
-      { perk: 'speed',   cell: [0, 3],  off: [-1.2, -1.2] },
-      { perk: 'dtap',    cell: [12, 3], off: [1.2, -1.2] },
-      { perk: 'stamin',  cell: [5, 1],  off: [-1.2, 0.8] },
-      { perk: 'mule',    cell: [11, 8], off: [1.2, -1.2] }
+      { perk: 'revive', cell: [6, 12], off: [-1.0, 0] },
+      { perk: 'jugg',   cell: [13, 7], off: [1.0, 0] },
+      { perk: 'speed',  cell: [1, 7],  off: [-1.0, 0] },
+      { perk: 'dtap',   cell: [7, 1],  off: [0, -1.0] },
+      { perk: 'stamin', cell: [2, 1],  off: [0, 0] },
+      { perk: 'mule',   cell: [13, 2], off: [0, 1.0] }
     ],
     WALLBUYS: [
-      { gun: 'm14',      cell: [7, 11], off: [1.7, -1.0], face: 'E' },
-      { gun: 'olympia',  cell: [5, 11], off: [-1.7, -1.0], face: 'W' },
-      { gun: 'mp40',     cell: [1, 8],  off: [0, -1.7], face: 'N' },
-      { gun: 'mp5k',     cell: [11, 10], off: [0, 1.7], face: 'S' },
-      { gun: 'ak74u',    cell: [5, 6],  off: [0, 1.7],  face: 'S' },
-      { gun: 'frags',    cell: [7, 6],  off: [0, 1.7],  face: 'S' },
-      { gun: 'stakeout', cell: [0, 5],  off: [0, 1.7],  face: 'S' },
-      { gun: 'm16',      cell: [12, 5], off: [0, 1.7],  face: 'S' }
+      { gun: 'm14',      cell: [6, 13], off: [0, 1.6],  face: 'S' },
+      { gun: 'olympia',  cell: [8, 13], off: [0, 1.6],  face: 'S' },
+      { gun: 'mp5k',     cell: [0, 5],  off: [-1.6, 0], face: 'W' },
+      { gun: 'mp40',     cell: [14, 5], off: [1.6, 0],  face: 'E' },
+      { gun: 'ak74u',    cell: [5, 0],  off: [0, -1.6], face: 'N' },
+      { gun: 'm16',      cell: [13, 0], off: [0, -1.6], face: 'N' },
+      { gun: 'stakeout', cell: [0, 8],  off: [-1.6, 0], face: 'W' },
+      { gun: 'frags',    cell: [0, 2],  off: [-1.6, 0], face: 'W' }
     ],
     BOX_SPOTS: [
-      { cell: [4, 6],  off: [0, -1] },
-      { cell: [6, 11], off: [-1.4, 0.8] },
-      { cell: [1, 8],  off: [0.8, 0.8] },
-      { cell: [11, 10], off: [-0.8, -0.8] },
-      { cell: [0, 5],  off: [-0.8, -0.8] },
-      { cell: [12, 5], off: [0.8, -0.8] },
-      { cell: [7, 1],  off: [1.0, 0.5] }
+      { cell: [2, 2],  off: [0, 0] },
+      { cell: [12, 2], off: [0, 0] },
+      { cell: [2, 8],  off: [0, 0] },
+      { cell: [13, 8], off: [0, 0] },
+      { cell: [7, 2],  off: [0, 0.6] },
+      { cell: [7, 12], off: [0, 0] },
+      { cell: [7, 8],  off: [0, 0] }
     ],
     TELEPORTERS: [
-      { id: 'A', cell: [1, 4],  off: [-0.5, 0] },
-      { id: 'B', cell: [11, 4], off: [0.5, 0] },
-      { id: 'C', cell: [6, 0],  off: [0, -0.5] }
+      { id: 'A', cell: [1, 8],  off: [0, 0] },
+      { id: 'B', cell: [13, 6], off: [0, 0] },
+      { id: 'C', cell: [8, 1],  off: [0, 0] }
     ],
-    MAINFRAME: { cell: [6, 4], off: [0, 0] },
-    PAP: { cell: [6, 5], off: [0, 1.0] },
-    POWER: { cell: [5, 0], off: [-1.4, -1.4] },
-    PLAYER_SPAWN: { cell: [6, 10], off: [0, 0.5] }
+    MAINFRAME: { cell: [6, 6], off: [0, 0] },
+    PAP: { cell: [8, 6], off: [0, 0] },
+    POWER: { cell: [12, 1], off: [0, 0] },
+    PLAYER_SPAWN: { cell: [7, 11], off: [0, 0.5] }
   };
 
   CFG.MAP_IDS = ['nacht', 'derriese', 'wetterjunge'];
