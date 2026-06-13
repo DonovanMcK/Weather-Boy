@@ -465,6 +465,7 @@
     G.hud.setPrompt(best ? ((best.holdable ? '' : '[F] ') + best.prompt()) : null);
 
     var pressed = G.player.consumeInteract();
+    if (G.gamepad && G.gamepad.consumeTap && G.gamepad.consumeTap()) pressed = true;
     if (best && !G.player.downed && !G.player.locked) {
       if (best.holdable) {
         if (G.keys.KeyF || (G.gamepad && G.gamepad.interactHeld)) best.hold(dt);

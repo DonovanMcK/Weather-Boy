@@ -62,10 +62,11 @@ other maps' wonder weapons never roll.
 - **Two aim modes, auto-detected**: Macs/trackpads default to *simple aim*
   (no ADS needed — tighter hip-fire + bullet magnetism); mouse PCs get full
   right-click ADS with per-gun zoom. Switchable on the start menu.
-- **Controller support**: plug in an Xbox/PS gamepad and play — sticks
-  move/look, RT fire, LT aim, L3 sprint, A jump, B slide, X buy, Y reload,
-  LB/RB grenade & monkey, Start pause. Coexists with keyboard+mouse (an idle
-  pad never interferes).
+- **Controller support** (independent of keyboard/mouse — these are *controller*
+  buttons): L-stick move, R-stick aim, RT shoot, LT aim, L3 sprint, A jump,
+  B slide, X buy/reload, Y switch gun, RB grenade, LB or D-pad↑ monkey, R3 knife,
+  Start pause. Menus are navigable with the stick + A, so it's pad-only end to
+  end. An idle plugged-in pad never interferes with keyboard+mouse.
 - **Polished HUD**: dynamic crosshair that opens with spread, 4-stroke
   hitmarker, magazine pip bar, segmented health (grows with Juggernog),
   power-up pills with countdown bars, perk discs, key-capped look prompts.

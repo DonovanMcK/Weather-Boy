@@ -23,8 +23,12 @@
     connected: false, index: null,
     moveX: 0, moveZ: 0,
     sprint: false, jump: false, crouch: false,
-    fire: false, ads: false, interactHeld: false
+    fire: false, ads: false, interactHeld: false,
+    _tap: false
   };
+  // one-shot "use/buy" press consumed by interact.js (avoids leaving a synthetic
+  // KeyF stuck down, which would continuously rebuild barricades)
+  GP.consumeTap = function () { var t = GP._tap; GP._tap = false; return t; };
 
   var DEAD = 0.22;          // stick deadzone
   var LOOK = 3.1;           // look speed (rad/s at full deflection)
@@ -97,24 +101,27 @@
       P.swayX += rx * 6; P.swayY += ry * 6;
     }
 
-    // ---- triggers: fire / ADS ----
+    // ---- triggers: RT shoot / LT aim ----
     GP.fire = playing && val(7) > 0.45;
     GP.ads = playing && val(6) > 0.4;
 
-    // ---- held: interact (X) drives barricade rebuild ----
+    // ---- held: X drives barricade rebuild ----
     GP.interactHeld = playing && down(2);
 
     if (playing) {
-      // ---- in-game edge-triggered actions ----
-      if (edge(2)) tapKey('KeyF');     // X tap: buy / use / open
-      if (edge(3)) tapKey('KeyR');     // Y: reload
-      if (edge(4)) tapKey('KeyG');     // LB: frag
-      if (edge(5)) tapKey('KeyH');     // RB: monkey bomb
+      // ---- in-game edge-triggered actions (user's layout) ----
+      if (edge(2)) {                   // X: buy/use if a prompt is up, else reload
+        if (G.hud && G.hud._prompt) GP._tap = true;
+        else tapKey('KeyR');
+      }
+      if (edge(3)) tapKey('KeyQ');     // Y: switch weapon
+      if (edge(5)) tapKey('KeyG');     // RB: frag grenade
+      if (edge(4)) tapKey('KeyH');     // LB: monkey bomb
+      if (edge(12)) tapKey('KeyH');    // D-pad up: monkey bomb
       if (edge(11)) tapKey('KeyV');    // R3: knife
-      if (edge(12)) tapKey('KeyQ');    // D-pad up: swap weapon
       if (edge(13)) tapKey('KeyM');    // D-pad down: mute
-      if (edge(14)) tapKey('Digit1');  // D-pad left: slot 1
-      if (edge(15)) tapKey('Digit2');  // D-pad right: slot 2
+      if (edge(14)) tapKey('Digit1');  // D-pad left: weapon slot 1
+      if (edge(15)) tapKey('Digit2');  // D-pad right: weapon slot 2
       GP._stick = 0;
     } else if (G.hud && G.hud.menuActivate) {
       // ---- menu navigation (start / pause / game-over) ----

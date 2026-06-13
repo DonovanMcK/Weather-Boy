@@ -424,11 +424,44 @@ function testGamepad(ctx) {
   ok(!P.onGround || P.vel.y > 0, 'A button jumps');
   press(pad, 0, 0);
 
-  // Y reloads (synthetic key path)
+  // X reloads when there's no interaction prompt up
+  G.hud._prompt = null;
   gun.ammo = 1;
-  press(pad, 3, 1); step(3); press(pad, 3, 0);
+  press(pad, 2, 1); step(3); press(pad, 2, 0);
   step(2);
-  ok(G.weapons.reloading > 0, 'Y button reloads');
+  ok(G.weapons.reloading > 0, 'X reloads when no prompt is shown');
+  step(140); // finish the reload
+
+  // Y switches weapons
+  G.weapons.slots.length = 0; G.weapons.maxSlots = 2;
+  G.weapons.giveWeapon('m1911'); G.weapons.giveWeapon('mp5k');
+  G.weapons.equip(0, true);
+  var before = G.weapons.cur;
+  press(pad, 3, 1); step(3); press(pad, 3, 0); step(3);
+  ok(G.weapons.cur !== before, 'Y switches weapons');
+
+  // X also BUYS when an interaction prompt is showing — face a wall weapon the
+  // player doesn't own and tap X (doors are all open by now, so use a wall buy)
+  G.player.points = 100000;
+  var wb = G.map.wallbuys.filter(function (w) { return !w.isFrags && !G.weapons.hasWeapon(w.gun); })[0];
+  ctx.moveTo(wb.pos); step(3);
+  var ddx = wb.pos.x - P.pos.x, ddz = wb.pos.z - P.pos.z;
+  if (Math.hypot(ddx, ddz) > 0.05) P.yaw = Math.atan2(-ddx, -ddz);
+  var sawPrompt = false;
+  for (var f = 0; f < 12 && !sawPrompt; f++) { step(1); if (G.hud._prompt) sawPrompt = true; }
+  ok(sawPrompt, 'wall-buy prompt shows when facing it');
+  press(pad, 2, 1); step(3); press(pad, 2, 0); step(3);
+  ok(G.weapons.hasWeapon(wb.gun), 'X buys the wall weapon (' + wb.gun + ') when its prompt is up');
+
+  // LB throws a monkey bomb
+  G.player.hasMonkeys = true; G.player.monkeys = 3;
+  press(pad, 4, 1); step(3); press(pad, 4, 0); step(3);
+  ok(G.player.monkeys === 2, 'LB throws a monkey bomb');
+
+  // RB throws a frag
+  G.player.frags = 4;
+  press(pad, 5, 1); step(3); press(pad, 5, 0); step(3);
+  ok(G.player.frags === 3, 'RB throws a frag grenade');
 
   // unplug: intents clear, keyboard unaffected
   ctx.setPad(null);
