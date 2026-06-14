@@ -834,31 +834,219 @@
         return Math.hypot(w.inside.x - p.x, w.inside.z - p.z) > dist;
       });
     }
-    // sparse dressing only: one prop tucked into a corner of larger non-spawn
-    // rooms, hugging the wall so it never blocks a walking lane (keeps the map
-    // open). Decorative-only props don't get colliders.
-    Object.keys(P.rooms).forEach(function (roomId) {
-      if (roomId === 'S') return;                 // keep spawn clear
-      var cells = P.rooms[roomId].cells;
-      if (cells.length < 6) return;               // only roomy rooms
-      var cr = cells[0];
-      // shove toward the room edge furthest from the centre
-      var wc = CFG.cellToWorld(cr[0], cr[1]);
-      var ctr = P.rooms[roomId].center;
-      var dx = Math.sign(wc.x - ctr.x) || 1, dz = Math.sign(wc.z - ctr.z) || 1;
-      var p = new THREE.Vector3(wc.x + dx * 1.45, 0, wc.z + dz * 1.45);
-      if (!clearOf(p, 2.0)) return;
-      if ((cr[0] + cr[1]) % 2) {
-        var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.95, 12),
-          new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x6a7a55 }));
-        barrel.position.set(p.x, 0.48, p.z);
-        G.scene.add(barrel);
-        G.map.solidMeshes.push(barrel);
-        map.addCollider(p.x - 0.36, p.z - 0.36, p.x + 0.36, p.z + 0.36);
-      } else {
-        addBox(0.85, 0.85, 0.85, p.x, 0.42, p.z, G.mats.wood, { collide: true, solid: true });
-        addBox(0.6, 0.45, 0.6, p.x + 0.2, 1.05, p.z + 0.15, G.mats.plank, { solid: true });
+    /* ========================= room dressing (environment art) ==========
+       Make rooms read as real places, not boxes: ceilings + beams indoors,
+       support pillars, wall ribs, scattered debris, and a distinctive themed
+       structure per room (generators, furnace, lab tanks, wrecked truck,
+       server racks, sandbags...). Outdoor rooms stay open to the sky.       */
+    var outdoor = CFG.cur.OUTDOOR || [];
+    var dCeil = new THREE.MeshLambertMaterial({ map: G.tex.wall, color: 0x55504a });
+    var dBeam = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x55585e });
+    var dRust = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x86603c });
+    var dDark = new THREE.MeshLambertMaterial({ color: 0x2a2c30 });
+    var dPipe = new THREE.MeshLambertMaterial({ color: 0x6b7077 });
+    var dConc = new THREE.MeshLambertMaterial({ map: G.tex.wall, color: 0x8a857c });
+    var dGlass = new THREE.MeshLambertMaterial({ color: 0x1b3a30, transparent: true, opacity: 0.55,
+      emissive: new THREE.Color(0x33ff88), emissiveIntensity: 0.35 });
+    function glowMat(col, i) {
+      return new THREE.MeshLambertMaterial({ color: 0x0e1014, emissive: new THREE.Color(col), emissiveIntensity: i || 0.7 });
+    }
+    function pbox(parent, w, h, d, x, y, z, m, rx) {
+      var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      b.position.set(x, y, z); if (rx) b.rotation.x = rx;
+      parent.add(b); return b;
+    }
+    function pcyl(parent, r1, r2, h, x, y, z, m, seg, axis) {
+      var c = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, seg || 10), m);
+      c.position.set(x, y, z);
+      if (axis === 'x') c.rotation.z = Math.PI / 2; else if (axis === 'z') c.rotation.x = Math.PI / 2;
+      parent.add(c); return c;
+    }
+    function roomBBox(room) {
+      var minc = 99, maxc = -99, minr = 99, maxr = -99;
+      room.cells.forEach(function (cr) {
+        if (cr[0] < minc) minc = cr[0]; if (cr[0] > maxc) maxc = cr[0];
+        if (cr[1] < minr) minr = cr[1]; if (cr[1] > maxr) maxr = cr[1];
+      });
+      var a = CFG.cellToWorld(minc, minr), b = CFG.cellToWorld(maxc, maxr);
+      return { x0: a.x - CELL / 2, x1: b.x + CELL / 2, z0: a.z - CELL / 2, z1: b.z + CELL / 2,
+        cx: (a.x + b.x) / 2, cz: (a.z + b.z) / 2, w: (maxc - minc + 1) * CELL, d: (maxr - minr + 1) * CELL };
+    }
+    function wallEdges(room) {
+      var es = [];
+      room.cells.forEach(function (cr) {
+        ['N', 'S', 'E', 'W'].forEach(function (dir) {
+          var o = OFF[dir], n = map.cellAt(cr[0] + o[0], cr[1] + o[1]) || { type: 'void' };
+          var isDoor = n.type === 'door';
+          if (!(n.type === 'void' || isDoor || (n.type === 'room' && n.room !== room.id))) return;
+          es.push({ cr: cr, dir: dir, o: o, door: isDoor, win: winLookup[cr[0] + ',' + cr[1] + ',' + dir] !== undefined });
+        });
+      });
+      return es;
+    }
+
+    /* ---- themed hero structures (built local to a group, back toward -z) -- */
+    function heroGenerators(g) {
+      [-0.55, 0.55].forEach(function (ox) {
+        pbox(g, 0.9, 1.3, 0.7, ox, 0.65, -0.15, dRust);
+        pbox(g, 0.96, 0.18, 0.76, ox, 1.45, -0.15, dBeam);
+        pbox(g, 0.5, 0.32, 0.05, ox, 0.95, 0.2, glowMat(0xffaa33, 0.7));
+        pcyl(g, 0.07, 0.07, 1.1, ox + 0.3, 2.05, -0.25, dPipe, 8);
+      });
+      pcyl(g, 0.06, 0.06, 1.3, 0, 1.0, -0.32, dPipe, 8, 'x');
+    }
+    function heroFurnace(g) {
+      pcyl(g, 0.72, 0.72, 1.9, 0, 1.05, -0.2, dRust, 16);
+      pbox(g, 1.0, 0.75, 0.12, 0, 0.62, 0.46, glowMat(0xff4410, 1.1));
+      pcyl(g, 0.18, 0.18, 1.4, 0.42, 2.4, -0.2, dPipe, 10);
+      pbox(g, 1.7, 0.3, 0.7, 0, 0.15, -0.1, dDark);
+      var fl = new THREE.PointLight(0xff5a1e, 0.9, 7); fl.position.set(0, 0.7, 0.6); g.add(fl);
+    }
+    function heroLab(g) {
+      pbox(g, 1.7, 0.85, 0.6, 0, 0.42, -0.1, dDark);
+      [-0.55, 0, 0.55].forEach(function (ox) {
+        pcyl(g, 0.22, 0.22, 0.95, ox, 1.32, -0.1, dGlass, 12);
+        pcyl(g, 0.25, 0.25, 0.1, ox, 0.9, -0.1, dBeam, 12);
+        pcyl(g, 0.25, 0.25, 0.1, ox, 1.82, -0.1, dBeam, 12);
+      });
+      var ll = new THREE.PointLight(0x33ff88, 0.5, 6); ll.position.set(0, 1.5, 0.2); g.add(ll);
+    }
+    function heroTruck(g) {
+      pbox(g, 1.1, 0.5, 2.1, 0, 0.55, 0.1, dRust);
+      pbox(g, 1.0, 0.62, 0.95, 0, 0.85, -0.7, dRust);
+      pbox(g, 0.9, 0.4, 0.75, 0, 1.05, -0.66, dDark);
+      [[-0.58, -0.72], [0.58, -0.72], [-0.58, 0.75], [0.58, 0.75]].forEach(function (w) {
+        pcyl(g, 0.3, 0.3, 0.26, w[0], 0.3, w[1], dDark, 12, 'x');
+      });
+    }
+    function heroShelves(g) {
+      [-0.9, 0.9].forEach(function (ox) { pbox(g, 0.09, 2.1, 0.62, ox, 1.05, -0.1, dBeam); });
+      [0.45, 1.1, 1.75].forEach(function (y) { pbox(g, 1.85, 0.08, 0.6, 0, y, -0.1, dBeam); });
+      [[-0.55, 0.75, dRust], [0.4, 0.75, G.mats.wood], [0.0, 1.4, G.mats.plank], [0.55, 1.4, dRust], [-0.4, 2.05, G.mats.wood]]
+        .forEach(function (c) { pbox(g, 0.5, 0.46, 0.46, c[0], c[1], -0.1, c[2]); });
+    }
+    function heroServers(g) {
+      [-0.6, 0, 0.6].forEach(function (ox) {
+        pbox(g, 0.5, 1.7, 0.55, ox, 0.85, -0.12, dDark);
+        pbox(g, 0.44, 1.5, 0.04, ox, 0.85, 0.16, glowMat(0x33ccff, 0.55));
+      });
+      var dish = pcyl(g, 0.62, 0.5, 0.12, 0, 2.35, -0.15, dConc, 18); dish.rotation.x = 0.6;
+      pcyl(g, 0.05, 0.05, 0.6, 0, 2.05, -0.15, dBeam, 6);
+    }
+    function heroPipes(g) {
+      [-0.32, -0.11, 0.11, 0.32].forEach(function (ox, i) {
+        pcyl(g, 0.08, 0.08, 2.5, ox, 1.4, -0.25, i % 2 ? dRust : dPipe, 8);
+      });
+      pbox(g, 1.3, 0.42, 0.42, 0, 0.32, -0.22, dDark);
+      pcyl(g, 0.13, 0.13, 0.3, 0.0, 0.55, 0.05, dRust, 8, 'z');
+    }
+    function heroSandbags(g) {
+      for (var rr = 0; rr < 3; rr++) {
+        for (var i = 0; i < 4; i++) {
+          var off = (rr % 2) * 0.21;
+          pbox(g, 0.5, 0.28, 0.42, -0.72 + i * 0.42 + off, 0.14 + rr * 0.26, -0.1,
+            new THREE.MeshLambertMaterial({ color: i % 2 ? 0x756a4e : 0x645a40 }));
+        }
       }
+    }
+    function heroCrates(g) {
+      pbox(g, 0.85, 0.85, 0.85, -0.3, 0.43, -0.12, dRust);
+      pbox(g, 0.72, 0.72, 0.72, 0.45, 0.37, 0.08, G.mats.wood);
+      pbox(g, 0.6, 0.6, 0.6, -0.18, 1.16, -0.12, G.mats.plank);
+    }
+    function buildHero(name, g) {
+      var n = name.toLowerCase();
+      if (/generator|power/.test(n)) heroGenerators(g);
+      else if (/furnace/.test(n)) heroFurnace(g);
+      else if (/lab/.test(n)) heroLab(g);
+      else if (/garage/.test(n)) heroTruck(g);
+      else if (/storage/.test(n)) heroShelves(g);
+      else if (/comms|radar|dome/.test(n)) heroServers(g);
+      else if (/catwalk/.test(n)) heroPipes(g);
+      else if (/courtyard|crash|bunker|help|spawn/.test(n)) heroSandbags(g);
+      else heroCrates(g);
+    }
+    function placeHero(room, name) {
+      var es = wallEdges(room).filter(function (e) { return !e.door && !e.win; });
+      for (var i = 0; i < es.length; i++) {
+        var e = es[(i * 5 + 2) % es.length];
+        var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
+        var px = wc.x + e.o[0] * 1.15, pz = wc.z + e.o[1] * 1.15;
+        if (!clearOf(new THREE.Vector3(px, 0, pz), 1.5)) continue;
+        var g = new THREE.Group();
+        g.position.set(px, 0, pz);
+        g.rotation.y = Math.atan2(-e.o[0], -e.o[1]);
+        G.scene.add(g);
+        buildHero(name, g);
+        map.addCollider(px - 1.0, pz - 1.0, px + 1.0, pz + 1.0);
+        occupied.push({ x: px, z: pz });
+        return;
+      }
+    }
+
+    /* ---- per-room: ceiling/beams, pillars, ribs, hero, debris ---- */
+    Object.keys(P.rooms).forEach(function (rid) {
+      var room = P.rooms[rid];
+      var bb = roomBBox(room);
+      var isOut = outdoor.indexOf(rid) >= 0;
+      var edges = wallEdges(room);
+
+      if (!isOut) {
+        // ceiling tiles + cross beams
+        room.cells.forEach(function (cr) {
+          var wc = CFG.cellToWorld(cr[0], cr[1]);
+          var cl = new THREE.Mesh(floorGeo, dCeil);
+          cl.rotation.x = Math.PI / 2; cl.position.set(wc.x, WALL_H - 0.02, wc.z);
+          G.scene.add(cl);
+        });
+        var along = bb.w >= bb.d;
+        var span = along ? bb.d : bb.w, n = Math.max(1, Math.round(span / 4));
+        for (var bj = 0; bj <= n; bj++) {
+          var f = bj / n;
+          if (along) addBox(bb.w - 0.1, 0.22, 0.22, bb.cx, WALL_H - 0.32,
+            Math.min(bb.z1 - 0.11, Math.max(bb.z0 + 0.11, bb.z0 + f * bb.d)), dBeam);
+          else addBox(0.22, 0.22, bb.d - 0.1,
+            Math.min(bb.x1 - 0.11, Math.max(bb.x0 + 0.11, bb.x0 + f * bb.w)), WALL_H - 0.32, bb.cz, dBeam);
+        }
+      } else {
+        // outdoor: broken parapet chunks on perimeter wall tops
+        edges.forEach(function (e, idx) {
+          if (idx % 2 || e.door) return;
+          var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
+          addBox(e.o[0] ? 0.5 : 1.4, 0.4 + Math.random() * 0.6, e.o[0] ? 1.4 : 0.5,
+            wc.x + e.o[0] * (CELL / 2 - 0.18), WALL_H + 0.1, wc.z + e.o[1] * (CELL / 2 - 0.18), dConc);
+        });
+      }
+
+      // corner support pillars
+      [[bb.x0 + 0.42, bb.z0 + 0.42], [bb.x1 - 0.42, bb.z0 + 0.42],
+       [bb.x0 + 0.42, bb.z1 - 0.42], [bb.x1 - 0.42, bb.z1 - 0.42]].forEach(function (c) {
+        var ph = isOut ? WALL_H + 0.4 : WALL_H;
+        addBox(0.46, ph, 0.46, c[0], ph / 2, c[1], dConc, { collide: true });
+      });
+
+      // wall ribs / pilasters (skip doors + windows)
+      edges.forEach(function (e) {
+        if (e.door || e.win || Math.random() > 0.4) return;
+        var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
+        var alongX = (e.dir === 'N' || e.dir === 'S');
+        addBox(alongX ? 0.5 : 0.16, WALL_H - 0.5, alongX ? 0.16 : 0.5,
+          wc.x + e.o[0] * (CELL / 2 - 0.1), (WALL_H - 0.5) / 2, wc.z + e.o[1] * (CELL / 2 - 0.1), dBeam);
+      });
+
+      // a themed hero structure
+      placeHero(room, room.id && CFG.ROOMS[room.id] ? CFG.ROOMS[room.id].name : '');
+
+      // scattered floor debris hugging walls (decorative, no collider)
+      edges.filter(function (e) { return !e.door && !e.win; }).forEach(function (e, idx) {
+        if (idx % 3) return;
+        var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
+        var px = wc.x + e.o[0] * (CELL / 2 - 0.5) + (e.o[0] ? 0 : (Math.random() - 0.5) * 1.5);
+        var pz = wc.z + e.o[1] * (CELL / 2 - 0.5) + (e.o[1] ? 0 : (Math.random() - 0.5) * 1.5);
+        if (!clearOf(new THREE.Vector3(px, 0, pz), 1.0)) return;
+        var s = 0.25 + Math.random() * 0.35;
+        addBox(s, s * 0.6, s, px, s * 0.3, pz, idx % 2 ? dDark : dConc);
+      });
     });
 
     map.recomputeReachable();

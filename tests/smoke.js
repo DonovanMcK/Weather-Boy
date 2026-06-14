@@ -346,10 +346,40 @@ async function runQuick(mapId) {
   testWonderWeapon(ctx);
   if (mapId === 'nacht') {
     testBreakIn(ctx);
+    testPenetration(ctx);
     testMovement(ctx); // big open spawn room
     testSimpleAim(ctx);
     testGamepad(ctx);
   }
+}
+
+// one high-power round pierces a line of zombies and every pierced kill scores
+function testPenetration(ctx) {
+  var G = ctx.G;
+  G.zombies.mode = 'break'; G.zombies.breakTimer = 999; G.zombies.toSpawn = 0;
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+  ctx.step(70);
+  G.settings.aimMode = 'mouse';
+  var c = roomCenter(G, 'S');
+  ctx.moveTo(c);
+  G.player.yaw = 0; G.player.pitch = -0.04; // aim into the chest line
+  ctx.step(2);
+  G.zombies.round = 2;
+  var zs = [
+    G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 3)),
+    G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 5)),
+    G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 7))
+  ];
+  zs.forEach(function (z) { z.hp = 200; });
+  ctx.step(2);
+  G.weapons.giveWeapon('l96a1');         // sniper: pierces 5
+  var gun = G.weapons.current(); gun.ammo = 5;
+  var pts0 = G.player.points, kills0 = G.player.kills;
+  G.weapons.mouseDown = true; ctx.step(3); G.weapons.mouseDown = false;
+  ctx.step(3);
+  ok(zs.every(function (z) { return z.dead; }), 'one sniper round pierces and kills a line of 3 zombies');
+  ok(G.player.kills === kills0 + 3, 'all 3 penetration kills counted');
+  ok(G.player.points > pts0 + 150, 'penetration kills award points (+' + (G.player.points - pts0) + ')');
 }
 
 // zombies must actually break through windows and reach the player quickly,

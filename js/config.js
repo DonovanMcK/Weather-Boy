@@ -23,6 +23,7 @@
     wonder: 'thunder',
     papRule: 'power',          // Pack-a-Punch unlocks when the power goes on
     atmos: { sky: 0x14110c, fog: 0x16130d, density: 0.02 },
+    OUTDOOR: ['Y'],            // open-air rooms (no ceiling, show sky)
     GRID: [
       '...YYYYYYY...', // Y = Crash Site (outdoor, debris field)
       '...YYYYYYY...',
@@ -101,6 +102,7 @@
     wonder: 'wunderwaffe',
     papRule: 'teleporters',
     atmos: { sky: 0x12140f, fog: 0x15170f, density: 0.016 },
+    OUTDOOR: ['C'],
     GRID: [
       'TT.GGGGGGGGGG.PP', // T=W Catwalk  G=Garage(Tele C)  P=E Catwalk
       'TT7GGGGGGGGGG8PP', // 7:T↔G  8:G↔P
@@ -200,6 +202,7 @@
     wonder: 'stormcaller',
     papRule: 'teleporters',
     atmos: { sky: 0x10131f, fog: 0x121726, density: 0.014 },
+    OUTDOOR: ['C'],
     GRID: [
       'AAAA.DDDDD.BBBB', // A=Generator  D=Radar Dome  B=Comms Tower
       'AAAA6DDDDD8BBBB', // 6: Gen↔Dome catwalk   8: Dome↔Comms catwalk

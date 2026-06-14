@@ -437,7 +437,11 @@
     return dir;
   }
 
-  function shootRay(spreadDeg, dmg, headMult, range, isKnife) {
+  // pierce = how many zombies one round passes through (penetration). Each
+  // pierced zombie is damaged through the normal path, so every penetration
+  // kill awards hit + kill points just like a direct hit.
+  function shootRay(spreadDeg, dmg, headMult, range, isKnife, pierce) {
+    pierce = pierce || 1;
     _dir.set(0, 0, -1).applyEuler(G.camera.rotation);
     if (!isKnife) aimAssist(_dir);
     if (spreadDeg) {
@@ -451,11 +455,14 @@
     _ray.far = isKnife ? 2.3 : 120;
     var targets = G.zombies.shootables().concat(G.map.solidMeshes);
     var hits = _ray.intersectObjects(targets, false);
-    var hit = hits.length ? hits[0] : null;
-    var end = hit ? hit.point : G.camera.position.clone().addScaledVector(_dir, 60);
-    if (!isKnife) spawnTracer(end);
-    if (hit && hit.object.userData.zombie) {
+    var end = G.camera.position.clone().addScaledVector(_dir, 60);
+    var seen = [], hitAny = false, struck = 0;
+    for (var h = 0; h < hits.length; h++) {
+      var hit = hits[h];
       var z = hit.object.userData.zombie;
+      if (!z) { end = hit.point; break; }          // solid wall stops the round
+      if (z.dead || seen.indexOf(z) >= 0) continue; // a zombie has two hit parts
+      seen.push(z);
       var isHead = hit.object.userData.part === 'head';
       var d = dmg * (isHead ? headMult : 1);
       if (range && hit.distance > range) d *= 0.3;
@@ -463,9 +470,11 @@
       G.hud.hitmarker();
       W.blood(hit.point, isHead ? 7 : 4);
       G.zombies.damageZombie(z, d, { head: isHead, knife: isKnife });
-      return true;
+      hitAny = true; end = hit.point;
+      if (++struck >= pierce) break;                // round absorbed
     }
-    return false;
+    if (!isKnife) spawnTracer(end);
+    return hitAny;
   }
 
   function addLine(a, b, color, life, opacity) {
@@ -518,9 +527,12 @@
     // ADS tightens spread, sprinting loosens it; simple-aim gets a flat bonus
     var spreadMult = (1 - 0.7 * G.player.ads) * (1 + 0.5 * G.player.sprintAmt);
     if (G.settings && G.settings.aimMode === 'simple') spreadMult *= 0.55;
+    // penetration: high-power rounds punch through a line of zombies (each
+    // pierced kill is scored normally). PaP'd guns pierce one extra.
+    var pierce = ({ rifle: 2, lmg: 3, sniper: 5, minigun: 2 }[s.cls] || 1) + (gun.papped ? 1 : 0);
     var pellets = s.pellets || 1;
     for (var i = 0; i < pellets; i++) {
-      shootRay(s.spread * spreadMult, s.dmg, s.head, s.range, false);
+      shootRay(s.spread * spreadMult, s.dmg, s.head, s.range, false, pierce);
     }
   }
 
