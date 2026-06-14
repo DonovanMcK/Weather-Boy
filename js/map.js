@@ -601,6 +601,49 @@
     var occupied = []; // keep auto props clear of everything interactive
     function occupy(p) { occupied.push(p); }
 
+    // --- push interactables against the nearest clear wall so they never block
+    //     the middle of a room (zombies need the open centre to train through)
+    function roomInner(rid) {
+      var cells = P.rooms[rid].cells, minc = 99, maxc = -99, minr = 99, maxr = -99;
+      cells.forEach(function (cr) {
+        if (cr[0] < minc) minc = cr[0]; if (cr[0] > maxc) maxc = cr[0];
+        if (cr[1] < minr) minr = cr[1]; if (cr[1] > maxr) maxr = cr[1];
+      });
+      var a = CFG.cellToWorld(minc, minr), b = CFG.cellToWorld(maxc, maxr);
+      return { x0: a.x - CELL / 2 + WALL_T, x1: b.x + CELL / 2 - WALL_T,
+        z0: a.z - CELL / 2 + WALL_T, z1: b.z + CELL / 2 - WALL_T };
+    }
+    function spotClear(p, dist) {
+      var cr = CFG.worldToCell(p.x, p.z), cell = map.cellAt(cr.col, cr.row);
+      if (!cell || cell.type !== 'room') return false;
+      // stay outside any door's interaction radius so buy-prompts never hijack
+      // the door's "open" prompt
+      if (!Object.keys(map.doors).every(function (id) {
+        return Math.hypot(map.doors[id].pos.x - p.x, map.doors[id].pos.z - p.z) > 3.0; })) return false;
+      if (!map.windows.every(function (w) {
+        return Math.hypot(w.inside.x - p.x, w.inside.z - p.z) > 1.3; })) return false;
+      for (var i = 0; i < occupied.length; i++) {
+        if (Math.hypot(occupied[i].x - p.x, occupied[i].z - p.z) < dist) return false;
+      }
+      return true;
+    }
+    function pushToWall(pos, hd) {
+      var rid = map.roomAt(pos.x, pos.z);
+      if (!rid || !P.rooms[rid]) return pos;
+      var bb = roomInner(rid);
+      var cands = [
+        { x: bb.x0 + hd, z: pos.z, d: pos.x - bb.x0 },
+        { x: bb.x1 - hd, z: pos.z, d: bb.x1 - pos.x },
+        { x: pos.x, z: bb.z0 + hd, d: pos.z - bb.z0 },
+        { x: pos.x, z: bb.z1 - hd, d: bb.z1 - pos.z }
+      ].sort(function (a, b) { return a.d - b.d; });
+      for (var i = 0; i < cands.length; i++) {
+        var np = new THREE.Vector3(cands[i].x, 0, cands[i].z);
+        if (spotClear(np, 1.7)) { pos.x = np.x; pos.z = np.z; break; }
+      }
+      return pos;
+    }
+
     // perk machines: vending cabinets with a lit bottle decal facing the room
     function perkDecalTexture(def) {
       var cv = document.createElement('canvas');
@@ -631,6 +674,7 @@
     CFG.PERK_MACHINES.forEach(function (pm) {
       var def = CFG.PERKS[pm.perk];
       var pos = place(pm);
+      pushToWall(pos, 0.55);
       occupy(pos);
       var body = addBox(0.95, 1.85, 0.75, pos.x, 0.92, pos.z,
         new THREE.MeshLambertMaterial({ map: G.tex.metal, color: def.color }), { collide: true, solid: true });
@@ -684,16 +728,7 @@
 
     CFG.BOX_SPOTS.forEach(function (bs, i) {
       var p = place(bs);
-      // never let a box sit in a doorway: if it's within 3.2m of any door,
-      // push it directly away from that door so it can't block the opening
-      Object.keys(map.doors).forEach(function (id) {
-        var dp = map.doors[id].pos;
-        var dx = p.x - dp.x, dz = p.z - dp.z, d = Math.hypot(dx, dz);
-        if (d < 3.2) {
-          var push = (3.4 - d) / (d || 1);
-          p.x += dx * push; p.z += dz * push;
-        }
-      });
+      pushToWall(p, 0.65);    // box hugs a wall (and stays clear of doorways)
       occupy(p);
       map.boxSpots.push({ idx: i, pos: p });
     });
@@ -722,19 +757,22 @@
     map.mainframe = null;
     if (CFG.MAINFRAME) {
       var mf = place(CFG.MAINFRAME);
+      pushToWall(mf, 1.1);
       occupy(mf);
-      var mfPad = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.8, 0.2, 24),
+      var mfPad = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.6, 0.2, 24),
         mat(0x515c66, { emissive: new THREE.Color(0x114455), emissiveIntensity: 0.5 }));
       mfPad.position.set(mf.x, 0.1, mf.z);
       G.scene.add(mfPad);
-      addBox(0.5, 2.8, 0.5, mf.x - 2.2, 1.4, mf.z, G.mats.metal, { collide: true, solid: true });
-      addBox(0.7, 0.5, 0.2, mf.x - 2.2, 2.0, mf.z, mat(0x111418, { emissive: new THREE.Color(0x22cc66), emissiveIntensity: 0.6 }));
+      // link terminal sits on the pad (no stray collider in the open room)
+      addBox(0.55, 1.2, 0.45, mf.x, 0.7, mf.z, G.mats.metal, { collide: true, solid: true });
+      addBox(0.62, 0.42, 0.16, mf.x, 1.15, mf.z + 0.26, mat(0x111418, { emissive: new THREE.Color(0x22cc66), emissiveIntensity: 0.6 }));
       map.mainframe = { pos: mf, pad: mfPad };
     }
 
     // pack-a-punch: a chunkier machine — base, sloped hopper, glowing feed
     // slot and a gold output tray
     var pp = place(CFG.PAP);
+    pushToWall(pp, 1.0);
     occupy(pp);
     var papDark = new THREE.MeshPhongMaterial({ map: G.tex.metal, color: 0x26262f, shininess: 30,
       specular: new THREE.Color(0x44447a) });
@@ -772,6 +810,7 @@
 
     // power switch
     var pw = place(CFG.POWER);
+    pushToWall(pw, 0.35);
     occupy(pw);
     var lever = addBox(0.8, 1.4, 0.3, pw.x, 1.3, pw.z, mat(0x7c2a22, { emissive: new THREE.Color(0x330000) }), { solid: true });
     addBox(0.16, 0.5, 0.12, pw.x, 1.55, pw.z + 0.18, G.mats.metal);
