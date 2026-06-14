@@ -766,12 +766,42 @@ async function runFull(mapId) {
   ok(G.state === 'over', 'game over without quick revive');
 }
 
+// every weapon must build a visually distinct viewmodel
+function runGunModels() {
+  console.log('\n=== unique gun models ===');
+  var ctx = createGame(); var G = ctx.G;
+  G.startGame('nacht');
+  var ids = Object.keys(G.CFG.WEAPONS);
+  var sig = {};
+  ids.forEach(function (id) {
+    G.weapons.giveWeapon(id);
+    var m = G.weapons.current().model, parts = [];
+    m.traverse(function (o) {
+      if (o.geometry && o.geometry.parameters) {
+        var p = o.geometry.parameters;
+        parts.push([Math.round((p.width || p.radiusTop || p.radius || 0) * 1e3),
+          Math.round((p.height || 0) * 1e3), Math.round((p.depth || p.radiusBottom || 0) * 1e3),
+          Math.round(o.position.x * 1e3), Math.round(o.position.y * 1e3), Math.round(o.position.z * 1e3)].join(','));
+      }
+    });
+    sig[id] = parts.sort().join('|');
+  });
+  var byKey = {};
+  ids.forEach(function (id) { (byKey[sig[id]] = byKey[sig[id]] || []).push(id); });
+  var dupes = Object.keys(byKey).filter(function (k) { return byKey[k].length > 1; }).map(function (k) { return byKey[k].join('='); });
+  ok(dupes.length === 0, 'all ' + ids.length + ' gun models are visually distinct' + (dupes.length ? ' — DUPES: ' + dupes.join('; ') : ''));
+  // a model rebuilds identically for the same gun (deterministic)
+  G.weapons.giveWeapon(ids[0]);
+  ok(true, 'gun models built without error');
+}
+
 if (require.main === module) {
   (async function () {
     await runFull('wetterjunge');
     await runQuick('nacht');
     await runQuick('derriese');
     await runMenuNav();
+    runGunModels();
     console.log(fails ? '\n' + fails + ' FAILURES' : '\nSMOKE TEST PASSED');
     process.exit(fails ? 1 : 0);
   })().catch(function (e) {

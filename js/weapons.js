@@ -78,15 +78,39 @@
     minigun: { len: 1.0 }
   };
 
+  // every weapon gets a deterministic "DNA" from its id so no two models look
+  // the same: proportions, mag/stock/sight style, a coloured accent, a muzzle
+  // device and rail accessories all vary per gun (hand-tuned vm overrides win).
+  function gunHash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  var ACCENTS = [0xb04030, 0x4a6ea0, 0x4f8a4a, 0xb0902c, 0x6a4f8a, 0x2f7d80, 0xa05a2c, 0x808890, 0x9a3c5a, 0x3a8aa0];
+  function glowMat2(col) { return gm('glo' + col, { color: 0x0a0a0a, emissive: new THREE.Color(col), emissiveIntensity: 0.9 }); }
+
   function buildModel(id, papped) {
     var def = CFG.WEAPONS[id];
     var cls = def.cls;
-    var vm = {};
-    Object.keys(CLS_VM[cls] || {}).forEach(function (k) { vm[k] = CLS_VM[cls][k]; });
-    Object.keys(def.vm || {}).forEach(function (k) { vm[k] = def.vm[k]; });
+    var base = CLS_VM[cls] || {}, ov = def.vm || {}, vm = {};
+    Object.keys(base).forEach(function (k) { vm[k] = base[k]; });
+    Object.keys(ov).forEach(function (k) { vm[k] = ov[k]; });
+
+    var seed = gunHash(id) >>> 0;
+    function rnd() { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; }
+    function pick(a) { return a[(rnd() * a.length) | 0]; }
+    function has(k) { return ov[k] !== undefined; }
+    if (!has('len')) vm.len = (base.len || 1) * (0.86 + rnd() * 0.36);
+    if (!has('mag') && (cls === 'smg' || cls === 'rifle' || cls === 'lmg')) vm.mag = pick(['straight', 'curved', 'straight', 'box']);
+    if (!has('stock')) vm.stock = pick(['solid', 'solid', 'skeleton']);
+    if (!has('scope') && (cls === 'rifle' || cls === 'lmg')) vm.scope = rnd() < 0.16 ? 1 : 0;
+    vm.accent = has('col') ? vm.col : ACCENTS[(rnd() * ACCENTS.length) | 0];
+    vm.muzzle = (has('supp') && ov.supp) ? 'supp' : pick(['none', 'comp', 'brake', 'none', 'none']);
+    vm.dot = (!vm.scope && rnd() < 0.45) ? pick(['red', 'holo', 'red']) : 'none';
+    vm.fgrip = (cls === 'rifle' || cls === 'smg' || cls === 'lmg') && rnd() < 0.45;
+    vm.ribs = rnd() < 0.5;
+    vm.barFac = 0.85 + rnd() * 0.4;
+    vm.slideFac = 0.85 + rnd() * 0.35;
 
     var g = new THREE.Group();
     var M = gunMats(papped);
+    var accent = accentMat(vm.accent, papped);
     var body = vm.col ? accentMat(vm.col, papped) : M.dark;
     var furniture = vm.wood ? M.wood : M.poly;
 
@@ -113,10 +137,11 @@
     var tipZ = -0.5;
 
     if (cls === 'pistol') {
-      var sl = 0.2 * vm.len;
+      var sl = 0.2 * vm.len * vm.slideFac;
       box(0.052, 0.07, sl + 0.06, 0, 0.02, -sl / 2, body);                 // slide
+      box(0.054, 0.014, sl - 0.02, 0, 0.058, -sl / 2, accent);            // slide accent rib
       box(0.048, 0.05, 0.16, 0, -0.035, -0.03, M.mid);                    // frame
-      box(0.042, 0.13, 0.062, 0, -0.115, 0.035, furniture, 0.22);         // grip
+      box(0.042, 0.13, 0.062, 0, -0.115, 0.035, vm.wood ? M.wood : furniture, 0.22); // grip
       box(0.04, 0.02, 0.05, 0, -0.045, -0.045, M.dark);                   // trigger guard
       box(0.012, 0.028, 0.012, 0, 0.066, -sl - 0.02, M.dark);             // front sight
       box(0.036, 0.022, 0.014, 0, 0.064, 0.03, M.dark);                   // rear sight
@@ -127,7 +152,10 @@
       } else {
         cylZ(0.013, 0.013, 0.05, 0, 0.018, -sl - 0.04, M.mid);            // muzzle
         tipZ = -(sl + 0.07);
+        if (vm.muzzle === 'supp') cylZ(0.03, 0.03, 0.12, 0, 0.018, tipZ + 0.04, M.poly, 12);
+        if (vm.mag === 'box') box(0.044, 0.12, 0.06, 0, -0.16, 0.0, M.mid, 0.05); // extended mag
       }
+      if (vm.dot === 'red') box(0.014, 0.014, 0.014, 0, 0.085, 0.02, glowMat2(0xff2a14));
     } else if (cls === 'launcher') {
       var tl = 0.6 * vm.len;
       cylZ(0.052, 0.056, tl, 0, 0.02, -tl / 2 + 0.1, body, 12);           // tube
@@ -200,7 +228,7 @@
       box(0.07, 0.095, rl, 0, 0, rz0, body);                              // receiver
       box(0.05, 0.018, rl - 0.04, 0, 0.057, rz0, M.mid);                  // top rail
       var bFront = rz0 - rl / 2;
-      var bl = 0.3 * L;                                                   // barrel length
+      var bl = 0.3 * L * vm.barFac;                                       // barrel length
       cylZ(0.02, 0.022, bl, 0, 0.012, bFront - bl / 2, M.mid);            // barrel
       tipZ = bFront - bl - 0.02;
       if (vm.twin) {
@@ -264,6 +292,21 @@
       box(0.004, 0.03, 0.06, 0.037, 0.01, rz0 - 0.02, M.mid);
       // bolt handle
       box(0.03, 0.012, 0.012, 0.05, 0.02, rz0 + 0.05, M.mid);
+
+      /* ---- per-gun signature accessories (make every model unique) ---- */
+      box(0.073, 0.018, rl - 0.07, 0, -0.05, rz0, accent);                // accent stripe
+      if (vm.muzzle === 'supp') cylZ(0.034, 0.034, 0.14, 0, 0.012, tipZ + 0.05, M.poly, 12);
+      else if (vm.muzzle === 'comp') { cylZ(0.03, 0.03, 0.05, 0, 0.012, tipZ + 0.0, M.dark, 8); cylZ(0.035, 0.035, 0.018, 0, 0.012, tipZ - 0.03, M.dark, 8); }
+      else if (vm.muzzle === 'brake') box(0.05, 0.05, 0.06, 0, 0.012, tipZ + 0.0, M.dark);
+      if (vm.dot === 'red') {
+        box(0.05, 0.045, 0.07, 0, 0.105, rz0, M.dark);
+        box(0.014, 0.014, 0.014, 0, 0.108, rz0 + 0.02, glowMat2(0xff2a14));
+      } else if (vm.dot === 'holo') {
+        box(0.06, 0.05, 0.06, 0, 0.108, rz0, M.dark);
+        box(0.036, 0.03, 0.006, 0, 0.112, rz0 + 0.028, glowMat2(0x33ff66));
+      }
+      if (vm.fgrip) box(0.03, 0.1, 0.04, 0, -0.06, bFront - hgLen / 2 + 0.01, furniture, -0.25);
+      if (vm.ribs) for (var ri = 0; ri < 5; ri++) box(0.05, 0.012, 0.014, 0, 0.067, rz0 - rl / 2 + 0.05 + ri * 0.05, M.dark);
     }
 
     var tip = new THREE.Object3D();
