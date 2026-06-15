@@ -242,6 +242,8 @@
   G.map = {
     parsed: null,
     colliders: [],
+    surfaces: [],
+    cellHeights: null,
     solidMeshes: [],
     doors: {},
     windows: [],
@@ -254,10 +256,41 @@
     power: false,
     effects: [],
 
-    addCollider: function (x1, z1, x2, z2) {
-      var c = { x1: x1, z1: z1, x2: x2, z2: z2, on: true };
+    // colliders are XZ boxes with an optional vertical span [y1,y2]. Walls omit
+    // the span and read as full height; raised platforms/railings pass one so
+    // you can walk on top of (or beneath) them instead of being blocked.
+    addCollider: function (x1, z1, x2, z2, y1, y2) {
+      var c = { x1: x1, z1: z1, x2: x2, z2: z2,
+                y1: y1 == null ? 0 : y1, y2: y2 == null ? 99 : y2, on: true };
       this.colliders.push(c);
       return c;
+    },
+
+    // a walkable surface: a flat top (y) or a linear ramp along one axis.
+    addSurface: function (s) { this.surfaces.push(s); return s; },
+
+    // highest walkable height at (x,z) that a body with feet at feetY can stand
+    // on, given a vertical "climb" tolerance. The base ground plane (0) always
+    // qualifies; surfaces above feet+climb are ignored (you're walking under).
+    supportAt: function (x, z, feetY, climb) {
+      var best = 0, ss = this.surfaces, i, s, h;
+      for (i = 0; i < ss.length; i++) {
+        s = ss[i];
+        if (x < s.x1 || x > s.x2 || z < s.z1 || z > s.z2) continue;
+        if (s.ramp) {
+          var coord = s.axis === 'x' ? x : z;
+          var t = (coord - s.c1) / (s.c2 - s.c1);
+          t = t < 0 ? 0 : (t > 1 ? 1 : t);
+          h = s.h1 + (s.h2 - s.h1) * t;
+        } else h = s.y;
+        if (h <= feetY + climb + 1e-3 && h > best) best = h;
+      }
+      return best;
+    },
+    cellHeightAt: function (col, row) {
+      if (!this.cellHeights || row < 0 || col < 0 ||
+          row >= this.cellHeights.length || col >= this.cellHeights[0].length) return 0;
+      return this.cellHeights[row][col];
     },
 
     roomAt: function (x, z) {
@@ -600,6 +633,34 @@
     map.placePos = place;
     var occupied = []; // keep auto props clear of everything interactive
     function occupy(p) { occupied.push(p); }
+
+    function xW(col) { return CFG.cellToWorld(col, 0).x; }
+    function zW(row) { return CFG.cellToWorld(0, row).z; }
+
+    // raised catwalks (verticality). Defined up front so their footprint can be
+    // reserved before auto-placed machines pick spots — nothing should spawn on
+    // or under the deck/stairs.
+    map.stages = [];
+    var stageSpecs = [];
+    if (CFG.cur.id === 'derriese') {
+      // a sniper catwalk against the Mainframe Courtyard's north wall, reached
+      // by a staircase the undead have to climb to get at you
+      var deck = { x1: xW(4) - CELL / 2, x2: xW(6) + CELL / 2,
+                   z1: zW(5) - CELL / 2, z2: zW(5) + CELL / 2, h: 2.2,
+                   railW: true, railE: true, railN: true };
+      deck.stairs = { x1: deck.x1, x2: deck.x2, zTop: deck.z2, zBase: zW(7) + CELL / 2, steps: 6 };
+      stageSpecs.push(deck);
+    }
+    // reserve the footprint (deck + stairs cells) so machines avoid it
+    stageSpecs.forEach(function (s) {
+      var c0 = CFG.worldToCell(s.x1 + 0.1, s.z1 + 0.1);
+      var c1 = CFG.worldToCell(s.x2 - 0.1, (s.stairs ? s.stairs.zBase : s.z2) - 0.1);
+      for (var rr = c0.row; rr <= c1.row; rr++)
+        for (var cc = c0.col; cc <= c1.col; cc++) {
+          var w = CFG.cellToWorld(cc, rr);
+          occupy(new THREE.Vector3(w.x, 0, w.z));
+        }
+    });
 
     // --- push interactables against the nearest clear wall so they never block
     //     the middle of a room (zombies need the open centre to train through)
@@ -1087,6 +1148,64 @@
         addBox(s, s * 0.6, s, px, s * 0.3, pz, idx % 2 ? dDark : dConc);
       });
     });
+
+    /* --------------------------------------------------- raised catwalks */
+    var deckMat = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x6b6f78 });
+    var railMat = G.mats.metal;
+    function buildStage(s) {
+      var H = s.h, dcx = (s.x1 + s.x2) / 2, dcz = (s.z1 + s.z2) / 2;
+      var dw = s.x2 - s.x1, dd = s.z2 - s.z1;
+      // deck slab + solid sides (block ground-level walk-through) + surface
+      addBox(dw, 0.3, dd, dcx, H - 0.15, dcz, deckMat);
+      addBox(dw, H, 0.2, dcx, H / 2, s.z2 - 0.1, deckMat);       // front fascia
+      map.addCollider(s.x1, s.z1, s.x2, s.z2, 0, H);
+      map.addSurface({ x1: s.x1, x2: s.x2, z1: s.z1, z2: s.z2, y: H });
+      [[s.x1 + 0.3, s.z1 + 0.3], [s.x2 - 0.3, s.z1 + 0.3],
+       [s.x1 + 0.3, s.z2 - 0.3], [s.x2 - 0.3, s.z2 - 0.3]].forEach(function (p) {
+        addBox(0.25, H, 0.25, p[0], H / 2, p[1], railMat);       // support posts
+      });
+      // waist-high railings (you can walk under them at ground level)
+      function rail(x1, z1, x2, z2) {
+        addBox(Math.max(0.12, x2 - x1), 1.0, Math.max(0.12, z2 - z1),
+               (x1 + x2) / 2, H + 0.5, (z1 + z2) / 2, railMat);
+        map.addCollider(x1, z1, x2, z2, H, H + 1.0);
+      }
+      if (s.railN) rail(s.x1, s.z1, s.x2, s.z1 + 0.12);
+      if (s.railW) rail(s.x1, s.z1, s.x1 + 0.12, s.z2);
+      if (s.railE) rail(s.x2 - 0.12, s.z1, s.x2, s.z2);
+      // staircase: nested boxes descending south, each tread a flat surface
+      var st = s.stairs;
+      if (st) {
+        var n = st.steps, run = (st.zBase - st.zTop) / n, sw = st.x2 - st.x1, scx = (st.x1 + st.x2) / 2;
+        for (var i = 1; i <= n; i++) {
+          var top = H * (n + 1 - i) / (n + 1);
+          var z2 = st.zTop + i * run;
+          addBox(sw, top, z2 - st.zTop, scx, top / 2, (st.zTop + z2) / 2, deckMat);
+          map.addCollider(st.x1, st.zTop, st.x2, z2, 0, top);
+          map.addSurface({ x1: st.x1, x2: st.x2, z1: st.zTop + (i - 1) * run, z2: z2, y: top });
+        }
+        addBox(0.12, 1.0, st.zBase - st.zTop, st.x1 + 0.06, H * 0.5 + 0.3, (st.zTop + st.zBase) / 2, railMat);
+        addBox(0.12, 1.0, st.zBase - st.zTop, st.x2 - 0.06, H * 0.5 + 0.3, (st.zTop + st.zBase) / 2, railMat);
+      }
+      map.stages.push({
+        deckCenter: new THREE.Vector3(dcx, H, dcz), deckTop: H,
+        stairBase: st ? new THREE.Vector3(scx, 0, st.zBase - 0.6) : null
+      });
+    }
+    stageSpecs.forEach(buildStage);
+
+    // sample the support height at every cell centre so the zombie flow-field
+    // can treat big elevation jumps (a deck wall) as impassable and only route
+    // up the stairs, where the rise per cell is gentle
+    var ch = [];
+    for (var chr = 0; chr < P.rows; chr++) {
+      ch[chr] = [];
+      for (var chc = 0; chc < P.cols; chc++) {
+        var cw = CFG.cellToWorld(chc, chr);
+        ch[chr][chc] = map.supportAt(cw.x, cw.z, 9999, 9999);
+      }
+    }
+    map.cellHeights = ch;
 
     map.recomputeReachable();
   };

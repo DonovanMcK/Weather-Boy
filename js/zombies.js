@@ -12,6 +12,8 @@
   // swing, and still this close at the swing's apex for it to land.
   var MELEE_START = 1.25;
   var MELEE_HIT = 1.4;
+  var MELEE_VERT = 1.7;   // a swipe only lands on the same level (no hits through floors)
+  var STEP_MAX = 1.2;     // max cell-to-cell elevation the flow-field will path across
   // zombies climb in once a barricade is torn down to this many boards (of 6)
   var BREAK_GAP = 0;   // zombies only climb in once ALL boards are torn off
 
@@ -206,6 +208,9 @@
         var nc = cur[0] + DIRS[i][0], nr = cur[1] + DIRS[i][1];
         if (nr < 0 || nr >= P.rows || nc < 0 || nc >= P.cols) continue;
         if (dist[nr][nc] >= 0 || !G.map.passable(nc, nr)) continue;
+        // a big elevation jump between cells is a wall/ledge, not a path — this
+        // forces the horde up the stairs instead of into a deck's solid side
+        if (Math.abs(G.map.cellHeightAt(nc, nr) - G.map.cellHeightAt(cur[0], cur[1])) > STEP_MAX) continue;
         dist[nr][nc] = d0 + 1;
         queue.push([nc, nr]);
       }
@@ -224,6 +229,7 @@
     for (var i = 0; i < 4; i++) {
       var nc = cr.col + DIRS[i][0], nr = cr.row + DIRS[i][1];
       if (nr < 0 || nr >= P.rows || nc < 0 || nc >= P.cols) continue;
+      if (Math.abs(G.map.cellHeightAt(nc, nr) - G.map.cellHeightAt(cr.col, cr.row)) > STEP_MAX) continue;
       var d = flow[nr][nc];
       if (d >= 0 && d < bd) { bd = d; best = { col: nc, row: nr }; }
     }
@@ -467,9 +473,14 @@
 
   function collideZombie(z) {
     var cols = G.map.colliders, r = 0.35;
+    var feet = z.mesh.position.y, head = feet + 1.7;
     for (var i = 0; i < cols.length; i++) {
       var c = cols[i];
       if (!c.on) continue;
+      // mirror the player rules: stand on tops, pass beneath overhead colliders,
+      // and treat low steps as mountable instead of blocking
+      if (feet >= c.y2 - 0.55) continue;
+      if (head <= c.y1 + 0.02) continue;
       var nx = Math.max(c.x1, Math.min(z.mesh.position.x, c.x2));
       var nz = Math.max(c.z1, Math.min(z.mesh.position.z, c.z2));
       var dx = z.mesh.position.x - nx, dz = z.mesh.position.z - nz;
@@ -539,9 +550,14 @@
       P.elbR.rotation.x = -0.5 + k * 0.3;
       if (P.jaw) P.jaw.rotation.x = 0.5;
     }
-    // states below manage their own y; everything else sits on the floor
+    // states below manage their own y; everything else rests on the support
+    // height under the zombie (floor, stairs or a deck) so they climb catwalks
     var freeY = z.state === 'rise' || z.state === 'dying' || z.state === 'flung' || z.state === 'vault';
-    if (!freeY) z.mesh.position.y = z.crawler ? z.crawlOffset : 0;
+    if (!freeY) {
+      var base = G.map.supportAt
+        ? G.map.supportAt(z.mesh.position.x, z.mesh.position.z, z.mesh.position.y, 0.6) : 0;
+      z.mesh.position.y = base + (z.crawler ? z.crawlOffset : 0);
+    }
   }
 
   Z.update = function (dt) {
@@ -660,9 +676,10 @@
         case 'chase':
           var tpos = Z.lure ? Z.lure.pos : G.player.pos;
           // horizontal distance only (a vaulting/airborne zombie shouldn't
-          // count as "reaching" you, and y never matters for melee)
+          // count as "reaching" you)
           var dist = Math.hypot(z.mesh.position.x - tpos.x, z.mesh.position.z - tpos.z);
-          if (!Z.lure && dist < MELEE_START && !G.player.downed && z.attackCd <= 0) {
+          var sameLevel = Math.abs(z.mesh.position.y - tpos.y) < MELEE_VERT;
+          if (!Z.lure && dist < MELEE_START && sameLevel && !G.player.downed && z.attackCd <= 0) {
             z.state = 'attack'; z.t = 0; z.hasHit = false;
           } else if (Z.lure && dist < 1.2) {
             // crowd around the monkey
@@ -670,7 +687,9 @@
             moving = true;
             var sameRoom = G.map.roomAt(z.mesh.position.x, z.mesh.position.z) ===
                            G.map.roomAt(tpos.x, tpos.z);
-            if (dist < 5.5 && sameRoom) moveToward(z, tpos, dt);
+            // only beeline straight at the target on the same level; if you're up
+            // on a catwalk, fall back to the flow-field so they take the stairs
+            if (dist < 5.5 && sameRoom && sameLevel) moveToward(z, tpos, dt);
             else {
               var nc = nextCellToward(z.mesh.position);
               if (nc) {
@@ -689,7 +708,8 @@
             z.hasHit = true;
             var hd = Math.hypot(z.mesh.position.x - G.player.pos.x,
                                 z.mesh.position.z - G.player.pos.z);
-            if (hd < MELEE_HIT && !G.player.downed) {
+            var hv = Math.abs(z.mesh.position.y - G.player.pos.y);
+            if (hd < MELEE_HIT && hv < MELEE_VERT && !G.player.downed) {
               G.player.damage(z.isDog ? Math.round(CFG.zombieMeleeDamage(Z.round) * 0.8)
                                       : CFG.zombieMeleeDamage(Z.round));
               G.audio.zombieAttack();

@@ -152,12 +152,18 @@
   });
 
   /* ---------------------------------------------------------- collision */
+  var STEP = 0.55;   // how tall a ledge you can step straight up / mount onto
   function collide() {
     var cols = G.map.colliders;
+    var feet = P.pos.y, head = P.pos.y + P.height;
     for (var pass = 0; pass < 2; pass++) {
       for (var i = 0; i < cols.length; i++) {
         var c = cols[i];
         if (!c.on) continue;
+        // skip colliders we're standing on top of, or that sit entirely
+        // overhead (so platforms are walkable and you can pass beneath catwalks)
+        if (feet >= c.y2 - STEP) continue;
+        if (head <= c.y1 + 0.02) continue;
         var nx = Math.max(c.x1, Math.min(P.pos.x, c.x2));
         var nz = Math.max(c.z1, Math.min(P.pos.z, c.z2));
         var dx = P.pos.x - nx, dz = P.pos.z - nz;
@@ -323,6 +329,7 @@
     }
 
     /* ------------------------------------------------- jump / gravity */
+    var wasGround = P.onGround;
     if ((G.keys.Space || (gp && gp.jump)) && P.onGround && playing) {
       if (P.stance === 'slide') {
         // slide-hop: keep the boosted momentum
@@ -331,6 +338,7 @@
       }
       P.vel.y = MV.jumpV;
       P.onGround = false;
+      wasGround = false;
     }
     if (!P.onGround) P.vel.y -= MV.gravity * dt;
     var fallV = P.vel.y;
@@ -338,14 +346,27 @@
     P.pos.x += P.vel.x * dt;
     P.pos.z += P.vel.z * dt;
     P.pos.y += P.vel.y * dt;
-    if (P.pos.y <= 0) {
+
+    // ground/support: rest on the highest walkable surface under the feet
+    // (floor=0, stairs, decks). Grounded, you step up small ledges and ride
+    // gentle slopes; walk off an edge and you fall.
+    var climb = wasGround ? STEP : 0.05;
+    var support = G.map.supportAt ? G.map.supportAt(P.pos.x, P.pos.z, P.pos.y, climb) : 0;
+    if (P.pos.y <= support + 1e-3) {
       if (!P.onGround && fallV < -5.5) {
         P.landDip = Math.min(0.16, 0.05 + (-fallV - 5.5) * 0.018);
         G.audio.land();
       }
-      P.pos.y = 0;
+      P.pos.y = support;
       P.vel.y = 0;
       P.onGround = true;
+    } else if (wasGround && P.vel.y <= 0 && (P.pos.y - support) <= STEP) {
+      // small step down — stay glued to the floor instead of launching off
+      P.pos.y = support;
+      P.vel.y = 0;
+      P.onGround = true;
+    } else {
+      P.onGround = false;
     }
     collide();
 

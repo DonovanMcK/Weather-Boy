@@ -351,6 +351,58 @@ async function runQuick(mapId) {
     testSimpleAim(ctx);
     testGamepad(ctx);
   }
+  if (mapId === 'derriese') testVerticality(ctx);
+}
+
+// verticality: a raised catwalk you climb, fall off, and that zombies must
+// ascend by the stairs — with no melee hits landing through the deck floor
+function testVerticality(ctx) {
+  var G = ctx.G, step = ctx.step, win = ctx.win;
+  var P = G.player;
+  ok(G.map.stages && G.map.stages.length > 0, 'Der Riese has a raised catwalk');
+  var S = G.map.stages[0];
+  ok(S.deckTop > 1.5, 'catwalk deck is elevated (' + S.deckTop.toFixed(1) + 'm)');
+  ok(G.map.supportAt(S.deckCenter.x, S.deckCenter.z, 9, 9) > 1.5, 'deck reports a raised support height');
+  ok(G.map.supportAt(S.stairBase.x, S.stairBase.z, 9, 9) < 1.0, 'stair base sits near the floor');
+
+  ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyC', 'Space'].forEach(ctx.keyup);
+  G.player.damage = function () {};       // invuln for the climb
+
+  // walk up the stairs onto the deck (yaw 0 faces north, up the steps)
+  P.pos.set(S.deckCenter.x, 0, S.stairBase.z + 1.0); P.vel.set(0, 0, 0); P.yaw = 0;
+  win.dispatch('keydown', { code: 'KeyW' });
+  step(200);
+  ctx.keyup('KeyW');
+  ok(P.pos.y > 1.8, 'player climbs the staircase onto the deck (y=' + P.pos.y.toFixed(2) + ')');
+
+  // turn around and walk off — gravity drops you back to the floor
+  P.yaw = Math.PI;
+  win.dispatch('keydown', { code: 'KeyW' });
+  step(240);
+  ctx.keyup('KeyW');
+  ok(P.pos.y < 0.4, 'walking off the deck drops you back to the floor (y=' + P.pos.y.toFixed(2) + ')');
+
+  // a zombie spawned at the base must climb the stairs to reach a deck player
+  P.pos.copy(S.deckCenter); P.vel.set(0, 0, 0);
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+  step(40);
+  var zc = G.zombies.spawnAt(new THREE.Vector3(S.stairBase.x, 0, S.stairBase.z + 0.5));
+  var maxY = 0;
+  for (var i = 0; i < 420 && !zc.dead; i++) { step(1); if (zc.mesh.position.y > maxY) maxY = zc.mesh.position.y; }
+  ok(maxY > 1.5, 'a zombie climbs the stairs to reach the catwalk (peak y=' + maxY.toFixed(2) + ')');
+
+  // a zombie directly below cannot claw the player through the deck floor
+  P.pos.copy(S.deckCenter); P.vel.set(0, 0, 0); P.hp = P.maxHp;
+  var dealt = 0; P.damage = function (d) { dealt += d; };
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+  step(20);
+  var zb = G.zombies.spawnAt(new THREE.Vector3(P.pos.x, 0, P.pos.z));
+  for (var j = 0; j < 50; j++) {
+    zb.mesh.position.set(P.pos.x, 0, P.pos.z); // pin it on the floor under the player
+    zb.state = 'attack'; zb.t = 0.4; zb.hasHit = false; zb.attackCd = 0;
+    step(1);
+  }
+  ok(dealt === 0, 'melee does not connect through the catwalk floor');
 }
 
 // one high-power round pierces a line of zombies and every pierced kill scores
