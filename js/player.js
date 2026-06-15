@@ -220,21 +220,26 @@
       if (G.keys.KeyD) ix += 1;
       // gamepad left stick (analog intent; idle pad contributes 0)
       if (G.gamepad && G.gamepad.connected) { ix += G.gamepad.moveX; iz += G.gamepad.moveZ; }
+      // touch movement stick (idle screen contributes 0)
+      if (G.touch && G.touch.active) { ix += G.touch.moveX; iz += G.touch.moveZ; }
     }
     ix = Math.max(-1, Math.min(1, ix));
     iz = Math.max(-1, Math.min(1, iz));
     var gp = G.gamepad;
+    var tc = G.touch;
     var hasInput = Math.abs(ix) > 0.01 || Math.abs(iz) > 0.01;
-    var crouchKey = ((!!G.keys.KeyC) || (gp && gp.crouch)) && playing;
+    var crouchKey = ((!!G.keys.KeyC) || (gp && gp.crouch) || (tc && tc.crouch)) && playing;
     var crouchEdge = crouchKey && !P._prevCrouch;
     P._prevCrouch = crouchKey;
     var hSpeed = Math.hypot(P.vel.x, P.vel.z);
 
     // ADS (cancels sprint; blocked during reload/switch/knife;
     // disabled entirely in simple-aim/trackpad mode)
-    var adsAllowed = !G.settings || G.settings.aimMode !== 'simple';
-    var adsHeld = W.adsHeld || (gp && gp.ads);
-    var firing = W.mouseDown || (gp && gp.fire);
+    // simple-aim disables ADS on desktop trackpads, but touch keeps a working
+    // ADS button (it still gets the simple-aim magnetism on top)
+    var adsAllowed = (!G.settings || G.settings.aimMode !== 'simple') || (tc && tc.active);
+    var adsHeld = W.adsHeld || (gp && gp.ads) || (tc && tc.ads);
+    var firing = W.mouseDown || (gp && gp.fire) || (tc && tc.fire);
     var adsTarget = (playing && adsAllowed && adsHeld && W.reloading <= 0 &&
                      W.switching <= 0 && W.knifing <= 0) ? 1 : 0;
     P.ads += (adsTarget - P.ads) * Math.min(1, dt * MV.adsSpeed);
@@ -242,7 +247,7 @@
 
     // sprint: holding fire or ADS ramps sprint out (sprint-out delay),
     // releasing ramps it back in — BO3 auto-resume
-    var sprintHeld = G.keys.ShiftLeft || (gp && gp.sprint);
+    var sprintHeld = G.keys.ShiftLeft || (gp && gp.sprint) || (tc && tc.sprint);
     var wantSprint = playing && sprintHeld && iz < 0 &&
                      P.stance !== 'slide' && !crouchKey &&
                      adsTarget === 0 && !firing;
@@ -323,7 +328,7 @@
     }
 
     /* ------------------------------------------------- jump / gravity */
-    if ((G.keys.Space || (gp && gp.jump)) && P.onGround && playing) {
+    if ((G.keys.Space || (gp && gp.jump) || (tc && tc.jump)) && P.onGround && playing) {
       if (P.stance === 'slide') {
         // slide-hop: keep the boosted momentum
         P.stance = crouchKey ? 'crouch' : 'stand';
