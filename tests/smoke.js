@@ -104,7 +104,7 @@ function createGame() {
   };
   vm.createContext(sandbox);
 
-  ['config', 'audio', 'hud', 'map', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'main']
+  ['config', 'audio', 'hud', 'map', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'remote', 'main']
     .forEach(function (name) {
       var src = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
       vm.runInContext(src, sandbox, { filename: name + '.js' });
@@ -350,6 +350,7 @@ async function runQuick(mapId) {
     testMovement(ctx); // big open spawn room
     testSimpleAim(ctx);
     testGamepad(ctx);
+    testRemote(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
 }
@@ -592,6 +593,79 @@ function testGamepad(ctx) {
   ctx.setPad(null);
   step(3);
   ok(!G.gamepad.connected && G.gamepad.moveZ === 0, 'unplugging clears controller intents');
+}
+
+/* phone controller: feed the exact messages pad.html sends (no socket headless)
+   through G.remote._apply and confirm they drive movement, look, fire and buys */
+function testRemote(ctx) {
+  var G = ctx.G, step = ctx.step;
+  var P = G.player, R = G.remote;
+  ok(!!R && typeof R._apply === 'function', 'remote controller module present');
+  ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyC', 'Space'].forEach(ctx.keyup);
+  P.vel.set(0, 0, 0);
+  ctx.moveTo(roomCenter(G, 'S'));
+  P.yaw = 0; P.pitch = 0;
+  G.settings.aimMode = 'mouse';
+  R.connected = true;   // a phone is paired
+
+  // movement message moves the player; full-forward flags sprint
+  R._apply({ a: 'm', x: 0, z: -1, s: 1 });
+  step(50);
+  ok(Math.hypot(P.vel.x, P.vel.z) > 3, 'phone stick moves the player (' + Math.hypot(P.vel.x, P.vel.z).toFixed(1) + ' m/s)');
+  ok(P.sprintAmt > 0.85, 'full-forward stick sprints');
+  R._apply({ a: 'm', x: 0, z: 0, s: 0 });
+  step(30);
+
+  // look message turns the camera
+  var yaw0 = P.yaw;
+  R._apply({ a: 'l', dx: 120, dy: 0 });
+  ok(Math.abs(P.yaw - yaw0) > 0.1, 'phone drag turns the view');
+
+  // FIRE button shoots
+  G.weapons.equip(0, true);
+  var gun = G.weapons.current(); gun.ammo = G.weapons.stats(gun).mag;
+  step(20);
+  var ammo0 = gun.ammo;
+  R._apply({ a: 'b', k: 'fire', v: 1 });
+  step(18);
+  R._apply({ a: 'b', k: 'fire', v: 0 });
+  ok(gun.ammo < ammo0, 'phone FIRE button shoots');
+
+  // AIM button aims down sights
+  R._apply({ a: 'b', k: 'ads', v: 1 });
+  step(28);
+  ok(P.ads > 0.7, 'phone AIM button aims down sights');
+  R._apply({ a: 'b', k: 'ads', v: 0 });
+  step(18);
+
+  // RELOAD button reloads via the shared key path
+  gun.ammo = 1; G.hud._prompt = null;
+  R._apply({ a: 'b', k: 'reload', v: 1 });
+  step(3);
+  ok(G.weapons.reloading > 0, 'phone RELOAD button reloads');
+  step(140);
+
+  // USE button buys a wall weapon when its prompt is up
+  G.player.points = 100000;
+  var wb = G.map.wallbuys.filter(function (w) { return !w.isFrags && !G.weapons.hasWeapon(w.gun); })[0];
+  if (wb) {
+    ctx.moveTo(wb.pos); step(3);
+    var dx = wb.pos.x - P.pos.x, dz = wb.pos.z - P.pos.z;
+    if (Math.hypot(dx, dz) > 0.05) P.yaw = Math.atan2(-dx, -dz);
+    var saw = false;
+    for (var f = 0; f < 12 && !saw; f++) { step(1); if (G.hud._prompt) saw = true; }
+    ok(saw, 'wall-buy prompt shows for the phone');
+    R._apply({ a: 'b', k: 'use', v: 1 });
+    R._apply({ a: 'b', k: 'use', v: 0 });
+    step(3);
+    ok(G.weapons.hasWeapon(wb.gun), 'phone USE buys the wall weapon (' + wb.gun + ')');
+  }
+
+  // disconnect: update() clears the intents so a dropped phone can't strafe you
+  R.connected = false;
+  R.moveX = 1; R.moveZ = -1; R.fire = true;
+  R.update(0.016);
+  ok(R.moveX === 0 && R.moveZ === 0 && !R.fire, 'losing the phone clears its intents');
 }
 
 /* simple-aim (trackpad) mode: bullet magnetism lands slightly-off shots */

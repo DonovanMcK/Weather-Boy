@@ -119,6 +119,8 @@
     });
 
     document.addEventListener('pointerlockchange', function () {
+      // if you're driving with a phone, losing the mouse lock must not pause you
+      if (G.remote && G.remote.connected) return;
       if (!document.pointerLockElement && G.state === 'playing') {
         G.state = 'paused';
         G.hud.showMenu('pause');
@@ -185,6 +187,7 @@
     var dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     if (G.gamepad) G.gamepad.update(dt);   // polled even while paused (Start resumes)
+    if (G.remote) G.remote.update(dt);     // phone controller panel + intent reset
     if (G.state === 'paused' || G.state === 'menu') {
       G.renderer.render(G.scene, G.camera);
       return;

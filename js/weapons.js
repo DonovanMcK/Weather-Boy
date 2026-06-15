@@ -900,7 +900,7 @@
     }
 
     // trigger (mouse OR gamepad RT; sprint must ramp out first — sprint-out delay)
-    var firing = W.mouseDown || (G.gamepad && G.gamepad.fire);
+    var firing = W.mouseDown || (G.gamepad && G.gamepad.fire) || (G.remote && G.remote.fire);
     if (G.state === 'playing' && !G.player.downed && !G.player.locked &&
         G.player.sprintAmt < 0.45 &&
         gun && W.reloading <= 0 && W.switching <= 0 && W.knifing <= 0 && W.fireCd <= 0) {

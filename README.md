@@ -25,6 +25,21 @@ other maps' wonder weapons never roll.
 > `python3 -m http.server` (or `npx serve`) in this folder and open
 > `http://localhost:8000`.
 
+## 📱 Use your phone as a controller
+
+No gamepad? Turn your phone into one (both devices on the same Wi-Fi):
+
+1. In this folder run **`node server.js`** (or `npm start`). It prints two URLs.
+2. On your computer, open the **`http://localhost:8080/`** URL and pick a map.
+3. On your phone, open the **`http://<your-lan-ip>:8080/pad`** URL (the start
+   screen also shows it). A touch gamepad appears — left half moves (push
+   forward to sprint), right half aims, on-screen FIRE / AIM / JUMP / SLIDE /
+   USE / RELOAD / SWAP / grenade / monkey / knife / pause buttons.
+
+The phone's input is relayed to the game over a tiny local WebSocket (pure
+Node, no dependencies). Keyboard + mouse still work at the same time, and the
+game is unaffected if you never start the server.
+
 ## Controls
 
 | Key | Action |

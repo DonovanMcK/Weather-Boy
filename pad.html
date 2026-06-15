@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TOTENSTURM — Phone Controller</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0c12;
+    font-family: 'Rajdhani', 'Segoe UI', system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+    touch-action: none; overscroll-behavior: none; color: #e6f0ff; }
+  #status { position: fixed; top: 0; left: 0; right: 0; text-align: center; padding: 6px;
+    font-size: 13px; letter-spacing: 1px; z-index: 9; background: rgba(0,0,0,0.45); }
+  #status.ok { color: #6f6; } #status.bad { color: #f88; } #status.wait { color: #fd6; }
+  #zone-move, #zone-look { position: fixed; top: 0; bottom: 0; }
+  #zone-move { left: 0; right: 50%; }
+  #zone-look { left: 50%; right: 0; }
+  #stick { position: fixed; width: 130px; height: 130px; margin: -65px 0 0 -65px; display: none;
+    border-radius: 50%; border: 2px solid rgba(255,255,255,0.25);
+    background: radial-gradient(circle, rgba(255,255,255,0.06), rgba(0,0,0,0.2)); z-index: 5; }
+  #stick .knob { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px;
+    margin: -29px 0 0 -29px; border-radius: 50%; background: rgba(230,240,255,0.45);
+    box-shadow: 0 0 12px rgba(0,0,0,0.5); }
+  #hint { position: fixed; left: 0; right: 50%; bottom: 14px; text-align: center;
+    font-size: 12px; color: #889; opacity: 0.8; }
+  #hintR { position: fixed; left: 50%; right: 0; bottom: 14px; text-align: center;
+    font-size: 12px; color: #889; opacity: 0.8; }
+  .btns { position: fixed; inset: 0; z-index: 7; pointer-events: none; }
+  .b { position: absolute; pointer-events: auto; border-radius: 50%;
+    background: rgba(20,24,34,0.5); border: 2px solid rgba(255,255,255,0.3);
+    color: #e6f0ff; font: 700 13px/1.05 inherit; display: flex; align-items: center;
+    justify-content: center; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    text-shadow: 0 1px 2px #000; touch-action: none; }
+  .b.on { background: rgba(150,40,40,0.75); border-color: #ff7a7a; color: #fff; }
+  .b .s { display: block; font-size: 9px; opacity: 0.7; }
+  #b-fire   { right: 24px;  bottom: 116px; width: 98px; height: 98px; font-size: 16px; }
+  #b-ads    { right: 134px; bottom: 174px; width: 66px; height: 66px; }
+  #b-jump   { right: 40px;  bottom: 226px; width: 66px; height: 66px; }
+  #b-crouch { right: 140px; bottom: 92px;  width: 60px; height: 60px; }
+  #b-use    { right: 152px; bottom: 252px; width: 64px; height: 64px; }
+  #b-reload { right: 28px;  bottom: 312px; width: 62px; height: 62px; }
+  #b-swap   { right: 100px; bottom: 312px; width: 62px; height: 62px; }
+  #b-frag   { right: 24px;  bottom: 384px; width: 54px; height: 54px; }
+  #b-monkey { right: 90px;  bottom: 384px; width: 54px; height: 54px; }
+  #b-knife  { right: 156px; bottom: 384px; width: 54px; height: 54px; }
+  #b-pause  { right: 16px;  top: 36px;     width: 46px; height: 46px; font-size: 18px; }
+</style>
+</head>
+<body>
+<div id="status" class="wait">connecting…</div>
+<div id="zone-move"></div>
+<div id="zone-look"></div>
+<div id="stick"><div class="knob"></div></div>
+<div id="hint">move&nbsp;·&nbsp;push forward to sprint</div>
+<div id="hintR">drag to aim</div>
+<div class="btns">
+  <div class="b" id="b-fire">FIRE</div>
+  <div class="b" id="b-ads">AIM</div>
+  <div class="b" id="b-jump">JUMP</div>
+  <div class="b" id="b-crouch">SLIDE</div>
+  <div class="b" id="b-use">USE<span class="s">buy</span></div>
+  <div class="b" id="b-reload">RELOAD</div>
+  <div class="b" id="b-swap">SWAP</div>
+  <div class="b" id="b-frag">FRAG<span class="s">G</span></div>
+  <div class="b" id="b-monkey">MONKEY<span class="s">H</span></div>
+  <div class="b" id="b-knife">KNIFE<span class="s">V</span></div>
+  <div class="b" id="b-pause">⎉</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var statusEl = document.getElementById('status');
+  function setStatus(txt, cls) { statusEl.textContent = txt; statusEl.className = cls || ''; }
+  function buzz(ms) { if (navigator.vibrate) try { navigator.vibrate(ms); } catch (e) {} }
+
+  /* ---------------------------------------------------- websocket link */
+  var ws = null, ready = false, retry = null;
+  var pending = [];
+  function send(obj) {
+    var s = JSON.stringify(obj);
+    if (ready) { try { ws.send(s); } catch (e) {} }
+  }
+  function connect() {
+    var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    try { ws = new WebSocket(proto + '://' + location.host + '/ws'); }
+    catch (e) { return schedule(); }
+    setStatus('connecting…', 'wait');
+    ws.onopen = function () { ready = true; send({ a: 'hello', role: 'pad' }); setStatus('connected — waiting for game…', 'wait'); };
+    ws.onmessage = function (ev) {
+      var m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (m.a === 'peers') setStatus(m.game ? '● connected to game' : 'connected — open the game on your computer', m.game ? 'ok' : 'wait');
+    };
+    ws.onclose = function () { ready = false; setStatus('disconnected — retrying…', 'bad'); schedule(); };
+    ws.onerror = function () { try { ws.close(); } catch (e) {} };
+  }
+  function schedule() { if (retry) return; retry = setTimeout(function () { retry = null; connect(); }, 1500); }
+  connect();
+
+  /* ------------------------------------------------------ move stick */
+  var zMove = document.getElementById('zone-move');
+  var stick = document.getElementById('stick'), knob = stick.firstElementChild;
+  var moveId = null, ox = 0, oy = 0, R = 58;
+  var mv = { x: 0, z: 0, s: 0 };
+  function sendMove() { send({ a: 'm', x: +mv.x.toFixed(3), z: +mv.z.toFixed(3), s: mv.s }); }
+  zMove.addEventListener('touchstart', function (e) {
+    if (moveId !== null) return;
+    var t = e.changedTouches[0]; moveId = t.identifier; ox = t.clientX; oy = t.clientY;
+    stick.style.left = ox + 'px'; stick.style.top = oy + 'px'; stick.style.display = 'block';
+    knob.style.transform = 'translate(0,0)';
+    e.preventDefault();
+  }, { passive: false });
+  zMove.addEventListener('touchmove', function (e) {
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var t = e.changedTouches[i]; if (t.identifier !== moveId) continue;
+      var dx = t.clientX - ox, dy = t.clientY - oy, m = Math.hypot(dx, dy) || 1;
+      var cl = Math.min(m, R);
+      knob.style.transform = 'translate(' + (dx / m * cl) + 'px,' + (dy / m * cl) + 'px)';
+      mv.x = Math.max(-1, Math.min(1, dx / R));
+      mv.z = Math.max(-1, Math.min(1, dy / R));
+      mv.s = mv.z < -0.82 ? 1 : 0;
+      sendMove(); e.preventDefault();
+    }
+  }, { passive: false });
+  function endMove(e) {
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === moveId) {
+        moveId = null; mv.x = mv.z = 0; mv.s = 0; stick.style.display = 'none'; sendMove(); e.preventDefault(); return;
+      }
+    }
+  }
+  zMove.addEventListener('touchend', endMove, { passive: false });
+  zMove.addEventListener('touchcancel', endMove, { passive: false });
+
+  /* ----------------------------------------------------- look (drag) */
+  var zLook = document.getElementById('zone-look');
+  var lookId = null, lx = 0, ly = 0, accX = 0, accY = 0;
+  zLook.addEventListener('touchstart', function (e) {
+    if (lookId !== null) return;
+    var t = e.changedTouches[0]; lookId = t.identifier; lx = t.clientX; ly = t.clientY; e.preventDefault();
+  }, { passive: false });
+  zLook.addEventListener('touchmove', function (e) {
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var t = e.changedTouches[i]; if (t.identifier !== lookId) continue;
+      accX += t.clientX - lx; accY += t.clientY - ly; lx = t.clientX; ly = t.clientY; e.preventDefault();
+    }
+  }, { passive: false });
+  function endLook(e) {
+    for (var i = 0; i < e.changedTouches.length; i++)
+      if (e.changedTouches[i].identifier === lookId) { lookId = null; e.preventDefault(); return; }
+  }
+  zLook.addEventListener('touchend', endLook, { passive: false });
+  zLook.addEventListener('touchcancel', endLook, { passive: false });
+  // flush accumulated look at frame rate (smooth + bandwidth-friendly)
+  (function tick() { requestAnimationFrame(tick); if (accX || accY) { send({ a: 'l', dx: accX, dy: accY }); accX = accY = 0; } })();
+
+  /* --------------------------------------------------------- buttons */
+  function hold(id, key) {
+    var el = document.getElementById(id);
+    function dn(e) { e.preventDefault(); el.classList.add('on'); send({ a: 'b', k: key, v: 1 }); buzz(8); }
+    function up(e) { e.preventDefault(); el.classList.remove('on'); send({ a: 'b', k: key, v: 0 }); }
+    el.addEventListener('touchstart', dn, { passive: false });
+    el.addEventListener('touchend', up, { passive: false });
+    el.addEventListener('touchcancel', up, { passive: false });
+  }
+  function tap(id, key) {
+    var el = document.getElementById(id);
+    function dn(e) { e.preventDefault(); el.classList.add('on'); send({ a: 'b', k: key, v: 1 }); buzz(10); }
+    function up(e) { e.preventDefault(); el.classList.remove('on'); }
+    el.addEventListener('touchstart', dn, { passive: false });
+    el.addEventListener('touchend', up, { passive: false });
+    el.addEventListener('touchcancel', up, { passive: false });
+  }
+  hold('b-fire', 'fire'); hold('b-ads', 'ads'); hold('b-jump', 'jump');
+  hold('b-crouch', 'crouch'); hold('b-use', 'use');
+  tap('b-reload', 'reload'); tap('b-swap', 'swap'); tap('b-frag', 'frag');
+  tap('b-monkey', 'monkey'); tap('b-knife', 'knife'); tap('b-pause', 'pause');
+
+  // belt-and-braces: never let the page scroll/zoom
+  document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+})();
+</script>
+</body>
+</html>
