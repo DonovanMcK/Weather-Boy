@@ -48,13 +48,6 @@
     G.renderer.useLegacyLights = true;
     G.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     G.renderer.toneMappingExposure = 1.35;
-    var onTouch = !!(G.touch && G.touch.active);
-    if (onTouch) {
-      // mobile GPUs choke on high DPR; cap lower and turn on the on-screen
-      // controls + simple-aim magnetism (still keeps a working ADS button)
-      G.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
-      if (document.body.classList) document.body.classList.add('touch');
-    }
 
     G.scene = new THREE.Scene();
     G.scene.background = new THREE.Color(0x0c1018);
@@ -93,7 +86,7 @@
       var span = document.getElementById('best-' + id);
       if (span && best) span.textContent = 'Best: round ' + best;
     });
-    G.settings.aimMode = (G.touch && G.touch.active) ? 'simple' : detectAimMode();
+    G.settings.aimMode = detectAimMode();
     refreshAimButton();
     function toggleAim() {
       G.settings.aimMode = G.settings.aimMode === 'simple' ? 'mouse' : 'simple';
@@ -126,8 +119,6 @@
     });
 
     document.addEventListener('pointerlockchange', function () {
-      // touch devices never grab pointer-lock; losing it must not pause them
-      if (G.touch && G.touch.active) return;
       if (!document.pointerLockElement && G.state === 'playing') {
         G.state = 'paused';
         G.hud.showMenu('pause');
@@ -155,19 +146,15 @@
     G.hud.setAmmo();
     G.hud.setRound(1);
     G.hud.banner(G.CFG.cur.name, '#c11', 3, G.CFG.cur.sub);
-    if (!(G.touch && G.touch.active)) {
-      var canvas = document.getElementById('game');
-      if (canvas.requestPointerLock) canvas.requestPointerLock();
-    }
+    var canvas = document.getElementById('game');
+    if (canvas.requestPointerLock) canvas.requestPointerLock();
   };
 
   function resume() {
     G.state = 'playing';
     G.hud.showMenu(null);
-    if (!(G.touch && G.touch.active)) {
-      var canvas = document.getElementById('game');
-      if (canvas.requestPointerLock) canvas.requestPointerLock();
-    }
+    var canvas = document.getElementById('game');
+    if (canvas.requestPointerLock) canvas.requestPointerLock();
   }
 
   // controller-friendly pause toggle (Start button)

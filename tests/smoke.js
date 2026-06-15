@@ -104,7 +104,7 @@ function createGame() {
   };
   vm.createContext(sandbox);
 
-  ['config', 'audio', 'hud', 'map', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'touch', 'main']
+  ['config', 'audio', 'hud', 'map', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'main']
     .forEach(function (name) {
       var src = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
       vm.runInContext(src, sandbox, { filename: name + '.js' });
@@ -350,7 +350,6 @@ async function runQuick(mapId) {
     testMovement(ctx); // big open spawn room
     testSimpleAim(ctx);
     testGamepad(ctx);
-    testTouch(ctx);
   }
 }
 
@@ -541,80 +540,6 @@ function testGamepad(ctx) {
   ctx.setPad(null);
   step(3);
   ok(!G.gamepad.connected && G.gamepad.moveZ === 0, 'unplugging clears controller intents');
-}
-
-/* touch: the on-screen control intents drive movement, look, fire, ADS and jump.
-   The DOM/touch handlers can't run headless, so we flip G.touch.active and write
-   the same neutral intents the handlers would — this proves the player/weapons
-   wiring reads them. */
-function testTouch(ctx) {
-  var G = ctx.G, step = ctx.step;
-  var P = G.player, T = G.touch;
-  ok(!!T, 'touch intent module present');
-  ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyC', 'Space'].forEach(ctx.keyup);
-  P.vel.set(0, 0, 0);
-  ctx.moveTo(roomCenter(G, 'S'));
-  P.yaw = 0; P.pitch = 0;
-  G.settings.aimMode = 'simple';
-  T.active = true;
-
-  // movement stick forward -> player accelerates
-  T.moveX = 0; T.moveZ = -1; T.sprint = false;
-  step(40);
-  ok(Math.hypot(P.vel.x, P.vel.z) > 3, 'touch stick moves the player (' +
-     Math.hypot(P.vel.x, P.vel.z).toFixed(1) + ' m/s)');
-  // full-forward stick sprints
-  T.sprint = true;
-  step(60);
-  ok(P.sprintAmt > 0.85, 'touch stick at full deflection sprints');
-  T.moveX = T.moveZ = 0; T.sprint = false;
-  step(30);
-
-  // fire intent shoots
-  G.weapons.equip(0, true);
-  var gun = G.weapons.current();
-  gun.ammo = G.weapons.stats(gun).mag;
-  step(20); // let sprint ramp out
-  var ammo0 = gun.ammo;
-  T.fire = true;
-  step(20);
-  T.fire = false;
-  ok(gun.ammo < ammo0, 'touch FIRE button shoots the weapon');
-
-  // ADS works on touch even though aim mode is simple
-  T.ads = true;
-  step(30);
-  ok(P.ads > 0.7, 'touch AIM button aims down sights (simple-aim notwithstanding)');
-  T.ads = false;
-  step(20);
-
-  // jump intent leaves the ground
-  P.pos.y = 0; P.vel.y = 0; P.onGround = true;
-  T.jump = true;
-  step(3);
-  ok(!P.onGround || P.vel.y > 0, 'touch JUMP button jumps');
-  T.jump = false;
-  step(30);
-
-  // USE tap buys a wall weapon when its prompt is up
-  G.player.points = 100000;
-  var wb = G.map.wallbuys.filter(function (w) { return !w.isFrags && !G.weapons.hasWeapon(w.gun); })[0];
-  if (wb) {
-    ctx.moveTo(wb.pos); step(3);
-    var ddx = wb.pos.x - P.pos.x, ddz = wb.pos.z - P.pos.z;
-    if (Math.hypot(ddx, ddz) > 0.05) P.yaw = Math.atan2(-ddx, -ddz);
-    var sawPrompt = false;
-    for (var f = 0; f < 12 && !sawPrompt; f++) { step(1); if (G.hud._prompt) sawPrompt = true; }
-    ok(sawPrompt, 'wall-buy prompt shows on touch');
-    T._tap = true;             // a USE tap
-    step(3);
-    ok(G.weapons.hasWeapon(wb.gun), 'touch USE buys the wall weapon (' + wb.gun + ')');
-  }
-
-  // releasing everything clears the intents
-  T.active = false;
-  T.moveX = T.moveZ = 0; T.fire = T.ads = T.jump = T.crouch = T.sprint = false;
-  step(10);
 }
 
 /* simple-aim (trackpad) mode: bullet magnetism lands slightly-off shots */
