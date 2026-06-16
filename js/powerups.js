@@ -8,23 +8,32 @@
 
   var COLORS = {
     maxammo: 0x44ff66, insta: 0xffee44, double: 0xff8833,
-    nuke: 0x77ff77, carpenter: 0xccaa55, firesale: 0x55bbff
+    nuke: 0x77ff77, carpenter: 0xccaa55, firesale: 0x55bbff,
+    bonus: 0xffd24a, deathmachine: 0x7fff8a
   };
   var LABELS = {
     maxammo: 'MAX AMMO', insta: 'INSTA-KILL', double: 'DOUBLE POINTS',
-    nuke: 'NUKE', carpenter: 'CARPENTER', firesale: 'FIRE SALE'
+    nuke: 'NUKE', carpenter: 'CARPENTER', firesale: 'FIRE SALE',
+    bonus: 'BONUS POINTS', deathmachine: 'DEATH MACHINE'
+  };
+  // relative drop odds — Death Machine is a rare treat
+  var WEIGHTS = {
+    maxammo: 1, insta: 1, double: 1, nuke: 1, carpenter: 1, firesale: 0.8,
+    bonus: 0.9, deathmachine: 0.18
   };
 
   var PU = G.powerups = {
     active: [],
-    timers: { insta: 0, double: 0, firesale: 0 }
+    timers: { insta: 0, double: 0, firesale: 0, deathmachine: 0 }
   };
 
   PU.maybeDrop = function (pos) {
     if (Math.random() > G.CFG.POWERUP_CHANCE) return;
     if (PU.active.length >= 4) return;
-    var types = G.CFG.POWERUPS;
-    var t = types[(Math.random() * types.length) | 0];
+    var types = G.CFG.POWERUPS, total = 0, i;
+    for (i = 0; i < types.length; i++) total += (WEIGHTS[types[i]] || 1);
+    var r = Math.random() * total, t = types[0];
+    for (i = 0; i < types.length; i++) { r -= (WEIGHTS[types[i]] || 1); if (r <= 0) { t = types[i]; break; } }
     PU.spawn(t, pos.clone());
   };
 
@@ -75,6 +84,14 @@
         PU.timers.firesale = G.CFG.POWERUP_TIME;
         G.interact.fireSale(true);
         break;
+      case 'bonus':
+        // a flat point bounty (scales gently with the round)
+        G.player.addPoints(Math.max(750, G.zombies.round * 250));
+        break;
+      case 'deathmachine':
+        PU.timers.deathmachine = G.CFG.DEATHMACHINE_TIME;
+        G.weapons.givePowerWeapon('deathmachine');
+        break;
     }
     G.hud.setPowerupTimers(PU.timers);
   }
@@ -102,11 +119,12 @@
       }
     }
 
-    var fsWas = PU.timers.firesale > 0;
-    ['insta', 'double', 'firesale'].forEach(function (k) {
+    var fsWas = PU.timers.firesale > 0, dmWas = PU.timers.deathmachine > 0;
+    ['insta', 'double', 'firesale', 'deathmachine'].forEach(function (k) {
       if (PU.timers[k] > 0) PU.timers[k] = Math.max(0, PU.timers[k] - dt);
     });
     if (fsWas && PU.timers.firesale <= 0) G.interact.fireSale(false);
+    if (dmWas && PU.timers.deathmachine <= 0) G.weapons.revertPowerWeapon();
     G.hud.setPowerupTimers(PU.timers);
   };
 })();

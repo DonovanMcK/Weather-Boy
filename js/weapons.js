@@ -392,6 +392,28 @@
     G.hud.setAmmo();
   };
 
+  // temporary power weapon (Death Machine drop): stash the loadout, wield an
+  // infinite-ammo minigun, then restore on expiry
+  W.givePowerWeapon = function (id) {
+    if (!W.power) {
+      W.power = { saved: W.slots, savedCur: W.cur };
+      while (W.vmRoot.children.length) W.vmRoot.remove(W.vmRoot.children[0]);
+    }
+    var base = CFG.WEAPONS[id];
+    var gun = { id: id, papped: false, dpap: false, ammo: base.mag, reserve: base.reserve, model: null, infinite: true };
+    W.slots = [gun]; W.cur = 0;
+    W.equip(0, true);
+    G.hud.setAmmo();
+  };
+  W.revertPowerWeapon = function () {
+    if (!W.power) return;
+    while (W.vmRoot.children.length) W.vmRoot.remove(W.vmRoot.children[0]);
+    W.slots = W.power.saved; W.cur = Math.min(W.power.savedCur, W.slots.length - 1);
+    W.power = null;
+    W.equip(W.cur, true);
+    G.hud.setAmmo();
+  };
+
   W.dropExtraSlots = function () {
     while (W.slots.length > W.maxSlots) W.slots.pop();
     if (W.cur >= W.slots.length) W.equip(0, true);
@@ -622,6 +644,7 @@
       return;
     }
     gun.ammo--;
+    if (gun.infinite) { gun.ammo = s.mag; gun.reserve = s.reserve; }   // power weapon never runs dry
     W.fireCd = 60 / s.rpm;
     G.audio.shoot(s.cls, gun.papped, gun.id, gun.dpap);
     muzzleFlash();

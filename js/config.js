@@ -833,7 +833,8 @@
   CFG.POWERUP_CHANCE = 0.031;
   CFG.POWERUP_LIFE = 30;
   CFG.POWERUP_TIME = 30;      // insta / double points / fire sale duration
-  CFG.POWERUPS = ['maxammo', 'insta', 'double', 'nuke', 'carpenter', 'firesale'];
+  CFG.DEATHMACHINE_TIME = 30; // timed Death Machine drop
+  CFG.POWERUPS = ['maxammo', 'insta', 'double', 'nuke', 'carpenter', 'firesale', 'bonus', 'deathmachine'];
 
   /* -------------------------------------------------- pure map-grid parser */
   // Returns { cells, cols, rows, doors, rooms } where cells[row][col] =

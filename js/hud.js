@@ -170,8 +170,8 @@
   };
 
   H.setPowerupTimers = function (timers) {
-    var names = { insta: 'INSTA-KILL', double: 'DOUBLE POINTS', firesale: 'FIRE SALE' };
-    var cols = { insta: '#ffe24a', double: '#ff8a33', firesale: '#55bbff' };
+    var names = { insta: 'INSTA-KILL', double: 'DOUBLE POINTS', firesale: 'FIRE SALE', deathmachine: 'DEATH MACHINE' };
+    var cols = { insta: '#ffe24a', double: '#ff8a33', firesale: '#55bbff', deathmachine: '#7fff8a' };
     var full = G.CFG.POWERUP_TIME || 30;
     var html = '';
     Object.keys(names).forEach(function (k) {

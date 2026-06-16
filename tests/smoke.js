@@ -358,8 +358,37 @@ async function runQuick(mapId) {
     testShield(ctx);
     testSoulBox(ctx);
     testWonderEgg(ctx);
+    testPowerups(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
+}
+
+/* power-up variety: Bonus Points pays out, and the Death Machine drop wields a
+   timed infinite-ammo minigun that restores your loadout when it ends */
+function testPowerups(ctx) {
+  var G = ctx.G, step = ctx.step, P = G.player;
+  ctx.moveTo(roomCenter(G, 'S'));
+  var c = P.pos.clone();
+
+  var pts0 = P.points;
+  G.powerups.spawn('bonus', new THREE.Vector3(c.x, 0, c.z));
+  step(3);
+  ok(P.points > pts0, 'Bonus Points awards a bounty');
+
+  G.weapons.slots.length = 0; G.weapons.maxSlots = 2;
+  G.weapons.giveWeapon('m1911'); G.weapons.giveWeapon('mp5k'); G.weapons.equip(0, true);
+  var savedIds = G.weapons.slots.map(function (s) { return s.id; }).join(',');
+  G.powerups.spawn('deathmachine', new THREE.Vector3(c.x, 0, c.z));
+  step(3);
+  ok(G.weapons.current().id === 'deathmachine', 'Death Machine equips on pickup');
+  ok(G.powerups.timers.deathmachine > 0, 'Death Machine timer is running');
+  var g = G.weapons.current(); g.ammo = 4;
+  P.sprintAmt = 0; G.weapons.mouseDown = true; step(60); G.weapons.mouseDown = false;
+  ok(g.ammo > 0, 'Death Machine never runs dry');
+  G.powerups.timers.deathmachine = 0.01; step(3);
+  ok(G.weapons.current().id !== 'deathmachine' &&
+     G.weapons.slots.map(function (s) { return s.id; }).join(',') === savedIds,
+     'loadout is restored when the Death Machine expires');
 }
 
 // verticality: a raised catwalk you climb, fall off, and that zombies must
