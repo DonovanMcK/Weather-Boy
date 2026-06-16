@@ -325,10 +325,44 @@
     G.map.effects.push(Object.assign(bolt, { userData: { vel: new THREE.Vector3(), spin: new THREE.Vector3(), life: 0.25 } }));
   }
 
+  // a single tanky elite (toggleable, perf-light — just one extra body). It
+  // spawns far like a dog and beelines you on the flow-field.
+  function spawnBoss() {
+    var z = {
+      isDog: false, isBoss: true, dead: false, crawler: false,
+      hp: Math.round(2200 + Z.round * 700),
+      speed: 2.1 + Math.min(1.1, Z.round * 0.02),
+      state: 'chase', t: 0, attackCd: 0, animT: Math.random() * 9
+    };
+    z.mesh = buildZombieMesh(z);
+    z.mesh.scale.set(1.7, 1.85, 1.7);          // looms over the horde
+    z.bossLight = new THREE.PointLight(0xff3311, 1.6, 9);
+    z.bossLight.position.set(0, 2.4, 0);
+    z.mesh.add(z.bossLight);
+    var P = G.map.parsed, options = [];
+    Object.keys(P.rooms).forEach(function (rid) {
+      if (!G.map.reachableRooms[rid]) return;
+      P.rooms[rid].cells.forEach(function (cr) {
+        var wc = CFG.cellToWorld(cr[0], cr[1]);
+        if (Math.hypot(wc.x - G.player.pos.x, wc.z - G.player.pos.z) > 9) options.push(wc);
+      });
+    });
+    var wc = options[(Math.random() * options.length) | 0] || { x: G.player.pos.x + 10, z: G.player.pos.z };
+    z.mesh.position.set(wc.x, 0, wc.z);
+    G.scene.add(z.mesh);
+    Z.list.push(z);
+    Z._shootablesDirty = true;
+    Z.lightning = 0.3;
+    G.audio.thunderClap();
+    G.hud.banner('PANZERSOLDAT', '#f64', 3, 'An elite stalks the storm');
+  }
+  Z.bossAlive = function () { return Z.list.some(function (z) { return z.isBoss && !z.dead; }); };
+
   /* --------------------------------------------------------------- rounds */
   Z.start = function () {
     CFG = G.CFG;
     Z.round = 0;
+    Z.nextBoss = 8 + ((Math.random() * 5) | 0);   // first elite around round 8-12
     Z.mode = 'break';
     Z.breakTimer = 3;
   };
@@ -362,6 +396,12 @@
       Z.spawnTimer = 1;
       G.audio.roundSting();
       G.hud.banner('ROUND ' + Z.round, '#c11', 2.5);
+      // boss round: drop one elite into the mix (player-toggleable)
+      var bossOn = !G.settings || G.settings.bossRounds !== false;
+      if (bossOn && Z.round >= Z.nextBoss && !Z.bossAlive()) {
+        spawnBoss();
+        Z.nextBoss = Z.round + 8 + ((Math.random() * 5) | 0);
+      }
     }
   }
 
@@ -441,10 +481,18 @@
     if (opts.knife) pts = CFG.PTS.knifeKill;
     else if (opts.head) pts = CFG.PTS.headKill;
     else if (opts.boom) pts = CFG.PTS.boomKill;
+    if (z.isBoss) pts = 1000;
     if (!opts.silent) G.player.addPoints(pts);
     G.player.kills++;
     G.hud.hitmarker(true);
-    if (!opts.silent) G.powerups.maybeDrop(z.mesh.position);
+    if (z.isBoss) {
+      // an elite always drops a Max Ammo and clears its red glow
+      if (z.bossLight) z.mesh.remove(z.bossLight);
+      G.powerups.spawn('maxammo', z.mesh.position.clone());
+      G.hud.banner('ELITE DOWN', '#f84', 2.5, 'Max Ammo dropped');
+    } else if (!opts.silent) {
+      G.powerups.maybeDrop(z.mesh.position);
+    }
     checkRoundEnd(z);
   }
 

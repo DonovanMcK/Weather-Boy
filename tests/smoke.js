@@ -353,6 +353,7 @@ async function runQuick(mapId) {
     testRemote(ctx);
     testPerks(ctx);
     testTerminal(ctx);
+    testBosses(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
 }
@@ -631,6 +632,29 @@ function testPerks(ctx) {
   ok(G.player.hasPerk('phd') && G.player.hasPerk('cherry'), 'new perks are held');
   G.player.losePerks();
   ok(!G.player.hasPerk('phd') && G.player.perks.length === 0, 'perks clear on losePerks');
+}
+
+/* bosses: an elite spawns on a boss round when enabled, and never when the
+   player has toggled boss rounds off */
+function testBosses(ctx) {
+  var G = ctx.G, step = ctx.step;
+  G.player.damage = function () {};
+  G.settings.bossRounds = true;
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+  step(30);
+  G.zombies.nextBoss = 1;
+  G.zombies.jumpToRound(12);           // round 12 is an active (non-dog) round
+  step(160);
+  ok(G.zombies.bossAlive(), 'an elite spawns on a boss round');
+
+  G.zombies.list.filter(function (z) { return z.isBoss; }).forEach(function (b) { G.zombies.damageZombie(b, 1e9, { boom: true }); });
+  step(80);
+  G.settings.bossRounds = false;
+  G.zombies.nextBoss = 1;
+  G.zombies.jumpToRound(13);
+  step(160);
+  ok(!G.zombies.bossAlive(), 'no elite when boss rounds are toggled off');
+  G.settings.bossRounds = true;
 }
 
 /* settings terminal: opens/pauses, exposes the run-tuning settings, and can
