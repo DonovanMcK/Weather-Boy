@@ -193,6 +193,20 @@
       box(0.09, 0.13, 0.12, 0, -0.12, 0.06, M.dark);                      // ammo box
       box(0.045, 0.1, 0.06, 0, -0.1, 0.14, furniture, 0.25);              // grip
       tipZ = -(bl + 0.16);
+    } else if (cls === 'raygun' && id === 'raygun2') {
+      // Ray Gun Mark II: chunkier rifle-pistol body, TWIN emitters, curved mag
+      box(0.13, 0.15, 0.34, 0, 0, -0.06, accentMat(0x6a1f7a, papped, dpap));
+      var rg2mat = new THREE.MeshPhongMaterial({ color: 0x22ffaa, emissive: 0x115544, shininess: 60 });
+      [-0.04, 0.04].forEach(function (ox) {
+        var em = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.28, 9), rg2mat);
+        em.rotation.x = Math.PI / 2; em.position.set(ox, 0.03, -0.32); g.add(em);
+      });
+      box(0.07, 0.18, 0.08, 0.0, -0.13, 0.05, M.poly, 0.18);          // grip
+      box(0.06, 0.2, 0.07, 0.08, -0.05, -0.02, accentMat(0x22aa66, papped, dpap), 0, 0.5); // angled side mag
+      var d2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05),
+        new THREE.MeshPhongMaterial({ color: 0x88ffcc, emissive: 0x1a6644 }));
+      d2.position.set(0, 0.1, 0.04); g.add(d2);
+      tipZ = -0.52;
     } else if (cls === 'raygun') {
       box(0.1, 0.12, 0.3, 0, 0, -0.08, accentMat(0x8a1212, papped, dpap));
       var coil = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.25, 10),

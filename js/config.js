@@ -732,6 +732,14 @@
       projectile: 'ray',
       pap: { name: "Porter's X2 Ray Gun", dmg: 2000, mag: 40, reserve: 200 }
     },
+    // universal box wonder weapon — a 3-round burst splitting ray (no map
+    // 'wonder' flag, so it can roll on every map like the Ray Gun)
+    raygun2: {
+      name: 'Ray Gun Mark II', cls: 'raygun', dmg: 620, head: 1, rpm: 380, mag: 21,
+      reserve: 189, reload: 3.0, mode: 'burst', burst: 3, spread: 1.3, box: 1.6,
+      projectile: 'ray',
+      pap: { name: 'GL Ray Gun Mark II', dmg: 1300, mag: 42, reserve: 252, spread: 1.0 }
+    },
     thunder: {
       name: 'Thundergun', cls: 'thunder', dmg: 0, head: 1, rpm: 90, mag: 2,
       reserve: 12, reload: 3.0, mode: 'semi', spread: 0, box: 2.5,

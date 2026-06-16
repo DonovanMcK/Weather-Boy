@@ -152,7 +152,7 @@ ids.forEach(function (id) {
   if (names[w.name]) ok(false, 'duplicate weapon name ' + w.name);
   names[w.name] = true;
   if (!(w.rpm > 0 && w.mag > 0 && w.reserve > 0 && w.reload > 0)) ok(false, id + ' core stats positive');
-  if (['auto', 'semi', 'pump'].indexOf(w.mode) < 0) ok(false, id + ' mode valid');
+  if (['auto', 'semi', 'pump', 'burst'].indexOf(w.mode) < 0) ok(false, id + ' mode valid');
   if (CLASSES.indexOf(w.cls) < 0) ok(false, id + ' class valid (' + w.cls + ')');
   if (w.dmg < 0 || (w.dmg === 0 && w.cls !== 'thunder')) ok(false, id + ' has damage');
 });
