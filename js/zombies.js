@@ -333,6 +333,19 @@
     Z.breakTimer = 3;
   };
 
+  // jump the round director (settings terminal): clear the field and queue
+  // round n to begin on the next break tick
+  Z.jumpToRound = function (n) {
+    n = Math.max(1, Math.floor(n || 1));
+    Z.list.slice().forEach(function (z) { G.scene.remove(z.mesh); });
+    Z.list = [];
+    Z._shootablesDirty = true;
+    Z.round = n - 1;
+    Z.toSpawn = 0;
+    Z.mode = 'break';
+    Z.breakTimer = 1.2;
+  };
+
   function beginRound() {
     Z.round++;
     G.hud.setRound(Z.round);

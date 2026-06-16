@@ -104,7 +104,7 @@ function createGame() {
   };
   vm.createContext(sandbox);
 
-  ['config', 'audio', 'hud', 'map', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'remote', 'main']
+  ['config', 'audio', 'hud', 'map', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'remote', 'terminal', 'main']
     .forEach(function (name) {
       var src = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
       vm.runInContext(src, sandbox, { filename: name + '.js' });
@@ -352,6 +352,7 @@ async function runQuick(mapId) {
     testGamepad(ctx);
     testRemote(ctx);
     testPerks(ctx);
+    testTerminal(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
 }
@@ -630,6 +631,22 @@ function testPerks(ctx) {
   ok(G.player.hasPerk('phd') && G.player.hasPerk('cherry'), 'new perks are held');
   G.player.losePerks();
   ok(!G.player.hasPerk('phd') && G.player.perks.length === 0, 'perks clear on losePerks');
+}
+
+/* settings terminal: opens/pauses, exposes the run-tuning settings, and can
+   jump the round director */
+function testTerminal(ctx) {
+  var G = ctx.G;
+  ok(!!G.terminal, 'settings terminal module present');
+  ok(G.settings.perkLimit === 4 && G.settings.bossRounds === true, 'settings have sane defaults');
+  G.terminal.open();
+  ok(G.terminal.active, 'terminal opens and holds the game');
+  G.terminal.close();
+  ok(!G.terminal.active, 'terminal closes');
+  G.zombies.jumpToRound(15);
+  ok(G.zombies.round === 14 && G.zombies.mode === 'break', 'jumpToRound queues round 15');
+  ctx.step(140);
+  ok(G.zombies.round >= 15, 'round director advances to the jumped round');
 }
 
 /* phone controller: feed the exact messages pad.html sends (no socket headless)

@@ -85,13 +85,13 @@
           if (G.player.hasPerk(pm.perk)) return null;
           if (pm.perk === 'revive' && G.player.qrBuys >= CFG.QR_MAX_BUYS) return null;
           if (!map.power && pm.perk !== 'revive') return def.name + ' — needs power';
-          if (G.player.perks.length >= CFG.MAX_PERKS) return 'Perk limit reached';
+          if (G.player.perks.length >= (G.settings.perkLimit || CFG.MAX_PERKS)) return 'Perk limit reached';
           return 'Buy ' + def.name + ' — ' + def.cost;
         },
         use: function () {
           if (G.player.hasPerk(pm.perk)) return;
           if (!map.power && pm.perk !== 'revive') { G.audio.deny(); return; }
-          if (G.player.perks.length >= CFG.MAX_PERKS) { G.audio.deny(); return; }
+          if (G.player.perks.length >= (G.settings.perkLimit || CFG.MAX_PERKS)) { G.audio.deny(); return; }
           if (pm.perk === 'revive' && G.player.qrBuys >= CFG.QR_MAX_BUYS) { G.audio.deny(); return; }
           if (!G.player.spend(def.cost)) return;
           if (pm.perk === 'revive') G.player.qrBuys++;
@@ -111,12 +111,12 @@
         pos: pm.pos, r: 2.2,
         prompt: function () {
           if (!map.power) return def.name + ' — needs power';
-          if (G.player.perks.length >= CFG.MAX_PERKS) return def.name + ' — perk limit reached';
+          if (G.player.perks.length >= (G.settings.perkLimit || CFG.MAX_PERKS)) return def.name + ' — perk limit reached';
           return def.name + ' — random perk — ' + def.cost;
         },
         use: function () {
           if (!map.power) { G.audio.deny(); return; }
-          if (G.player.perks.length >= CFG.MAX_PERKS) { G.audio.deny(); return; }
+          if (G.player.perks.length >= (G.settings.perkLimit || CFG.MAX_PERKS)) { G.audio.deny(); return; }
           if (!G.player.spend(def.cost)) return;
           G.audio.drink();
           G.weapons.switching = 1.1;
@@ -135,6 +135,19 @@
         }
       });
     }
+
+    // Group 935 settings terminal — a console in spawn (no collider, so it
+    // never blocks a training lane)
+    var tsp = CFG.cellToWorld(CFG.PLAYER_SPAWN.cell[0], CFG.PLAYER_SPAWN.cell[1]);
+    var tpos = new THREE.Vector3(tsp.x + 1.9, 0, tsp.z);
+    G.util.addBox(0.8, 1.05, 0.55, tpos.x, 0.52, tpos.z, G.util.mat(0x14201c));
+    G.util.addBox(0.72, 0.5, 0.1, tpos.x, 1.2, tpos.z,
+      G.util.mat(0x0c241d, { emissive: new THREE.Color(0x33d6a0), emissiveIntensity: 0.8 }));
+    add({
+      pos: tpos, r: 2.2,
+      prompt: function () { return G.terminal ? 'Settings terminal' : null; },
+      use: function () { if (G.terminal) G.terminal.open(); }
+    });
 
     // power switch
     add({
