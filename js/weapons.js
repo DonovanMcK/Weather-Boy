@@ -554,7 +554,7 @@
     }
     gun.ammo--;
     W.fireCd = 60 / s.rpm;
-    G.audio.shoot(s.cls, gun.papped);
+    G.audio.shoot(s.cls, gun.papped, gun.id);
     muzzleFlash();
     var heavy = s.cls === 'shotgun' || s.cls === 'thunder' || s.cls === 'sniper' || s.cls === 'launcher';
     G.player.kick(heavy ? 1.6 : 0.45);

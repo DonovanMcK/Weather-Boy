@@ -213,7 +213,7 @@
     // mystery box
     I.box = {
       spotIdx: 0, uses: 0, rolling: false, offer: null, offerTimer: 0,
-      mesh: null, offerSprite: null
+      mesh: null, offerSprite: null, recent: []
     };
     I.moveBox(0, true);
     map.boxSpots.forEach(function (spot, idx) {
@@ -328,14 +328,18 @@
     if (!silent) G.hud.banner('The box has moved...', '#9cf', 2);
   };
 
-  function boxPool() {
-    return Object.keys(CFG.WEAPONS).filter(function (id) {
+  function boxPool(excludeRecent) {
+    var recent = (excludeRecent && I.box && I.box.recent) || [];
+    var pool = Object.keys(CFG.WEAPONS).filter(function (id) {
       var w = CFG.WEAPONS[id];
       if (!w.box) return false;
       if (w.wonder && id !== CFG.cur.wonder) return false; // map's own wonder only
       if (G.weapons.hasWeapon(id)) return false;
+      if (recent.indexOf(id) >= 0) return false;            // no repeats from the last few rolls
       return true;
     });
+    // never let the recent-filter empty the pool
+    return pool.length ? pool : boxPool(false);
   }
 
   function rollBox() {
@@ -376,16 +380,21 @@
         I.moveBox(next);
         return;
       }
-      // weighted weapon pick (monkeys count as a pseudo-roll)
-      var pool = boxPool();
+      // weighted weapon pick (monkeys count as a pseudo-roll); recent rolls are
+      // excluded so you don't get the same gun two-three times in a row
+      var pool = boxPool(true);
       var weights = pool.map(function (id) { return CFG.WEAPONS[id].box; });
-      if (!G.player.hasMonkeys) { pool.push('_monkeys'); weights.push(CFG.MONKEY_BOX_WEIGHT); }
+      if (!G.player.hasMonkeys && box.recent.indexOf('_monkeys') < 0) {
+        pool.push('_monkeys'); weights.push(CFG.MONKEY_BOX_WEIGHT);
+      }
       var total = weights.reduce(function (a, b) { return a + b; }, 0);
       var pick = Math.random() * total, chosen = pool[0];
       for (var i = 0; i < pool.length; i++) {
         pick -= weights[i];
         if (pick <= 0) { chosen = pool[i]; break; }
       }
+      box.recent.push(chosen);
+      while (box.recent.length > 4) box.recent.shift();   // remember the last 4
       if (chosen === '_monkeys') {
         G.player.hasMonkeys = true;
         G.player.monkeys = CFG.MAX_MONKEYS;

@@ -182,16 +182,41 @@
     launcher:{ crack: 900,  crackDur: 0.1, crackVol: 0.4, body: 90, bodyTo: 35, bodyDur: 0.3, boom: 260, boomDur: 0.4, boomVol: 0.55 }
   };
 
-  function gunshot(p, papped) {
+  // a stable per-gun "voice": each weapon id hashes to small, consistent shifts
+  // in pitch/length/brightness so two guns of the same class never sound alike,
+  // while staying in the believable range for that class of firearm
+  function gunHashA(s) {
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  var voiceCache = {};
+  function gunVoice(id) {
+    if (!id) return { pitch: 1, len: 1, bright: 1, tight: 1 };
+    if (voiceCache[id]) return voiceCache[id];
+    var h = gunHashA(id);
+    function u(shift) { return ((h >>> shift) & 0xff) / 255; }   // 0..1
+    var v = {
+      pitch: 0.86 + u(0) * 0.30,   // ±~15% bore/caliber pitch
+      len:   0.82 + u(8) * 0.42,   // barrel length -> tail length
+      bright:0.80 + u(16) * 0.45,  // crack brightness (muzzle/gas)
+      tight: 0.80 + u(24) * 0.40   // transient sharpness
+    };
+    voiceCache[id] = v;
+    return v;
+  }
+
+  function gunshot(p, papped, id) {
     var boost = papped ? 1.15 : 1;
-    noise({ dur: 0.012, hp: 2600, vol: 0.45, att: 0.001 });                       // click
-    noise({ dur: p.crackDur, bp: p.crack, q: 0.7, drive: 2.5,
+    var v = gunVoice(id);
+    noise({ dur: 0.012 * v.tight, hp: 2600 * v.bright, vol: 0.45, att: 0.001 });  // click
+    noise({ dur: p.crackDur * v.tight, bp: p.crack * v.bright, q: 0.7, drive: 2.5,
             vol: p.crackVol * boost, send: 0.35 });                               // crack
-    tone({ type: 'triangle', freq: p.body, to: p.bodyTo, dur: p.bodyDur,
+    tone({ type: 'triangle', freq: p.body * v.pitch, to: p.bodyTo * v.pitch, dur: p.bodyDur * v.len,
            vol: 0.5 * boost, send: 0.25, drive: 1.6 });                           // body
-    noise({ dur: p.boomDur, lp: p.boom, slide: 110, vol: p.boomVol * boost,
+    noise({ dur: p.boomDur * v.len, lp: p.boom * v.pitch, slide: 110, vol: p.boomVol * boost,
             send: 0.55 });                                                        // boom tail
-    noise({ dur: 0.03, bp: 4200, q: 2, vol: 0.1, when: 0.05 });                   // action
+    noise({ dur: 0.03, bp: 4200 * v.bright, q: 2, vol: 0.1, when: 0.05 });        // action
     if (papped) tone({ type: 'sine', freq: 1500, to: 2400, dur: 0.08, vol: 0.05 });
   }
 
@@ -267,7 +292,7 @@
       return muted;
     },
 
-    shoot: function (cls, papped) {
+    shoot: function (cls, papped, id) {
       if (!ctx) return;
       if (playSample('shoot_' + cls, 0.8, 0.05)) return;
       if (cls === 'raygun') {
@@ -286,7 +311,7 @@
         noise({ dur: 0.5, lp: 800, slide: 150, vol: 0.4, send: 0.5 });
         return;
       }
-      gunshot(SHOT[cls] || SHOT.rifle, papped);
+      gunshot(SHOT[cls] || SHOT.rifle, papped, id);
     },
     dryFire: function () { noise({ dur: 0.025, bp: 2800, q: 2, vol: 0.18 }); },
     reload: function () {

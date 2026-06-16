@@ -647,9 +647,9 @@
       pap: { name: 'Petrifier' }
     },
     deathmachine: {
-      name: 'Death Machine', cls: 'minigun', dmg: 100, head: 1.6, rpm: 1400,
-      mag: 150, reserve: 450, reload: 4.5, mode: 'auto', spread: 3.6, box: 0.4,
-      pap: { name: 'Meat Grinder', dmg: 90 }
+      name: 'Death Machine', cls: 'minigun', dmg: 1000, head: 2.5, rpm: 1400,
+      mag: 150, reserve: 600, reload: 4.5, mode: 'auto', spread: 3.6, box: 1.6,
+      pap: { name: 'Meat Grinder', dmg: 2400 }
     },
     /* ----------------------------------------------------------- snipers */
     l96a1: {
@@ -704,26 +704,26 @@
     /* ----------------------------------------------------------- wonders */
     raygun: {
       name: 'Ray Gun', cls: 'raygun', dmg: 1000, head: 1, rpm: 180, mag: 20,
-      reserve: 160, reload: 3.0, mode: 'semi', spread: 0.4, box: 0.45,
+      reserve: 160, reload: 3.0, mode: 'semi', spread: 0.4, box: 3.0,
       projectile: 'ray',
       pap: { name: "Porter's X2 Ray Gun", dmg: 2000, mag: 40, reserve: 200 }
     },
     thunder: {
       name: 'Thundergun', cls: 'thunder', dmg: 0, head: 1, rpm: 90, mag: 2,
-      reserve: 12, reload: 3.0, mode: 'semi', spread: 0, box: 0.35,
+      reserve: 12, reload: 3.0, mode: 'semi', spread: 0, box: 2.5,
       projectile: 'wind', wonder: true,
       pap: { name: 'Zeus Cannon', mag: 4, reserve: 24 }
     },
     wunderwaffe: {
       name: 'Wunderwaffe DG-2', cls: 'wunder', dmg: 999999, head: 1, rpm: 100,
-      mag: 3, reserve: 15, reload: 3.0, mode: 'semi', spread: 0, box: 0.35,
+      mag: 3, reserve: 15, reload: 3.0, mode: 'semi', spread: 0, box: 2.5,
       projectile: 'chain', wonder: true, chain: 10, chainRadius: 5.5,
       pap: { name: 'Wunderwaffe DG-3 JZ', mag: 6, reserve: 30,
              chain: 24, chainRadius: 7.5 }
     },
     stormcaller: {
       name: 'Wettermacher', cls: 'storm', dmg: 2500, head: 1, rpm: 80,
-      mag: 4, reserve: 16, reload: 3.2, mode: 'semi', spread: 0, box: 0.35,
+      mag: 4, reserve: 16, reload: 3.2, mode: 'semi', spread: 0, box: 2.5,
       projectile: 'storm', wonder: true, stormDur: 4, stormRadius: 5.5,
       pap: { name: 'Auge des Sturms', dmg: 5000, mag: 8, reserve: 24,
              stormDur: 6.5, stormRadius: 7.5 }
@@ -731,7 +731,7 @@
   };
   // Mystery box also rolls monkey bombs as a pseudo-weapon entry.
   CFG.BOX_COST = 950;
-  CFG.MONKEY_BOX_WEIGHT = 0.6;
+  CFG.MONKEY_BOX_WEIGHT = 2.2;
   CFG.WALL_AMMO_FACTOR = 0.5;     // refill = wall cost / 2
   CFG.PAP_AMMO_COST = 4500;       // wall refill once upgraded
   CFG.FRAGS_COST = 250;
