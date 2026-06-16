@@ -45,15 +45,30 @@
     matCache[key] = m;
     return m;
   }
-  function gunMats(papped) {
-    if (papped) {
-      if (!camoMat) {
-        camoMat = new THREE.MeshPhongMaterial({
-          map: W.camoTex, emissive: new THREE.Color(0x331155),
-          emissiveIntensity: 0.55, shininess: 30, specular: new THREE.Color(0x555588)
+  var camoMat2 = null;
+  function papMat(dpap) {
+    if (dpap) {
+      if (!camoMat2) {
+        // double-pack: hot gold body with an electric-cyan glow (Dead Wire)
+        camoMat2 = new THREE.MeshPhongMaterial({
+          map: W.camoTex, color: 0xc8a83a, emissive: new THREE.Color(0x18546a),
+          emissiveIntensity: 0.8, shininess: 90, specular: new THREE.Color(0x9fe8ff)
         });
       }
-      return { dark: camoMat, mid: camoMat, poly: camoMat, wood: camoMat };
+      return camoMat2;
+    }
+    if (!camoMat) {
+      camoMat = new THREE.MeshPhongMaterial({
+        map: W.camoTex, emissive: new THREE.Color(0x331155),
+        emissiveIntensity: 0.55, shininess: 30, specular: new THREE.Color(0x555588)
+      });
+    }
+    return camoMat;
+  }
+  function gunMats(papped, dpap) {
+    if (papped) {
+      var m = papMat(dpap);
+      return { dark: m, mid: m, poly: m, wood: m };
     }
     return {
       dark: gm('dark', { color: 0x2b2e33, map: G.tex.metal, shininess: 40, specular: new THREE.Color(0x666e77) }),
@@ -62,8 +77,8 @@
       wood: gm('woodg', { color: 0xb89066, map: G.tex.wood, shininess: 10, specular: new THREE.Color(0x553) })
     };
   }
-  function accentMat(col, papped) {
-    if (papped) return camoMat;
+  function accentMat(col, papped, dpap) {
+    if (papped) return papMat(dpap);
     return gm('acc' + col, { color: col, map: G.tex.metal, shininess: 25, specular: new THREE.Color(0x667) });
   }
 
@@ -86,7 +101,7 @@
   var ACCENTS = [0xb04030, 0x4a6ea0, 0x4f8a4a, 0xb0902c, 0x6a4f8a, 0x2f7d80, 0xa05a2c, 0x808890, 0x9a3c5a, 0x3a8aa0];
   function glowMat2(col) { return gm('glo' + col, { color: 0x0a0a0a, emissive: new THREE.Color(col), emissiveIntensity: 0.9 }); }
 
-  function buildModel(id, papped) {
+  function buildModel(id, papped, dpap) {
     var def = CFG.WEAPONS[id];
     var cls = def.cls;
     var base = CLS_VM[cls] || {}, ov = def.vm || {}, vm = {};
@@ -110,9 +125,9 @@
     vm.slideFac = 0.85 + rnd() * 0.35;
 
     var g = new THREE.Group();
-    var M = gunMats(papped);
-    var accent = accentMat(vm.accent, papped);
-    var body = vm.col ? accentMat(vm.col, papped) : M.dark;
+    var M = gunMats(papped, dpap);
+    var accent = accentMat(vm.accent, papped, dpap);
+    var body = vm.col ? accentMat(vm.col, papped, dpap) : M.dark;
     var furniture = vm.wood ? M.wood : M.poly;
 
     function box(w, h, d, x, y, z, m, rx, rz) {
@@ -179,7 +194,7 @@
       box(0.045, 0.1, 0.06, 0, -0.1, 0.14, furniture, 0.25);              // grip
       tipZ = -(bl + 0.16);
     } else if (cls === 'raygun') {
-      box(0.1, 0.12, 0.3, 0, 0, -0.08, accentMat(0x8a1212, papped));
+      box(0.1, 0.12, 0.3, 0, 0, -0.08, accentMat(0x8a1212, papped, dpap));
       var coil = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.25, 10),
         new THREE.MeshPhongMaterial({ color: 0x22ff66, emissive: 0x115522, shininess: 60 }));
       coil.rotation.x = Math.PI / 2; coil.position.set(0, 0.02, -0.3); g.add(coil);
@@ -190,7 +205,7 @@
       dial.position.set(0, 0.08, 0.02); g.add(dial);
       tipZ = -0.5;
     } else if (cls === 'thunder') {
-      var t1 = cylZ(0.07, 0.09, 0.6, 0, 0, -0.2, accentMat(0x55585e, papped), 12);
+      var t1 = cylZ(0.07, 0.09, 0.6, 0, 0, -0.2, accentMat(0x55585e, papped, dpap), 12);
       cylZ(0.11, 0.13, 0.2, 0, 0, -0.5, gm('tg', {
         color: 0x222230, emissive: new THREE.Color(0x2244aa), emissiveIntensity: 0.6, shininess: 40
       }), 12);
@@ -212,7 +227,7 @@
       box(0.05, 0.14, 0.07, 0, -0.13, 0.02, M.wood, 0.2);
       tipZ = -0.56;
     } else if (cls === 'storm') {
-      var st = cylZ(0.06, 0.08, 0.55, 0, 0, -0.18, accentMat(0x4a525c, papped), 12);
+      var st = cylZ(0.06, 0.08, 0.55, 0, 0, -0.18, accentMat(0x4a525c, papped, dpap), 12);
       var orb = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 12),
         new THREE.MeshPhongMaterial({ color: 0x113355, emissive: 0x55ccff, emissiveIntensity: 1.0, shininess: 90 }));
       orb.position.set(0, 0.09, -0.05); g.add(orb);
@@ -388,7 +403,7 @@
     W.cur = i;
     while (W.vmRoot.children.length) W.vmRoot.remove(W.vmRoot.children[0]);
     var gun = W.slots[i];
-    gun.model = buildModel(gun.id, gun.papped);
+    gun.model = buildModel(gun.id, gun.papped, gun.dpap);
     W.vmRoot.add(gun.model);
     W.muzzle = gun.model.userData.tip;
     W.switching = instant ? 0 : 0.3;
