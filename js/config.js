@@ -159,7 +159,7 @@
     PERK_MACHINES: [
       { perk: 'revive', cell: [6, 12], off: [0, 0] },
       { perk: 'jugg',   cell: [5, 8],  off: [0, 0] },
-      { perk: 'speed',  cell: [1, 8],  off: [0, 0] },
+      { perk: 'speed',  cell: [5, 5],  off: [0, 0.4], y: 3.2 },   // UP on the catwalk
       { perk: 'dtap',   cell: [14, 8], off: [0, 0] },
       { perk: 'wonderfizz', cell: [0, 3],  off: [0, 0] },
       { perk: 'stamin', cell: [15, 3], off: [0, 0] }
@@ -181,7 +181,8 @@
       { cell: [14, 6], off: [0, 0] },
       { cell: [7, 2],  off: [0, 0] },
       { cell: [9, 11], off: [0, 0] },
-      { cell: [6, 8],  off: [0, 0] }
+      { cell: [6, 8],  off: [0, 0] },
+      { cell: [10, 5], off: [0, 0.4], y: 3.2 }   // a spot UP on the catwalk
     ],
     TELEPORTERS: [
       { id: 'A', cell: [0, 7],  off: [0, 0] },
@@ -265,7 +266,7 @@
       { perk: 'revive', cell: [6, 12], off: [-1.0, 0] },
       { perk: 'jugg',   cell: [13, 7], off: [1.0, 0] },
       { perk: 'speed',  cell: [1, 7],  off: [-1.0, 0] },
-      { perk: 'dtap',   cell: [7, 1],  off: [0, -1.0] },
+      { perk: 'dtap',   cell: [12, 5], off: [0, 0.5], y: 3.4 },   // UP in the Storage loft
       { perk: 'stamin', cell: [2, 1],  off: [0, 0] },
       { perk: 'wonderfizz', cell: [13, 2], off: [0, 1.0] }
     ],
@@ -277,7 +278,8 @@
       { gun: 'ak74u',    cell: [5, 0],  off: [0, -1.6], face: 'N' },
       { gun: 'm16',      cell: [13, 0], off: [0, -1.6], face: 'N' },
       { gun: 'stakeout', cell: [0, 8],  off: [-1.6, 0], face: 'W' },
-      { gun: 'frags',    cell: [0, 2],  off: [-1.6, 0], face: 'W' }
+      { gun: 'frags',    cell: [0, 2],  off: [-1.6, 0], face: 'W' },
+      { gun: 'rpk',      cell: [13, 5], off: [0, -1.6], face: 'N', y: 3.4 }   // UP in the loft
     ],
     BOX_SPOTS: [
       { cell: [2, 2],  off: [0, 0] },

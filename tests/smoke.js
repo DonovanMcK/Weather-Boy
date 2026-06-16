@@ -428,6 +428,23 @@ function testVerticality(ctx) {
     step(1);
   }
   ok(dealt === 0, 'melee does not connect through the upper floor');
+
+  // upper floor is FULLY functional: a perk sits up on the catwalk and is only
+  // buyable from the catwalk (height-gated), not from the ground below
+  P.damage = function () {};
+  var sp = G.map.perkMachines.filter(function (m) { return m.perk === 'speed'; })[0];
+  ok(sp && sp.pos.y > 3, 'Speed Cola sits up on the catwalk (y=' + (sp ? sp.pos.y.toFixed(1) : '?') + ')');
+  G.player.points = 100000; G.player.perks = [];
+  function faceTry(y) {
+    P.pos.set(sp.pos.x, y, sp.pos.z + 1.0); P.vel.set(0, 0, 0);
+    P.yaw = Math.atan2(-(sp.pos.x - P.pos.x), -(sp.pos.z - P.pos.z));
+    G.player.consumeInteract(); win.dispatch('keydown', { code: 'KeyF' }); step(3);
+    win.dispatch('keyup', { code: 'KeyF' });
+  }
+  faceTry(0);                          // from the ground directly below
+  ok(!G.player.hasPerk('speed'), 'cannot buy the catwalk perk from the ground below');
+  faceTry(sp.pos.y);                   // standing up on the catwalk
+  ok(G.player.hasPerk('speed'), 'CAN buy the catwalk perk while up on the catwalk');
 }
 function clearHorde(G) {
   G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });

@@ -674,7 +674,8 @@
     /* ----------------------------------------------------- placed objects */
     function place(spec) {
       var wc = CFG.cellToWorld(spec.cell[0], spec.cell[1]);
-      return new THREE.Vector3(wc.x + (spec.off ? spec.off[0] : 0), 0, wc.z + (spec.off ? spec.off[1] : 0));
+      // spec.y lifts an interactable onto an upper floor (catwalk / loft)
+      return new THREE.Vector3(wc.x + (spec.off ? spec.off[0] : 0), spec.y || 0, wc.z + (spec.off ? spec.off[1] : 0));
     }
     map.placePos = place;
     var occupied = []; // keep auto props clear of everything interactive
@@ -806,12 +807,14 @@
     CFG.PERK_MACHINES.forEach(function (pm) {
       var def = CFG.PERKS[pm.perk];
       var pos = place(pm);
-      pushToWall(pos, 0.55);
+      if (!pm.y) pushToWall(pos, 0.55);   // elevated machines stay where placed
       occupy(pos);
-      var body = addBox(0.95, 1.85, 0.75, pos.x, 0.92, pos.z,
-        new THREE.MeshLambertMaterial({ map: G.tex.metal, color: def.color }), { collide: true, solid: true });
-      addBox(0.99, 0.12, 0.79, pos.x, 1.9, pos.z, G.mats.metal);
-      addBox(0.99, 0.1, 0.79, pos.x, 0.06, pos.z, mat(0x1a1c20));
+      var by = pos.y;                     // floor height this machine sits on
+      var body = addBox(0.95, 1.85, 0.75, pos.x, by + 0.92, pos.z,
+        new THREE.MeshLambertMaterial({ map: G.tex.metal, color: def.color }), { solid: true });
+      map.addCollider(pos.x - 0.48, pos.z - 0.38, pos.x + 0.48, pos.z + 0.38, by, by + 1.9);
+      addBox(0.99, 0.12, 0.79, pos.x, by + 1.9, pos.z, G.mats.metal);
+      addBox(0.99, 0.1, 0.79, pos.x, by + 0.06, pos.z, mat(0x1a1c20));
       // decal on the face pointing toward the room interior
       var roomCtr = P.rooms[map.roomAt(pos.x, pos.z)] ? P.rooms[map.roomAt(pos.x, pos.z)].center : null;
       var dx = roomCtr ? roomCtr.x - pos.x : 0, dz = roomCtr ? roomCtr.z - pos.z : 1;
@@ -819,15 +822,15 @@
         new THREE.MeshLambertMaterial({ map: perkDecalTexture(def), transparent: true,
           emissive: new THREE.Color(def.color), emissiveIntensity: 0.35, emissiveMap: null }));
       if (Math.abs(dx) > Math.abs(dz)) {
-        decal.position.set(pos.x + Math.sign(dx) * 0.39, 1.0, pos.z);
+        decal.position.set(pos.x + Math.sign(dx) * 0.39, by + 1.0, pos.z);
         decal.rotation.y = dx > 0 ? Math.PI / 2 : -Math.PI / 2;
       } else {
-        decal.position.set(pos.x, 1.0, pos.z + (dz >= 0 ? 0.39 : -0.39));
+        decal.position.set(pos.x, by + 1.0, pos.z + (dz >= 0 ? 0.39 : -0.39));
         decal.rotation.y = dz >= 0 ? 0 : Math.PI;
       }
       G.scene.add(decal);
       var light = new THREE.PointLight(def.color, pm.perk === 'revive' ? 0.8 : 0.25, 7);
-      light.position.set(pos.x, 2.2, pos.z);
+      light.position.set(pos.x, by + 2.2, pos.z);
       G.scene.add(light);
       map.perkMachines.push({ perk: pm.perk, pos: pos, mesh: body, light: light });
     });
@@ -844,7 +847,7 @@
       var proj = off[0] * o[0] + off[1] * o[1];
       var tx = off[0] - proj * o[0], tz = off[1] - proj * o[1];
       var FACE = CELL / 2 - WALL_T / 2 - 0.03;   // just inside the inner wall surface
-      var wallPos = new THREE.Vector3(wc.x + tx + o[0] * FACE, 1.7, wc.z + tz + o[1] * FACE);
+      var wallPos = new THREE.Vector3(wc.x + tx + o[0] * FACE, (pos.y || 0) + 1.7, wc.z + tz + o[1] * FACE);
       var isFrags = wb.gun === 'frags';
       var def = isFrags ? { name: 'Frag Grenades' } : CFG.WEAPONS[wb.gun];
       var cost = isFrags ? CFG.FRAGS_COST : def.wall;
@@ -860,7 +863,7 @@
 
     CFG.BOX_SPOTS.forEach(function (bs, i) {
       var p = place(bs);
-      pushToWall(p, 0.65);    // box hugs a wall (and stays clear of doorways)
+      if (!bs.y) pushToWall(p, 0.65);    // box hugs a wall (ground spots only)
       occupy(p);
       map.boxSpots.push({ idx: i, pos: p });
     });

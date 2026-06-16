@@ -691,6 +691,9 @@
       var dx = it.pos.x - G.player.pos.x, dz = it.pos.z - G.player.pos.z;
       var d = Math.hypot(dx, dz);
       if (d >= it.r || d >= bd || !it.prompt()) continue;
+      // height gate: only interact with things on your own floor (so you can't
+      // buy a catwalk perk from the ground below, or vice-versa)
+      if (Math.abs((G.player.pos.y || 0) - (it.pos.y || 0)) > 2.0) continue;
       var facing = true;
       if (fwd && d > 1.7) {
         var len = d || 1e-6;
