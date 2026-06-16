@@ -438,6 +438,12 @@
     W.reloading = s.reload * (G.player.hasPerk('speed') ? 0.5 : 1);
     W.reloadTotal = W.reloading;
     G.audio.reload();
+    // Electric Cherry: reloading discharges a shock around you (stronger the
+    // emptier the mag was)
+    if (G.player.hasPerk('cherry')) {
+      var charge = 1 - gun.ammo / Math.max(1, s.mag);
+      W.boom(G.player.pos, 250 + 550 * charge, 4.2, 0x33ddff, { boom: true });
+    }
   };
 
   function finishReload() {
@@ -566,6 +572,20 @@
                          : G.camera.position.clone();
     addLine(start, end, 0xffdd88, 0.07);
   }
+
+  // shared area blast used by perks (PhD Slider, Electric Cherry, Widow's Wine),
+  // buildable traps and bosses: AoE damage + a starburst flash + boom
+  W.boom = function (pos, dmg, radius, color, opts) {
+    color = color || 0xffaa55;
+    G.zombies.aoe(pos, dmg, radius, opts || {});
+    var c = new THREE.Vector3(pos.x, (pos.y || 0) + 0.4, pos.z);
+    for (var i = 0; i < 12; i++) {
+      var a = i / 12 * Math.PI * 2;
+      addLine(c, new THREE.Vector3(c.x + Math.cos(a) * radius, c.y, c.z + Math.sin(a) * radius),
+              color, 0.2, 0.85);
+    }
+    G.audio.explosion();
+  };
 
   function muzzleFlash() {
     if (!W.muzzle) return;

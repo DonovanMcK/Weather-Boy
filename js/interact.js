@@ -75,9 +75,10 @@
       });
     });
 
-    // perk machines
+    // perk machines (and the Der Wunderfizz random-perk vendor)
     map.perkMachines.forEach(function (pm) {
       var def = CFG.PERKS[pm.perk];
+      if (def && def.vendor) { addWunderfizz(pm, def); return; }
       add({
         pos: pm.pos, r: 2.2,
         prompt: function () {
@@ -102,6 +103,38 @@
         }
       });
     });
+
+    // Der Wunderfizz: pay for a RANDOM perk. A dupe can't stack — it just wastes
+    // the points, exactly like the real machine.
+    function addWunderfizz(pm, def) {
+      add({
+        pos: pm.pos, r: 2.2,
+        prompt: function () {
+          if (!map.power) return def.name + ' — needs power';
+          if (G.player.perks.length >= CFG.MAX_PERKS) return def.name + ' — perk limit reached';
+          return def.name + ' — random perk — ' + def.cost;
+        },
+        use: function () {
+          if (!map.power) { G.audio.deny(); return; }
+          if (G.player.perks.length >= CFG.MAX_PERKS) { G.audio.deny(); return; }
+          if (!G.player.spend(def.cost)) return;
+          G.audio.drink();
+          G.weapons.switching = 1.1;
+          var pool = CFG.FIZZ_POOL;
+          var pick = pool[(Math.random() * pool.length) | 0];
+          var pdef = CFG.PERKS[pick];
+          if (G.player.hasPerk(pick)) {            // dupe — wasted points, no stacking
+            G.audio.deny();
+            G.hud.banner(pdef.name + ' — already had it!', '#b86', 2.2, 'Wunderfizz wasted');
+          } else {
+            G.audio.perkJingle();
+            if (pick === 'revive') G.player.qrBuys++;
+            G.player.addPerk(pick);
+            G.hud.banner(pdef.name + '!', '#' + new THREE.Color(pdef.color).getHexString(), 2.2, 'from Der Wunderfizz');
+          }
+        }
+      });
+    }
 
     // power switch
     add({

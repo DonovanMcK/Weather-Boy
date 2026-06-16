@@ -23,7 +23,7 @@
     frags: 2, monkeys: 0, hasMonkeys: false,
     regenTimer: 0,
     onGround: true,
-    downed: false, downTimer: 0, invuln: 0, _hb: 0,
+    downed: false, downTimer: 0, invuln: 0, _hb: 0, _widowCd: 0,
     kickPitch: 0,
     shakeAmt: 0,
     bobT: 0, bobX: 0, bobY: 0, vmBobX: 0, vmBobY: 0,
@@ -86,6 +86,12 @@
     P.regenTimer = 0;
     G.audio.hurt();
     P.shake(0.4);
+    // Widow's Wine: getting hit bursts a web that damages + slows the swarm
+    // around you (short cooldown so it's a panic button, not a constant aura)
+    if (P.hasPerk('widows') && P._widowCd <= 0) {
+      P._widowCd = 3;
+      G.weapons.boom(P.pos, 400, 4.5, 0x9a3cea, { slow: 4 });
+    }
     if (P.hp <= 0) P.down();
   };
 
@@ -206,6 +212,7 @@
       }
     }
     if (P.invuln > 0) P.invuln -= dt;
+    if (P._widowCd > 0) P._widowCd -= dt;
 
     // regen
     P.regenTimer += dt;
@@ -290,6 +297,8 @@
         P.vel.z = dz * boost;
         P.slideT = MV.slideDur * (P.hasPerk('stamin') ? 1.2 : 1);
         G.audio.slide();
+        // PhD Slider: a slide detonates a blast around you
+        if (P.hasPerk('phd')) G.weapons.boom(P.pos, 900, 4.8, 0xff8a2a, { boom: true });
       } else {
         P.stance = crouchKey ? 'crouch' : 'stand';
       }

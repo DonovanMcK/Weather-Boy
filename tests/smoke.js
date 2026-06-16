@@ -351,6 +351,7 @@ async function runQuick(mapId) {
     testSimpleAim(ctx);
     testGamepad(ctx);
     testRemote(ctx);
+    testPerks(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
 }
@@ -360,6 +361,10 @@ async function runQuick(mapId) {
 function testVerticality(ctx) {
   var G = ctx.G, step = ctx.step, win = ctx.win;
   var P = G.player;
+  // Der Wunderfizz replaced the Mule Kick machine
+  ok(G.map.perkMachines.some(function (m) { return m.perk === 'wonderfizz'; }), 'Der Wunderfizz machine present');
+  ok(!G.map.perkMachines.some(function (m) { return m.perk === 'mule'; }), 'Mule Kick machine removed');
+
   ok(G.map.stages && G.map.stages.length > 0, 'Der Riese has a raised catwalk');
   var S = G.map.stages[0];
   ok(S.deckTop > 1.5, 'catwalk deck is elevated (' + S.deckTop.toFixed(1) + 'm)');
@@ -593,6 +598,38 @@ function testGamepad(ctx) {
   ctx.setPad(null);
   step(3);
   ok(!G.gamepad.connected && G.gamepad.moveZ === 0, 'unplugging clears controller intents');
+}
+
+/* perks overhaul: new perks exist, area effects damage + web, and the
+   Wunderfizz hands out a random perk (a dupe just wastes the points) */
+function testPerks(ctx) {
+  var G = ctx.G, step = ctx.step;
+  ['widows', 'phd', 'cherry', 'wonderfizz'].forEach(function (id) {
+    ok(!!G.CFG.PERKS[id], 'perk/def "' + id + '" exists');
+  });
+
+  // area blast: damages and (with slow) webs a nearby zombie
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+  step(20);
+  var c = roomCenter(G, 'S');
+  var z = G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 1));
+  var hp0 = z.hp;
+  G.weapons.boom(new THREE.Vector3(c.x, 0, c.z), 300, 4, 0x33ddff, { slow: 3 });
+  ok(z.hp < hp0, 'W.boom deals area damage');
+  ok(z.slowT > 0, "Widow's-style web slows a caught zombie");
+
+  // Electric Cherry fires its shock on reload without error
+  G.player.perks = []; G.player.addPerk('cherry');
+  G.weapons.giveWeapon('mp5k');
+  var g = G.weapons.current(); g.ammo = 2; g.reserve = 60;
+  G.weapons.startReload();
+  ok(G.weapons.reloading > 0, 'Electric Cherry reload fires its shock cleanly');
+
+  // PhD Slider perk is grantable and clears on down
+  G.player.addPerk('phd');
+  ok(G.player.hasPerk('phd') && G.player.hasPerk('cherry'), 'new perks are held');
+  G.player.losePerks();
+  ok(!G.player.hasPerk('phd') && G.player.perks.length === 0, 'perks clear on losePerks');
 }
 
 /* phone controller: feed the exact messages pad.html sends (no socket headless)

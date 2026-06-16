@@ -392,6 +392,23 @@
     }
   };
 
+  // area-of-effect damage (perks, shields, traps, bosses). Optionally slows
+  // (webs) survivors. Returns how many zombies were caught.
+  Z.aoe = function (pos, dmg, radius, opts) {
+    opts = opts || {};
+    var n = 0;
+    for (var i = Z.list.length - 1; i >= 0; i--) {
+      var z = Z.list[i];
+      if (z.dead) continue;
+      var d = Math.hypot(z.mesh.position.x - pos.x, z.mesh.position.z - pos.z);
+      if (d > radius) continue;
+      if (opts.slow) z.slowT = Math.max(z.slowT || 0, opts.slow);
+      Z.damageZombie(z, dmg, { boom: !!opts.boom });
+      n++;
+    }
+    return n;
+  };
+
   function makeCrawler(z) {
     z.crawler = true;
     z.speed = Math.max(0.7, z.speed * 0.45);
@@ -500,6 +517,7 @@
     dir.normalize();
     var sp = z.speed;
     if (z.isDog && d < 6) sp *= 1.35; // lunge burst
+    if (z.slowT > 0) sp *= 0.3;       // webbed (Widow's Wine) — crawl speed
     z.mesh.position.addScaledVector(dir, sp * dt);
     var sep = separation(z);
     z.mesh.position.addScaledVector(sep, dt * 4);
@@ -612,6 +630,7 @@
       z = Z.list[i];
       z.t += dt;
       z.attackCd -= dt;
+      if (z.slowT > 0) z.slowT -= dt;
       var moving = false;
 
       // failsafe: a zombie that hasn't moved for ~15s (and isn't busy at a

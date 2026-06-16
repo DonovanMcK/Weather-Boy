@@ -157,7 +157,7 @@
       { perk: 'jugg',   cell: [5, 8],  off: [0, 0] },
       { perk: 'speed',  cell: [1, 8],  off: [0, 0] },
       { perk: 'dtap',   cell: [14, 8], off: [0, 0] },
-      { perk: 'mule',   cell: [0, 3],  off: [0, 0] },
+      { perk: 'wonderfizz', cell: [0, 3],  off: [0, 0] },
       { perk: 'stamin', cell: [15, 3], off: [0, 0] }
     ],
     WALLBUYS: [
@@ -259,7 +259,7 @@
       { perk: 'speed',  cell: [1, 7],  off: [-1.0, 0] },
       { perk: 'dtap',   cell: [7, 1],  off: [0, -1.0] },
       { perk: 'stamin', cell: [2, 1],  off: [0, 0] },
-      { perk: 'mule',   cell: [13, 2], off: [0, 1.0] }
+      { perk: 'wonderfizz', cell: [13, 2], off: [0, 1.0] }
     ],
     WALLBUYS: [
       { gun: 'm14',      cell: [6, 13], off: [0, 1.6],  face: 'S' },
@@ -319,9 +319,17 @@
     speed:  { name: 'Speed Cola',   cost: 3000, color: 0x44ee66, icon: 'SC' },
     dtap:   { name: 'Double Tap II', cost: 2000, color: 0xffaa22, icon: 'DT' },
     stamin: { name: 'Stamin-Up',    cost: 2000, color: 0xeeee44, icon: 'SU' },
-    mule:   { name: 'Mule Kick',    cost: 4000, color: 0x44ff88, icon: 'MK' }
+    mule:   { name: 'Mule Kick',    cost: 4000, color: 0x44ff88, icon: 'MK' },
+    widows: { name: "Widow's Wine", cost: 4000, color: 0x8a2be2, icon: 'WW' },
+    phd:    { name: 'PhD Slider',   cost: 2000, color: 0xcc6a1f, icon: 'PhD' },
+    cherry: { name: 'Electric Cherry', cost: 2000, color: 0x33ddff, icon: 'EC' },
+    // Der Wunderfizz: a mystery-box-style perk vendor (not an ownable perk)
+    wonderfizz: { name: 'Der Wunderfizz', cost: 1500, color: 0xc59b3a, icon: '?', vendor: true }
   };
   CFG.MAX_PERKS = 4;
+  CFG.WONDERFIZZ_COST = 1500;
+  // perks the Wunderfizz can roll (everything ownable; vendor entries excluded)
+  CFG.FIZZ_POOL = ['revive', 'jugg', 'speed', 'dtap', 'stamin', 'mule', 'widows', 'phd', 'cherry'];
   CFG.QR_MAX_BUYS = 3;
 
   /* -------------------------------------------------------------- weapons */
