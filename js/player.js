@@ -250,9 +250,12 @@
     if (P.ads < 0.002 && !adsTarget) P.ads = 0;
 
     // sprint: holding fire or ADS ramps sprint out (sprint-out delay),
-    // releasing ramps it back in — BO3 auto-resume
+    // releasing ramps it back in — BO3 auto-resume.
+    // Normally you only sprint forward; Stamin-Up lets you sprint any direction
+    // (including backpedalling away from a horde).
     var sprintHeld = G.keys.ShiftLeft || (gp && gp.sprint) || (rc && rc.sprint);
-    var wantSprint = playing && sprintHeld && iz < 0 &&
+    var sprintDir = P.hasPerk('stamin') ? hasInput : (iz < 0);
+    var wantSprint = playing && sprintHeld && sprintDir &&
                      P.stance !== 'slide' && !crouchKey &&
                      adsTarget === 0 && !firing;
     if (wantSprint && P.stance === 'crouch') P.stance = 'stand';

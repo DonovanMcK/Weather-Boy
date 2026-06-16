@@ -206,8 +206,8 @@
     return v;
   }
 
-  function gunshot(p, papped, id) {
-    var boost = papped ? 1.15 : 1;
+  function gunshot(p, papped, id, dpap) {
+    var boost = papped ? 1.18 : 1;
     var v = gunVoice(id);
     noise({ dur: 0.012 * v.tight, hp: 2600 * v.bright, vol: 0.45, att: 0.001 });  // click
     noise({ dur: p.crackDur * v.tight, bp: p.crack * v.bright, q: 0.7, drive: 2.5,
@@ -217,7 +217,18 @@
     noise({ dur: p.boomDur * v.len, lp: p.boom * v.pitch, slide: 110, vol: p.boomVol * boost,
             send: 0.55 });                                                        // boom tail
     noise({ dur: 0.03, bp: 4200 * v.bright, q: 2, vol: 0.1, when: 0.05 });        // action
-    if (papped) tone({ type: 'sine', freq: 1500, to: 2400, dur: 0.08, vol: 0.05 });
+    if (papped) {
+      // energized PaP report: a charged sub-whump + an electric overtone over
+      // the normal crack so an upgraded gun reads as clearly more powerful
+      tone({ type: 'sawtooth', freq: 300 * v.pitch, to: 80, dur: 0.13 * v.len, vol: 0.17, send: 0.4, drive: 2 });
+      tone({ type: 'square', freq: 1650, to: 2700, dur: 0.07, vol: 0.08, send: 0.2 });
+      noise({ dur: 0.09, bp: 3300 * v.bright, q: 1.2, vol: 0.12, send: 0.3, when: 0.008 });
+    }
+    if (dpap) {
+      // double-pack adds a Dead-Wire electric snap
+      tone({ type: 'square', freq: 2500, to: 560, dur: 0.1, vol: 0.13, send: 0.45, drive: 1.5 });
+      noise({ dur: 0.12, bp: 5200, q: 3, vol: 0.1, send: 0.4, when: 0.01 });
+    }
   }
 
   /* -------------------------------------------------------------- growls */
@@ -292,8 +303,11 @@
       return muted;
     },
 
-    shoot: function (cls, papped, id) {
+    shoot: function (cls, papped, id, dpap) {
       if (!ctx) return;
+      // a drop-in sound pack can override per gun (shoot_<id>) or per class
+      // (shoot_<cls>); falls back to procedural synthesis when no file is present
+      if (id && playSample('shoot_' + id, 0.8, 0.05)) return;
       if (playSample('shoot_' + cls, 0.8, 0.05)) return;
       if (cls === 'raygun') {
         tone({ type: 'sawtooth', freq: 880, to: 140, dur: 0.22, vol: 0.3, send: 0.4, drive: 2 });
@@ -311,7 +325,7 @@
         noise({ dur: 0.5, lp: 800, slide: 150, vol: 0.4, send: 0.5 });
         return;
       }
-      gunshot(SHOT[cls] || SHOT.rifle, papped, id);
+      gunshot(SHOT[cls] || SHOT.rifle, papped, id, dpap);
     },
     dryFire: function () { noise({ dur: 0.025, bp: 2800, q: 2, vol: 0.18 }); },
     reload: function () {

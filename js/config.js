@@ -310,6 +310,7 @@
   CFG.TELE_LINK_WINDOW = 30;
   CFG.TELE_USE_COST = 500;
   CFG.PAP_COST = 5000;
+  CFG.DPAP_COST = 2500;   // re-Pack-a-Punch an upgraded gun for the Dead-Wire tier
 
   /* ---------------------------------------------------------------- perks */
   CFG.PERKS = {
@@ -334,8 +335,8 @@
     m1911: {
       name: 'M1911', cls: 'pistol', dmg: 25, head: 4, rpm: 360, mag: 8,
       reserve: 32, reload: 1.4, mode: 'semi', spread: 1.6,
-      pap: { name: 'Mustang & Sally', dmg: 900, mag: 6, reserve: 36,
-             projectile: 'rocket', rpm: 200, spread: 0.5 }
+      pap: { name: 'Mustang & Sally', dmg: 900, mag: 12, reserve: 72,
+             projectile: 'rocket', rpm: 200, spread: 0.5, akimbo: true }
     },
     makarov: {
       name: 'Makarov', cls: 'pistol', dmg: 30, head: 4, rpm: 320, mag: 8,
@@ -346,7 +347,7 @@
       name: 'Python', cls: 'pistol', dmg: 150, head: 4, rpm: 240, mag: 6,
       reserve: 84, reload: 2.2, mode: 'semi', spread: 1.0, box: 1,
       vm: { mag: 'cyl', len: 1.4 },
-      pap: { name: 'Cobra', dmg: 350, mag: 12, reserve: 96 }
+      pap: { name: 'Cobra', dmg: 350, mag: 12, reserve: 96, akimbo: true }
     },
     cz75: {
       name: 'CZ75', cls: 'pistol', dmg: 40, head: 3, rpm: 750, mag: 15,
@@ -384,7 +385,7 @@
       name: 'MP40', cls: 'smg', dmg: 70, head: 3, rpm: 520, mag: 32,
       reserve: 192, reload: 2.1, mode: 'auto', spread: 2.4, wall: 1000,
       vm: { mag: 'straight', magLen: 1.4, col: 0x3d3a33 },
-      pap: { name: 'The Afterburner', dmg: 140, mag: 64, reserve: 256 }
+      pap: { name: 'The Afterburner', dmg: 140, mag: 64, reserve: 256, akimbo: true }
     },
     ak74u: {
       name: 'AK-74u', cls: 'smg', dmg: 90, head: 3, rpm: 700, mag: 20,
@@ -463,7 +464,7 @@
       name: 'M14', cls: 'rifle', dmg: 150, head: 2.5, rpm: 300, mag: 8,
       reserve: 96, reload: 1.9, mode: 'semi', spread: 0.9, wall: 500,
       vm: { wood: 1 },
-      pap: { name: 'Mnesia', dmg: 300, mag: 16, reserve: 192 }
+      pap: { name: 'Mnesia', dmg: 320, mag: 24, reserve: 240, mode: 'burst', burst: 3, rpm: 420 }
     },
     m16: {
       name: 'M16', cls: 'rifle', dmg: 90, head: 3, rpm: 460, mag: 30,
@@ -480,7 +481,7 @@
       name: 'Galil', cls: 'rifle', dmg: 110, head: 2.8, rpm: 750, mag: 35,
       reserve: 315, reload: 2.3, mode: 'auto', spread: 1.8, box: 1,
       vm: { mag: 'curved', wood: 1 },
-      pap: { name: 'Lamentation', dmg: 100, mag: 35, reserve: 490 }
+      pap: { name: 'Lamentation', dmg: 230, mag: 50, reserve: 490 }
     },
     famas: {
       name: 'FAMAS', cls: 'rifle', dmg: 90, head: 2.8, rpm: 900, mag: 30,

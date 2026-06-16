@@ -20,6 +20,15 @@ game will use them automatically — no code changes.
   "shoot_lmg": "lmg.wav",
   "shoot_minigun": "minigun.wav",
   "shoot_launcher": "launcher.wav",
+
+  "shoot_raygun": "raygun.wav",
+  "shoot_ak74u": "ak74u.wav",
+
+  "growl2": "zombie_growl_2.wav",
+  "growl3": "zombie_growl_3.wav",
+  "scream": "zombie_scream.wav",
+  "death": "zombie_death.wav",
+
   "reload": "reload.wav",
   "explosion": "explosion.wav",
   "perk": "perk_jingle.wav",
@@ -28,9 +37,17 @@ game will use them automatically — no code changes.
 }
 ```
 
+**Per-gun override:** `shoot_<weaponId>` (e.g. `shoot_raygun`, `shoot_ak74u`,
+`shoot_python`) is tried before the per-class `shoot_<cls>` key, so you can give
+individual guns their own report. Weapon ids are the keys in `CFG.WEAPONS`
+(config.js).
+
 Missing keys silently fall back to the synthesizer. Note: this requires
-serving the game over http (`python3 -m http.server`) — browsers block
-`fetch()` on `file://` pages, where the synth is always used.
+serving the game over http (`node server.js`, or `python3 -m http.server`) —
+browsers block `fetch()` on `file://` pages, where the synth is always used.
 
 We can't bundle actual Call of Duty audio — those files are Activision's
-copyrighted assets — so use sounds you have the rights to.
+copyrighted assets, and that's true of "replica"/ripped copies from YouTube,
+Reddit, etc. too (still Activision's IP). Use sounds you have the rights to
+(royalty-free SFX packs, ones you recorded/made, or your own legally-obtained
+files) and the game will pick them up automatically.

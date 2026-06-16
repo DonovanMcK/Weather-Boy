@@ -185,19 +185,21 @@
         if (I.papBusy) return null;
         var gun = G.weapons.current();
         if (!gun) return null;
-        if (gun.papped) return CFG.WEAPONS[gun.id].pap.name + ' is already upgraded';
+        if (gun.dpap) return CFG.WEAPONS[gun.id].pap.name + ' is fully upgraded';
+        if (gun.papped) return 'Double Pack-a-Punch ' + CFG.WEAPONS[gun.id].pap.name + ' — ' + CFG.DPAP_COST;
         return 'Pack-a-Punch ' + CFG.WEAPONS[gun.id].name + ' — ' + CFG.PAP_COST;
       },
       use: function () {
         if (!map.pap.unlocked || I.papBusy) { G.audio.deny(); return; }
         var gun = G.weapons.current();
-        if (!gun || gun.papped) { G.audio.deny(); return; }
-        if (!G.player.spend(CFG.PAP_COST)) return;
+        if (!gun || gun.dpap) { G.audio.deny(); return; }
+        var dbl = gun.papped;                      // second pass = double-pack
+        if (!G.player.spend(dbl ? CFG.DPAP_COST : CFG.PAP_COST)) return;
         I.papBusy = true;
         G.player.locked = true;
         G.audio.papChug();
         if (gun.model) { gun.model.userData.show = false; gun.model.visible = false; }
-        G.hud.banner('UPGRADING...', '#fb5', 2);
+        G.hud.banner(dbl ? 'DOUBLE-PACKING...' : 'UPGRADING...', '#fb5', 2);
         setTimeout(function () {
           G.player.locked = false;
           I.papBusy = false;
@@ -205,7 +207,8 @@
           G.weapons.papCurrent();
           var s = G.weapons.stats(G.weapons.current());
           G.audio.perkJingle();
-          G.hud.banner(s.name, '#fb5', 2.5, 'Upgraded — engraved with storm camo');
+          G.hud.banner(s.name, '#fb5', 2.5,
+            dbl ? 'Double-packed — Dead Wire electric rounds' : 'Upgraded — engraved with storm camo');
         }, 3500);
       }
     });

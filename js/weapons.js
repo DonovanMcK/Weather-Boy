@@ -13,6 +13,7 @@
     slots: [], cur: 0, maxSlots: 2,
     reloading: 0, switching: 0, knifing: 0, fireCd: 0,
     mouseDown: false, semiLatch: false, adsHeld: false,
+    burstQueue: 0, burstCd: 0,
     projectiles: [], tracers: [], flashes: [], vortices: [], particles: [],
     vmRoot: null, muzzle: null, camoTex: null
   };
@@ -348,6 +349,11 @@
       s.reserve = Math.round(s.reserve * 2);
       Object.keys(base.pap).forEach(function (k) { s[k] = base.pap[k]; });
     }
+    if (gun.dpap) {
+      // Double Pack-a-Punch: harder hits + a Dead-Wire electric proc (in fire)
+      s.dmg = Math.round(s.dmg * 1.6);
+      s.name = s.name + ' II';
+    }
     if (G.player.hasPerk('dtap')) { s.dmg *= 2; s.rpm *= 1.33; }
     return s;
   };
@@ -359,7 +365,7 @@
 
   W.giveWeapon = function (id) {
     var base = CFG.WEAPONS[id];
-    var gun = { id: id, papped: false, ammo: base.mag, reserve: base.reserve, model: null };
+    var gun = { id: id, papped: false, dpap: false, ammo: base.mag, reserve: base.reserve, model: null };
     if (W.slots.length < W.maxSlots) {
       W.slots.push(gun);
       W.equip(W.slots.length - 1, true);
@@ -394,10 +400,13 @@
     W.equip((W.cur + dir + W.slots.length) % W.slots.length);
   };
 
+  // first call upgrades to PaP; a second call double-packs (Dead Wire tier)
   W.papCurrent = function () {
     var gun = W.current();
-    if (!gun || gun.papped) return false;
-    gun.papped = true;
+    if (!gun) return false;
+    if (!gun.papped) gun.papped = true;
+    else if (!gun.dpap) gun.dpap = true;
+    else return false;
     var s = W.stats(gun);
     gun.ammo = s.mag;
     gun.reserve = s.reserve;
@@ -496,6 +505,8 @@
     }
     _ray.set(G.camera.position, _dir);
     _ray.far = isKnife ? 2.3 : 120;
+    var curGun = W.current();
+    var dpap = !isKnife && curGun && curGun.dpap;
     var targets = G.zombies.shootables().concat(G.map.solidMeshes);
     var hits = _ray.intersectObjects(targets, false);
     var end = G.camera.position.clone().addScaledVector(_dir, 60);
@@ -513,11 +524,32 @@
       G.hud.hitmarker();
       W.blood(hit.point, isHead ? 7 : 4);
       G.zombies.damageZombie(z, d, { head: isHead, knife: isKnife });
+      if (dpap && Math.random() < 0.3) deadWire(z, d);   // electric arc proc
       hitAny = true; end = hit.point;
       if (++struck >= pierce) break;                // round absorbed
     }
     if (!isKnife) spawnTracer(end);
     return hitAny;
+  }
+
+  // Dead Wire: a double-packed round chains electricity to nearby zombies
+  function deadWire(from, d) {
+    var origin = from.mesh.position;
+    var near = [];
+    for (var i = 0; i < G.zombies.list.length; i++) {
+      var zz = G.zombies.list[i];
+      if (zz === from || zz.dead) continue;
+      var dist = zz.mesh.position.distanceTo(origin);
+      if (dist < 5.0) near.push({ z: zz, dist: dist });
+    }
+    near.sort(function (a, b) { return a.dist - b.dist; });
+    var a0 = origin.clone(); a0.y += 1.1;
+    for (var k = 0; k < near.length && k < 3; k++) {
+      var b0 = near[k].z.mesh.position.clone(); b0.y += 1.1;
+      addLine(a0, b0, 0x9fe8ff, 0.13, 0.95);
+      G.zombies.damageZombie(near[k].z, d, { boom: false });
+    }
+    if (near.length) G.audio.hitmark(false);
   }
 
   function addLine(a, b, color, life, opacity) {
@@ -554,13 +586,20 @@
     }
     gun.ammo--;
     W.fireCd = 60 / s.rpm;
-    G.audio.shoot(s.cls, gun.papped, gun.id);
+    G.audio.shoot(s.cls, gun.papped, gun.id, gun.dpap);
     muzzleFlash();
     var heavy = s.cls === 'shotgun' || s.cls === 'thunder' || s.cls === 'sniper' || s.cls === 'launcher';
     G.player.kick(heavy ? 1.6 : 0.45);
     if (gun.model) gun.model.position.z = heavy ? 0.1 : 0.06;
     G.hud.setAmmo();
 
+    // akimbo (e.g. PaP'd Mustang & Sally) discharges both barrels on one trigger
+    var barrels = s.akimbo ? 2 : 1;
+    for (var b = 0; b < barrels; b++) discharge(gun, s);
+  }
+
+  // one barrel's worth of output: routes to the right projectile/hitscan path
+  function discharge(gun, s) {
     if (s.projectile === 'wind') { fireThunder(); return; }
     if (s.projectile === 'chain') { fireWunderwaffe(s); return; }
     if (s.projectile === 'storm') { spawnProjectile('storm', s); return; }
@@ -899,16 +938,29 @@
       if (W.reloading <= 0) finishReload();
     }
 
+    // burst processor: drives the extra rounds of a PaP burst weapon, spaced
+    // tighter than the base fire rate and independent of the trigger
+    var canShoot = G.state === 'playing' && !G.player.downed && !G.player.locked &&
+                   gun && W.reloading <= 0 && W.switching <= 0 && W.knifing <= 0;
+    if (W.burstQueue > 0) {
+      W.burstCd -= dt;
+      if (W.burstCd <= 0 && canShoot) {
+        if (gun.ammo > 0) { fire(); W.burstQueue--; W.burstCd = 0.075; }
+        else W.burstQueue = 0;
+      }
+    }
+
     // trigger (mouse OR gamepad RT; sprint must ramp out first — sprint-out delay)
     var firing = W.mouseDown || (G.gamepad && G.gamepad.fire) || (G.remote && G.remote.fire);
-    if (G.state === 'playing' && !G.player.downed && !G.player.locked &&
-        G.player.sprintAmt < 0.45 &&
-        gun && W.reloading <= 0 && W.switching <= 0 && W.knifing <= 0 && W.fireCd <= 0) {
+    if (canShoot && G.player.sprintAmt < 0.45 && W.fireCd <= 0 && W.burstQueue <= 0) {
       var s = CFG.WEAPONS[gun.id];
-      var auto = (gun.papped && s.pap.mode === 'auto') || s.mode === 'auto';
+      var papOv = gun.papped ? s.pap : null;
+      var mode = (papOv && papOv.mode) || s.mode;
+      var auto = mode === 'auto';
       if (firing && (auto || !W.semiLatch)) {
         W.semiLatch = true;
-        fire();
+        if (mode === 'burst') { W.burstQueue = (papOv && papOv.burst) || s.burst || 3; W.burstCd = 0; }
+        else fire();
       }
     }
     if (!firing) W.semiLatch = false;
