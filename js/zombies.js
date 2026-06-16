@@ -239,8 +239,12 @@
     var roundBump = Math.min(1.1, Z.round * 0.045); // rounds get progressively faster
     z.speed = (sprint ? 3.4 + Math.random() * 0.9 : 1.5 + Math.random() * 0.8) + roundBump;
     z.mesh = buildZombieMesh(z);
-    // from round 6 on, an occasional armored heavy joins the horde
-    if (Z.round >= 6 && Math.random() < Math.min(0.2, 0.06 + Z.round * 0.007)) {
+    // from round 6 on, the OCCASIONAL armored heavy joins — kept rare (a low
+    // per-spawn chance) and capped at a few alive at once so they never swarm
+    var armoredAlive = 0;
+    for (var ai = 0; ai < Z.list.length; ai++) if (Z.list[ai].armored && !Z.list[ai].dead) armoredAlive++;
+    if (Z.round >= 6 && armoredAlive < 3 &&
+        Math.random() < Math.min(0.1, 0.03 + Z.round * 0.004)) {
       z.hp = Math.round(z.hp * 1.25);
       z.speed *= 0.9;
       addArmor(z);
