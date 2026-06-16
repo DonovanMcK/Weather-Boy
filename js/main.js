@@ -51,7 +51,7 @@
 
     G.scene = new THREE.Scene();
     G.scene.background = new THREE.Color(0x0c1018);
-    G.scene.fog = new THREE.FogExp2(0x0e1320, 0.02);
+    G.scene.fog = new THREE.FogExp2(0x0e1320, 0);   // fog disabled (player preference)
 
     G.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 300);
     G.scene.add(G.camera);

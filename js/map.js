@@ -462,7 +462,7 @@
     var atmos = CFG.cur.atmos;
     G.scene.background = new THREE.Color(atmos.sky);
     G.scene.fog.color.setHex(atmos.fog);
-    G.scene.fog.density = atmos.density;
+    G.scene.fog.density = 0;   // no distance fog (player preference) — clear air
     G.hemi.intensity = 0.65;
     if (G.amb) G.amb.intensity = 0.5;
 
@@ -1291,6 +1291,23 @@
       }
     }
     map.cellHeights = ch;
+
+    // --- points of interest: floating landmark labels so the big vertical map
+    //     reads at a glance (teleporters, mainframe, Pack-a-Punch)
+    map.pois = [];
+    function poi(pos, text, y) {
+      if (!pos) return;
+      var sp = textSprite(text, '#ffd27a', 2.4);
+      sp.position.set(pos.x, (pos.y || 0) + (y || 2.7), pos.z);
+      sp.userData.poi = true;
+      G.scene.add(sp);
+      map.pois.push({ pos: pos, text: text, sprite: sp });
+    }
+    if (CFG.cur.id === 'derriese') {
+      map.teleporters.forEach(function (t) { poi(t.pos, 'TELEPORTER ' + t.id, 2.9); });
+      if (map.mainframe) poi(map.mainframe.pos, 'MAINFRAME', 2.6);
+      poi(map.pap.pos, 'PACK-A-PUNCH', 2.6);
+    }
 
     map.recomputeReachable();
   };

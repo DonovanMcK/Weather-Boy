@@ -124,13 +124,13 @@
       '.....SSSSSS.....'
     ],
     ROOMS: {
-      S: { name: 'Spawn',              floor: 0x33352e, light: 0x99aa88 },
-      C: { name: 'Mainframe Courtyard', floor: 0x36382f, light: 0xa8b890 },
-      L: { name: 'Animal Lab',         floor: 0x2e3640, light: 0x66bbcc },
-      F: { name: 'Furnace',            floor: 0x3b2c24, light: 0xff7733 },
-      G: { name: 'Garage',             floor: 0x30322e, light: 0x88aa99 },
-      T: { name: 'West Catwalk',       floor: 0x2f3338, light: 0x7788aa },
-      P: { name: 'East Catwalk',       floor: 0x33302f, light: 0xaa9977 }
+      S: { name: 'Spawn',                  floor: 0x33352e, light: 0x99aa88 },
+      C: { name: 'Teleporter-C Courtyard', floor: 0x36382f, light: 0xa8b890 },
+      L: { name: 'Animal Testing',         floor: 0x2e3640, light: 0x66bbcc },
+      F: { name: 'Furnace Room',           floor: 0x3b2c24, light: 0xff7733 },
+      G: { name: 'Auto Garage',            floor: 0x30322e, light: 0x88aa99 },
+      T: { name: 'West Catwalk',           floor: 0x2f3338, light: 0x7788aa },
+      P: { name: 'East Catwalk',           floor: 0x33302f, light: 0xaa9977 }
     },
     DOORS: {
       1: { cost: 750,  name: 'Mainframe Courtyard' },
