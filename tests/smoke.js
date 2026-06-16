@@ -844,6 +844,7 @@ function testSimpleAim(ctx) {
   ctx.step(2);
   // ~4.5 degrees off the crosshair — would miss without assist
   var z = G.zombies.spawnAt(new THREE.Vector3(c.x + 0.35, 0, c.z - 4.4));
+  z.speed = 0;   // hold still for the magnetism aim test
   ctx.step(2);
   G.weapons.equip(0, true); // M1911
   var gun = G.weapons.current();
@@ -927,11 +928,17 @@ async function runFull(mapId) {
     ok(G.player.points > pointsBefore, 'points awarded');
   }
 
-  /* barricade repair */
+  /* barricade repair (freeze the horde so nothing tears it mid-rebuild) */
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+  G.zombies.toSpawn = 0; G.zombies.mode = 'break'; G.zombies.breakTimer = 999;
+  step(20);
   var brokenWin = G.map.windows.filter(function (w) { return w.boards < 6; })[0];
   if (brokenWin) {
     var boardsBefore = brokenWin.boards;
     moveTo(brokenWin.inside);
+    // face the barrier — the repair prompt is look-gated
+    G.player.yaw = Math.atan2(-(brokenWin.outside.x - G.player.pos.x), -(brokenWin.outside.z - G.player.pos.z));
+    step(2);
     G.keys.KeyF = true;
     step(60 * 3);
     G.keys.KeyF = false;

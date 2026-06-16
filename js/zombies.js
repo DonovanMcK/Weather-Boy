@@ -195,6 +195,8 @@
   /* ------------------------------------------------------------ spawning */
   function pickWindow() {
     var pool = [];
+    // zombies come from the barriers (windows) — i.e. from OUTSIDE the play
+    // space — wherever a reachable one exists
     G.map.windows.forEach(function (w) {
       if (!G.map.reachableRooms[w.room]) return;
       var d = w.pos.distanceTo(G.player.pos);
@@ -202,10 +204,19 @@
       if (w.boards <= BREAK_GAP) weight *= 2.5;   // funnel through already-open holes
       pool.push({ w: w, weight: weight });
     });
-    var playerRoom = G.map.roomAt(G.player.pos.x, G.player.pos.z);
-    (G.map.risers || []).forEach(function (rs) {
-      if (rs.room === playerRoom) pool.push({ riser: rs.pos, weight: 0.8 });
-    });
+    // ground risers are a FALLBACK ONLY: used when the player is somewhere with
+    // no reachable window to feed from (otherwise zombies always come from the
+    // barriers, never out of the middle of the floor)
+    if (pool.length === 0) {
+      var playerRoom = G.map.roomAt(G.player.pos.x, G.player.pos.z);
+      (G.map.risers || []).forEach(function (rs) {
+        if (rs.room === playerRoom) pool.push({ riser: rs.pos, weight: 1 });
+      });
+      if (pool.length === 0) (G.map.risers || []).forEach(function (rs) { pool.push({ riser: rs.pos, weight: 1 }); });
+    }
+    // last resort: any window at all, so a round can never stall for lack of a spot
+    if (pool.length === 0) G.map.windows.forEach(function (w) { pool.push({ w: w, weight: 1 }); });
+    if (pool.length === 0) return null;
     var total = 0;
     pool.forEach(function (p) { total += p.weight; });
     var pick = Math.random() * total;
@@ -229,6 +240,7 @@
     z.speed = (sprint ? 3.4 + Math.random() * 0.9 : 1.5 + Math.random() * 0.8) + roundBump;
     z.mesh = buildZombieMesh(z);
     var spot = pickWindow();
+    if (!spot) return;
     if (spot.riser) {
       z.mesh.position.copy(spot.riser);
       z.mesh.position.x += (Math.random() - 0.5) * 2;
