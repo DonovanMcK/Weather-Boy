@@ -370,7 +370,7 @@ function testVerticality(ctx) {
   ok(G.map.perkMachines.some(function (m) { return m.perk === 'wonderfizz'; }), 'Der Wunderfizz machine present');
   ok(!G.map.perkMachines.some(function (m) { return m.perk === 'mule'; }), 'Mule Kick machine removed');
 
-  ok(G.map.stages && G.map.stages.length > 0, 'Der Riese has a raised catwalk');
+  ok(G.map.stages && G.map.stages.length >= 2, 'Der Riese has a two-walkway north gallery');
   var S = G.map.stages[0];
   ok(S.deckTop > 1.5, 'catwalk deck is elevated (' + S.deckTop.toFixed(1) + 'm)');
   ok(G.map.supportAt(S.deckCenter.x, S.deckCenter.z, 9, 9) > 1.5, 'deck reports a raised support height');

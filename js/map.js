@@ -643,13 +643,19 @@
     map.stages = [];
     var stageSpecs = [];
     if (CFG.cur.id === 'derriese') {
-      // a sniper catwalk against the Mainframe Courtyard's north wall, reached
-      // by a staircase the undead have to climb to get at you
-      var deck = { x1: xW(4) - CELL / 2, x2: xW(6) + CELL / 2,
-                   z1: zW(5) - CELL / 2, z2: zW(5) + CELL / 2, h: 2.2,
-                   railW: true, railE: true, railN: true };
-      deck.stairs = { x1: deck.x1, x2: deck.x2, zTop: deck.z2, zBase: zW(7) + CELL / 2, steps: 6 };
-      stageSpecs.push(deck);
+      // an upstairs gallery along the Mainframe Courtyard's north wall — two
+      // raised walkways flanking the garage doorway (cols 7-8 left open), each
+      // reached by a staircase the undead must climb. Reads as the real map's
+      // upper catwalks instead of one slab in the middle.
+      var westDeck = { x1: xW(4) - CELL / 2, x2: xW(6) + CELL / 2,
+                       z1: zW(5) - CELL / 2, z2: zW(5) + CELL / 2, h: 2.2,
+                       railW: true, railE: true, railN: true };
+      westDeck.stairs = { x1: westDeck.x1, x2: westDeck.x2, zTop: westDeck.z2, zBase: zW(7) + CELL / 2, steps: 6 };
+      var eastDeck = { x1: xW(9) - CELL / 2, x2: xW(11) + CELL / 2,
+                       z1: zW(5) - CELL / 2, z2: zW(5) + CELL / 2, h: 2.2,
+                       railW: true, railE: true, railN: true };
+      eastDeck.stairs = { x1: eastDeck.x1, x2: eastDeck.x2, zTop: eastDeck.z2, zBase: zW(7) + CELL / 2, steps: 6 };
+      stageSpecs.push(westDeck, eastDeck);
     }
     // reserve the footprint (deck + stairs cells) so machines avoid it
     stageSpecs.forEach(function (s) {
