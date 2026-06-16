@@ -400,9 +400,10 @@
     W.equip((W.cur + dir + W.slots.length) % W.slots.length);
   };
 
-  // first call upgrades to PaP; a second call double-packs (Dead Wire tier)
-  W.papCurrent = function () {
-    var gun = W.current();
+  // first call upgrades to PaP; a second call double-packs (Dead Wire tier).
+  // Works on any gun still in the loadout (the PaP grab-offer may resolve after
+  // you've moved away or switched weapons).
+  W.papGun = function (gun) {
     if (!gun) return false;
     if (!gun.papped) gun.papped = true;
     else if (!gun.dpap) gun.dpap = true;
@@ -410,9 +411,10 @@
     var s = W.stats(gun);
     gun.ammo = s.mag;
     gun.reserve = s.reserve;
-    W.equip(W.cur, true);
+    if (gun === W.current()) W.equip(W.cur, true);
     return true;
   };
+  W.papCurrent = function () { return W.papGun(W.current()); };
 
   W.maxAmmo = function () {
     W.slots.forEach(function (gun) {

@@ -841,14 +841,23 @@ async function runFull(mapId) {
     ok(G.player.pos.distanceTo(G.map.mainframe.pos) < 4, 'teleported to mainframe');
   }
 
-  /* pack-a-punch */
+  /* pack-a-punch — start the upgrade (you stay mobile), then grab it */
   G.weapons.equip(0, true);
   useAt(ctx, G.map.pap.pos);
-  ok(G.player.locked, 'PaP machine took the gun');
-  await sleep(3700);
-  step(5);
-  ok(G.weapons.slots[0].papped, 'gun came back Pack-a-Punched');
+  ok(G.interact.pap.packT > 0, 'PaP machine started cooking the gun');
+  ok(!G.player.locked, 'player can still move while the gun cooks');
+  step(240);                                   // ~3.8s of cook time
+  ok(G.interact.pap.ready === G.weapons.slots[0], 'upgraded gun offered at the machine');
+  useAt(ctx, G.map.pap.pos);                    // grab it before it fades back
+  ok(G.weapons.slots[0].papped, 'gun came back Pack-a-Punched after grabbing it');
   ok(G.weapons.stats(G.weapons.slots[0]).name === 'Mustang & Sally', 'M1911 became Mustang & Sally');
+
+  // ignore the offer too long and it fades back into the machine (no upgrade)
+  useAt(ctx, G.map.pap.pos);                    // start a double-pack
+  step(240);
+  ok(G.interact.pap.ready, 'double-pack offered at the machine');
+  step(60 * 13);                                // wait out the ~12s grab window
+  ok(!G.interact.pap.ready && !G.weapons.slots[0].dpap, 'unclaimed upgrade fades back in');
 
   /* mystery box */
   var spot = G.map.boxSpots[G.interact.box.spotIdx];

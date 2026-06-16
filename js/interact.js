@@ -215,7 +215,8 @@
             ? 'Pack-a-Punch — turn on the power'
             : 'Pack-a-Punch — link all 3 teleporters';
         }
-        if (I.papBusy) return null;
+        if (I.pap.ready) return 'Take ' + I.pap.name + ' (' + Math.ceil(I.pap.grabT) + 's)';
+        if (I.pap.packT > 0) return 'Upgrading…';
         var gun = G.weapons.current();
         if (!gun) return null;
         if (gun.dpap) return CFG.WEAPONS[gun.id].pap.name + ' is fully upgraded';
@@ -223,28 +224,36 @@
         return 'Pack-a-Punch ' + CFG.WEAPONS[gun.id].name + ' — ' + CFG.PAP_COST;
       },
       use: function () {
-        if (!map.pap.unlocked || I.papBusy) { G.audio.deny(); return; }
+        if (!map.pap.unlocked) { G.audio.deny(); return; }
+        // collect a finished upgrade (grab it before it fades back in)
+        if (I.pap.ready) {
+          var collected = G.weapons.slots.indexOf(I.pap.ready) >= 0 && G.weapons.papGun(I.pap.ready);
+          if (collected) {
+            G.audio.perkJingle();
+            G.hud.banner(I.pap.name, '#fb5', 2.5,
+              I.pap.dbl ? 'Double-packed — Dead Wire electric rounds' : 'Upgraded — storm camo');
+          }
+          clearPapOffer();
+          return;
+        }
+        if (I.pap.packT > 0) { G.audio.deny(); return; }   // still in the machine
         var gun = G.weapons.current();
         if (!gun || gun.dpap) { G.audio.deny(); return; }
-        var dbl = gun.papped;                      // second pass = double-pack
+        var dbl = gun.papped;                              // second pass = double-pack
         if (!G.player.spend(dbl ? CFG.DPAP_COST : CFG.PAP_COST)) return;
-        I.papBusy = true;
-        G.player.locked = true;
         G.audio.papChug();
-        if (gun.model) { gun.model.userData.show = false; gun.model.visible = false; }
-        G.hud.banner(dbl ? 'DOUBLE-PACKING...' : 'UPGRADING...', '#fb5', 2);
-        setTimeout(function () {
-          G.player.locked = false;
-          I.papBusy = false;
-          if (G.state !== 'playing') return;
-          G.weapons.papCurrent();
-          var s = G.weapons.stats(G.weapons.current());
-          G.audio.perkJingle();
-          G.hud.banner(s.name, '#fb5', 2.5,
-            dbl ? 'Double-packed — Dead Wire electric rounds' : 'Upgraded — engraved with storm camo');
-        }, 3500);
+        // you keep moving (and firing) while it cooks — no lock
+        I.pap.packT = 3.5;
+        I.pap.pending = gun;
+        I.pap.dbl = dbl;
+        I.pap.name = CFG.WEAPONS[gun.id].pap.name + (dbl ? ' II' : '');
+        G.hud.banner(dbl ? 'DOUBLE-PACKING…' : 'UPGRADING…', '#fb5', 2, 'Grab it from the machine');
       }
     });
+
+    // pack-a-punch grab-offer state (you can move while it cooks; grab the
+    // upgraded gun before it fades back into the machine)
+    I.pap = { packT: 0, grabT: 0, pending: null, ready: null, dbl: false, name: '', sprite: null };
 
     // mystery box
     I.box = {
@@ -464,8 +473,35 @@
   };
 
   /* --------------------------------------------------------------- update */
+  function clearPapOffer() {
+    if (I.pap.sprite) { G.scene.remove(I.pap.sprite); I.pap.sprite = null; }
+    I.pap.packT = 0; I.pap.grabT = 0; I.pap.pending = null; I.pap.ready = null;
+  }
+
   I.update = function (dt) {
     if (G.state !== 'playing') { G.player.consumeInteract(); return; }
+
+    // pack-a-punch: cook the gun (you're free to move), then float the upgraded
+    // gun at the machine for a grab window before it fades back in
+    if (I.pap.packT > 0) {
+      I.pap.packT -= dt;
+      if (I.pap.packT <= 0 && I.pap.pending) {
+        I.pap.ready = I.pap.pending;
+        I.pap.pending = null;
+        I.pap.grabT = 12;
+        I.pap.sprite = G.util.textSprite(I.pap.name, '#ffd76e', 3.0);
+        I.pap.sprite.position.set(G.map.pap.pos.x, 1.9, G.map.pap.pos.z);
+        G.scene.add(I.pap.sprite);
+        G.audio.perkJingle();
+      }
+    } else if (I.pap.ready) {
+      I.pap.grabT -= dt;
+      if (I.pap.sprite) I.pap.sprite.position.y = 1.9 + Math.sin(G.time * 2) * 0.12;
+      if (I.pap.grabT <= 0) {
+        clearPapOffer();
+        G.hud.banner('Upgrade faded back', '#b86', 1.6, 'Too slow — points lost');
+      }
+    }
 
     // teleporter link countdowns
     G.map.teleporters.forEach(function (t) {
