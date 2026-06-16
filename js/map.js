@@ -397,6 +397,13 @@
       // keep the sky dome centered on the camera so its far side never crosses
       // the far clip plane (otherwise looking up clips a black hole in the sky)
       if (this.sky && G.camera) this.sky.position.copy(G.camera.position);
+      // storm-station ambience: sweep the radar dish, blink the comms beacon
+      if (this.radar) this.radar.rotation.y += dt * 0.6;
+      if (this.beacon) {
+        var on = Math.sin(G.time * 3) > 0;
+        this.beacon.material.emissiveIntensity = on ? 1.1 : 0.25;
+        if (this.beaconLight) this.beaconLight.intensity = on ? 0.8 : 0.1;
+      }
       Object.keys(this.doors).forEach(function (id) {
         var d = self.doors[id];
         if (d.open && d.anim !== undefined && d.anim < 1) {
@@ -699,6 +706,17 @@
       var northDeck = { x1: xW(3) - CELL / 2, x2: xW(12) + CELL / 2,
                         z1: zW(5) - CELL / 2, z2: zW(5) + CELL / 2, h: H, thin: true, railS: true };
       stageSpecs.push(westDeck, eastDeck, northDeck);
+    }
+    if (CFG.cur.id === 'wetterjunge') {
+      // not every upstairs is a catwalk — this is a full enclosed LOFT ROOM
+      // above the Storage room's north half (its own walls + vibe), reached by a
+      // staircase on the far east side, clear of the doorways. Thin floor keeps
+      // the room below fully walkable.
+      var loft = { x1: xW(11) - CELL / 2, x2: xW(14) + CELL / 2,
+                   z1: zW(5) - CELL / 2, z2: zW(6) + CELL / 2, h: 3.4, thin: true, walls: true,
+                   railN: true, railW: true, railE: true, railS: true };
+      loft.stairs = { x1: xW(14) - CELL / 2, x2: xW(14) + CELL / 2, zTop: loft.z2, zBase: zW(8), steps: 8 };
+      stageSpecs.push(loft);
     }
     // reserve the deck and stair footprints (separately, so we don't over-claim
     // the whole bounding box) — machines steer clear of the structure
@@ -1222,11 +1240,14 @@
        [s.x1 + 0.3, s.z2 - 0.3], [s.x2 - 0.3, s.z2 - 0.3]].forEach(function (p) {
         addBox(0.22, H, 0.22, p[0], H / 2, p[1], railMat);       // support posts (decorative)
       });
-      // waist-high railings (you can walk under them at ground level)
+      // edge barriers: waist-high railings (open balcony) OR full walls (an
+      // enclosed upper ROOM) — both clear the ground beneath, so you walk under
+      var rh = s.walls ? 2.9 : 1.0;
+      var rmat = s.walls ? G.mats.wallA : railMat;
       function rail(x1, z1, x2, z2) {
-        addBox(Math.max(0.12, x2 - x1), 1.0, Math.max(0.12, z2 - z1),
-               (x1 + x2) / 2, H + 0.5, (z1 + z2) / 2, railMat);
-        map.addCollider(x1, z1, x2, z2, H, H + 1.0);
+        addBox(Math.max(0.12, x2 - x1), rh, Math.max(0.12, z2 - z1),
+               (x1 + x2) / 2, H + rh / 2, (z1 + z2) / 2, rmat);
+        map.addCollider(x1, z1, x2, z2, H, H + rh);
       }
       if (s.railN) rail(s.x1, s.z1, s.x2, s.z1 + 0.12);
       if (s.railW) rail(s.x1, s.z1, s.x1 + 0.12, s.z2);
@@ -1292,21 +1313,39 @@
     }
     map.cellHeights = ch;
 
-    // --- points of interest: floating landmark labels so the big vertical map
-    //     reads at a glance (teleporters, mainframe, Pack-a-Punch)
-    map.pois = [];
-    function poi(pos, text, y) {
-      if (!pos) return;
-      var sp = textSprite(text, '#ffd27a', 2.4);
-      sp.position.set(pos.x, (pos.y || 0) + (y || 2.7), pos.z);
-      sp.userData.poi = true;
-      G.scene.add(sp);
-      map.pois.push({ pos: pos, text: text, sprite: sp });
-    }
-    if (CFG.cur.id === 'derriese') {
-      map.teleporters.forEach(function (t) { poi(t.pos, 'TELEPORTER ' + t.id, 2.9); });
-      if (map.mainframe) poi(map.mainframe.pos, 'MAINFRAME', 2.6);
-      poi(map.pap.pos, 'PACK-A-PUNCH', 2.6);
+    /* ----------------------- storm-station ambience (Der Wetterjunge) ----- */
+    if (CFG.cur.id === 'wetterjunge') {
+      // a slow-sweeping radar dish presiding over the Radar Dome
+      if (P.rooms.D) {
+        var dc = P.rooms.D.center;
+        addBox(0.4, 2.4, 0.4, dc.x, 1.2, dc.z, G.mats.metal);          // mast (decorative)
+        var pivot = new THREE.Group(); pivot.position.set(dc.x, 2.5, dc.z); G.scene.add(pivot);
+        var dish = new THREE.Mesh(new THREE.ConeGeometry(1.3, 0.8, 20, 1, true),
+          new THREE.MeshLambertMaterial({ color: 0xaab6c4, side: THREE.DoubleSide }));
+        dish.rotation.x = Math.PI * 0.6; dish.position.set(0.7, 0.25, 0); pivot.add(dish);
+        var feed = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 8), G.mats.metal);
+        feed.rotation.z = Math.PI / 2; feed.position.set(0.35, 0.12, 0); pivot.add(feed);
+        map.radar = pivot;
+      }
+      // comms antenna with a blinking hazard beacon in the Comms Tower
+      if (P.rooms.B) {
+        var bc = P.rooms.B.center;
+        addBox(0.3, 3.2, 0.3, bc.x, 1.6, bc.z, G.mats.metal);
+        var beacon = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 10),
+          mat(0x220000, { emissive: new THREE.Color(0xff2200), emissiveIntensity: 0.9 }));
+        beacon.position.set(bc.x, 3.3, bc.z); G.scene.add(beacon);
+        var bl = new THREE.PointLight(0xff3322, 0.6, 7); bl.position.copy(beacon.position); G.scene.add(bl);
+        map.beacon = beacon; map.beaconLight = bl;
+      }
+      // give the lab loft its own vibe: a cold console glow + a bank of screens
+      if (map.stages[0]) {
+        var lc = map.stages[0].deckCenter;
+        var ll = new THREE.PointLight(0x44ccff, 0.9, 9);
+        ll.position.set(lc.x, lc.y + 1.6, lc.z); G.scene.add(ll);
+        addBox(1.6, 0.5, 0.6, lc.x, lc.y + 0.55, lc.z - 0.8, G.mats.metal);   // console desk
+        addBox(1.5, 0.7, 0.1, lc.x, lc.y + 1.15, lc.z - 1.05,
+          mat(0x0a1a22, { emissive: new THREE.Color(0x2aa0ff), emissiveIntensity: 0.7 }));  // screen bank
+      }
     }
 
     map.recomputeReachable();
