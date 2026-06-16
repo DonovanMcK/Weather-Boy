@@ -663,17 +663,23 @@
       G.hemi.intensity = (G.map.power ? 0.8 : 0.55) + Z.lightning * 6;
     }
 
-    // ambient groans
+    // ambient vocals: a single zombie groans / growls / (rarely) screams every
+    // so often — spaced out so it never floods the mix
     Z.groanTimer -= dt;
     if (Z.groanTimer <= 0) {
-      Z.groanTimer = 0.5 + Math.random() * 1.6;
+      Z.groanTimer = 1.6 + Math.random() * 2.6;     // ~1.6–4.2s between vocals
       var alive = Z.list.filter(function (zz) { return !zz.dead; });
       if (alive.length) {
         var zz = alive[(Math.random() * alive.length) | 0];
         var d = zz.mesh.position.distanceTo(G.player.pos);
-        if (zz.isDog) G.audio.dogGrowl(d);
-        else if (zz.speed > 3 && d < 16 && Math.random() < 0.45) G.audio.zombieScream(d);
-        else G.audio.zombieGroan(d);
+        if (zz.isDog) { G.audio.dogGrowl(d); }
+        else {
+          var r = Math.random();
+          // a scream only from a sprinter that's closing in, and uncommon
+          if (zz.speed > 3 && d < 16 && r < 0.15) G.audio.zombieScream(d);
+          else if (r < 0.55) G.audio.zombieGrowl(d);   // throaty growl
+          else G.audio.zombieGroan(d);                  // airy groan
+        }
       }
     }
 

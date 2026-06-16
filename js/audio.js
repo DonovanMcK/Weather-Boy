@@ -343,6 +343,14 @@
       if (playSample('growl', vol * 2, 0.15)) return;
       growl({ vol: vol });
     },
+    // a deeper, throatier growl — distinct from the airy ambient groan
+    zombieGrowl: function (dist) {
+      var vol = Math.max(0.02, 0.32 - dist * 0.011);
+      if (playSample('growl2', vol * 2, 0.14)) return;
+      growl({ vol: vol, f0: 60 + Math.random() * 18, f1: 380, f2: 760,
+              trem: 9 + Math.random() * 4, dur: 0.8 + Math.random() * 0.5,
+              att: 0.06, sweep: 0.7, bend: 0.7 });
+    },
     zombieScream: function (dist) {
       var vol = Math.max(0.03, 0.4 - dist * 0.013);
       if (playSample('scream', vol * 2, 0.12)) return;
