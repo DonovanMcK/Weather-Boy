@@ -371,16 +371,17 @@ function testVerticality(ctx) {
   ok(G.map.perkMachines.some(function (m) { return m.perk === 'wonderfizz'; }), 'Der Wunderfizz machine present');
   ok(!G.map.perkMachines.some(function (m) { return m.perk === 'mule'; }), 'Mule Kick machine removed');
 
+  ok(G.map.stages && G.map.stages.length >= 3, 'Der Riese has a wrap-around upper catwalk');
   var S = G.map.stages[0];
-  ok(S && S.deckTop > 3.5, 'Der Riese has a real second floor (' + S.deckTop.toFixed(1) + 'm)');
+  ok(S && S.deckTop > 3.0, 'catwalk is a real upper floor (' + S.deckTop.toFixed(1) + 'm)');
 
-  // --- stacked floors: ground beneath the mezzanine is still its own walkable
-  //     room, AND the upper floor coexists at the same x/z (multi-layer nav)
+  // --- stacked floors: ground beneath the catwalk is still its own walkable
+  //     room, AND the upper deck coexists at the same x/z (multi-layer nav)
   var c = S.deckCenter;
-  ok(G.map.supportAt(c.x, c.z, 0, 0.55) < 0.5, 'ground beneath the upper floor stays at floor level');
+  ok(G.map.supportAt(c.x, c.z, 0, 0.55) < 0.5, 'ground beneath the catwalk stays at floor level');
   var gNode = G.nav.nearest(c.x, c.z, 0), uNode = G.nav.nearest(c.x, c.z, S.deckTop);
-  ok(gNode && Math.abs(gNode.y) < 0.6, 'a GROUND nav node exists under the upper floor');
-  ok(uNode && uNode.y > 3.4, 'an UPPER nav node exists at the same x/z (layers coexist)');
+  ok(gNode && Math.abs(gNode.y) < 0.6, 'a GROUND nav node exists under the catwalk');
+  ok(uNode && uNode.y > S.deckTop - 0.5, 'an UPPER nav node exists at the same x/z (layers coexist)');
 
   ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyC', 'Space'].forEach(ctx.keyup);
   G.player.damage = function () {};

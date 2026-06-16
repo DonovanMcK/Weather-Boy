@@ -683,17 +683,22 @@
     var stageSpecs = [];
     var bridgeSpecs = [];
     if (CFG.cur.id === 'derriese') {
-      // a genuine SECOND FLOOR over the north of the Mainframe Courtyard: a thin
-      // mezzanine (ground stays a walkable room beneath, including the garage
-      // doorway you pass under), reached by a staircase, with an open railing
-      // overlooking the courtyard. Real stacked floors — the nav engine routes
-      // zombies up the stairs or under the deck as needed.
-      var floor = { x1: xW(4) - CELL / 2, x2: xW(9) + CELL / 2,
-                    z1: zW(5) - CELL / 2, z2: zW(6) + CELL / 2, h: 4.0, thin: true,
-                    railN: true, railW: true, railE: true, railS: true };
-      floor.stairs = { x1: xW(4) - CELL / 2, x2: xW(5) + CELL / 2,
-                       zTop: floor.z2, zBase: zW(8) + CELL / 2, steps: 8 };
-      stageSpecs.push(floor);
+      // THE iconic Der Riese upper catwalk: a U of raised walkways wrapping the
+      // west, north and east walls of the Mainframe Courtyard (the Teleporter-C
+      // "upstairs"), open toward spawn, railed over the central pit. Thin decks
+      // so the ground — and the doorways the catwalk crosses — stay walkable
+      // beneath; reached by a staircase at each front corner. The nav engine
+      // routes the horde up the stairs and around the loop.
+      var H = 3.2;
+      var westDeck = { x1: xW(3) - CELL / 2, x2: xW(3) + CELL / 2,
+                       z1: zW(5) - CELL / 2, z2: zW(7) + CELL / 2, h: H, thin: true, railE: true };
+      westDeck.stairs = { x1: westDeck.x1, x2: westDeck.x2, zTop: westDeck.z2, zBase: zW(9), steps: 8 };
+      var eastDeck = { x1: xW(12) - CELL / 2, x2: xW(12) + CELL / 2,
+                       z1: zW(5) - CELL / 2, z2: zW(7) + CELL / 2, h: H, thin: true, railW: true };
+      eastDeck.stairs = { x1: eastDeck.x1, x2: eastDeck.x2, zTop: eastDeck.z2, zBase: zW(9), steps: 8 };
+      var northDeck = { x1: xW(3) - CELL / 2, x2: xW(12) + CELL / 2,
+                        z1: zW(5) - CELL / 2, z2: zW(5) + CELL / 2, h: H, thin: true, railS: true };
+      stageSpecs.push(westDeck, eastDeck, northDeck);
     }
     // reserve the deck and stair footprints (separately, so we don't over-claim
     // the whole bounding box) — machines steer clear of the structure
