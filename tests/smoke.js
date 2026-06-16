@@ -104,7 +104,7 @@ function createGame() {
   };
   vm.createContext(sandbox);
 
-  ['config', 'audio', 'hud', 'map', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'remote', 'terminal', 'main']
+  ['config', 'audio', 'hud', 'map', 'nav', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'remote', 'terminal', 'main']
     .forEach(function (name) {
       var src = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
       vm.runInContext(src, sandbox, { filename: name + '.js' });
@@ -205,6 +205,7 @@ function testWonderWeapon(ctx) {
     G.zombies.spawnAt(new THREE.Vector3(c.x + 0.6, 0, c.z - 2.9)),
     G.zombies.spawnAt(new THREE.Vector3(c.x - 0.6, 0, c.z - 3.5))
   ];
+  zs.forEach(function (z) { z.speed = 0; });   // hold position for the wonder-weapon test
   ctx.step(2);
   var ammoBefore = G.weapons.current().ammo;
   G.weapons.mouseDown = true;
@@ -370,56 +371,65 @@ function testVerticality(ctx) {
   ok(G.map.perkMachines.some(function (m) { return m.perk === 'wonderfizz'; }), 'Der Wunderfizz machine present');
   ok(!G.map.perkMachines.some(function (m) { return m.perk === 'mule'; }), 'Mule Kick machine removed');
 
-  ok(G.map.stages && G.map.stages.length >= 2, 'Der Riese has a two-walkway north gallery');
-  // an elevated railway bridges the galleries over the garage door: walkable on
-  // top, but ground nav still routes underneath through the doorway
-  ok(G.map.bridges && G.map.bridges.length >= 1, 'an elevated railway bridges the galleries');
-  var br = G.map.bridges[0];
-  ok(G.map.supportAt(br.center.x, br.center.z, br.top, 0.6) >= br.top - 0.01, 'you can walk along the bridge up top');
-  ok(G.map.supportAt(br.center.x, br.center.z, 0, 0.55) < 0.5, 'the passage beneath the bridge stays at ground level');
   var S = G.map.stages[0];
-  ok(S.deckTop > 1.5, 'catwalk deck is elevated (' + S.deckTop.toFixed(1) + 'm)');
-  ok(G.map.supportAt(S.deckCenter.x, S.deckCenter.z, 9, 9) > 1.5, 'deck reports a raised support height');
-  ok(G.map.supportAt(S.stairBase.x, S.stairBase.z, 9, 9) < 1.0, 'stair base sits near the floor');
+  ok(S && S.deckTop > 3.5, 'Der Riese has a real second floor (' + S.deckTop.toFixed(1) + 'm)');
+
+  // --- stacked floors: ground beneath the mezzanine is still its own walkable
+  //     room, AND the upper floor coexists at the same x/z (multi-layer nav)
+  var c = S.deckCenter;
+  ok(G.map.supportAt(c.x, c.z, 0, 0.55) < 0.5, 'ground beneath the upper floor stays at floor level');
+  var gNode = G.nav.nearest(c.x, c.z, 0), uNode = G.nav.nearest(c.x, c.z, S.deckTop);
+  ok(gNode && Math.abs(gNode.y) < 0.6, 'a GROUND nav node exists under the upper floor');
+  ok(uNode && uNode.y > 3.4, 'an UPPER nav node exists at the same x/z (layers coexist)');
 
   ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyC', 'Space'].forEach(ctx.keyup);
-  G.player.damage = function () {};       // invuln for the climb
+  G.player.damage = function () {};
 
-  // walk up the stairs onto the deck (yaw 0 faces north, up the steps)
-  P.pos.set(S.deckCenter.x, 0, S.stairBase.z + 1.0); P.vel.set(0, 0, 0); P.yaw = 0;
-  win.dispatch('keydown', { code: 'KeyW' });
-  step(200);
-  ctx.keyup('KeyW');
-  ok(P.pos.y > 1.8, 'player climbs the staircase onto the deck (y=' + P.pos.y.toFixed(2) + ')');
+  // player climbs the staircase onto the upper floor (yaw 0 = up the steps)
+  P.pos.set(S.stairBase.x, 0, S.stairBase.z + 1.0); P.vel.set(0, 0, 0); P.yaw = 0;
+  win.dispatch('keydown', { code: 'KeyW' }); step(220); ctx.keyup('KeyW');
+  ok(P.pos.y > 3.0, 'player climbs to the upper floor (y=' + P.pos.y.toFixed(2) + ')');
+  P.yaw = Math.PI; win.dispatch('keydown', { code: 'KeyW' }); step(260); ctx.keyup('KeyW');
+  ok(P.pos.y < 0.5, 'walking off the upper floor drops you to the ground');
 
-  // turn around and walk off — gravity drops you back to the floor
-  P.yaw = Math.PI;
-  win.dispatch('keydown', { code: 'KeyW' });
-  step(240);
-  ctx.keyup('KeyW');
-  ok(P.pos.y < 0.4, 'walking off the deck drops you back to the floor (y=' + P.pos.y.toFixed(2) + ')');
-
-  // a zombie spawned at the base must climb the stairs to reach a deck player
+  // VALIDATION 2/4 — player upstairs, zombie on the ground: it finds the stairs
   P.pos.copy(S.deckCenter); P.vel.set(0, 0, 0);
-  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
-  step(40);
-  var zc = G.zombies.spawnAt(new THREE.Vector3(S.stairBase.x, 0, S.stairBase.z + 0.5));
+  clearHorde(G); step(30);
+  var zc = G.zombies.spawnAt(new THREE.Vector3(S.stairBase.x, 0, S.stairBase.z));
   var maxY = 0;
-  for (var i = 0; i < 420 && !zc.dead; i++) { step(1); if (zc.mesh.position.y > maxY) maxY = zc.mesh.position.y; }
-  ok(maxY > 1.5, 'a zombie climbs the stairs to reach the catwalk (peak y=' + maxY.toFixed(2) + ')');
+  for (var i = 0; i < 60 * 13 && !zc.dead; i++) { step(1); if (zc.mesh.position.y > maxY) maxY = zc.mesh.position.y; }
+  ok(maxY > 3.0, 'zombie climbs the stairs to a player on the upper floor (y=' + maxY.toFixed(1) + ')');
 
-  // a zombie directly below cannot claw the player through the deck floor
+  // VALIDATION 1/3 — player on the ground beneath, zombie on the upper floor:
+  // it descends and reaches the player
+  P.pos.set(S.deckCenter.x, 0, S.deckCenter.z); P.vel.set(0, 0, 0);
+  clearHorde(G); step(30);
+  var zd = G.zombies.spawnAt(new THREE.Vector3(S.deckCenter.x, 0, S.deckCenter.z));
+  zd.mesh.position.y = S.deckTop;            // standing on the upper floor
+  var minY = 99, reached = false;
+  for (var k = 0; k < 60 * 26 && !zd.dead; k++) {
+    step(1);
+    if (zd.mesh.position.y < minY) minY = zd.mesh.position.y;
+    if (Math.hypot(zd.mesh.position.x - P.pos.x, zd.mesh.position.z - P.pos.z) < 2.0 &&
+        Math.abs(zd.mesh.position.y - P.pos.y) < 1.6) reached = true;
+  }
+  ok(minY < 1.0, 'zombie descends from the upper floor (min y=' + minY.toFixed(1) + ')');
+  ok(reached, 'descending zombie reaches the player on the ground floor');
+
+  // melee still can't connect through a floor (vertical gate)
   P.pos.copy(S.deckCenter); P.vel.set(0, 0, 0); P.hp = P.maxHp;
   var dealt = 0; P.damage = function (d) { dealt += d; };
-  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
-  step(20);
+  clearHorde(G); step(20);
   var zb = G.zombies.spawnAt(new THREE.Vector3(P.pos.x, 0, P.pos.z));
   for (var j = 0; j < 50; j++) {
-    zb.mesh.position.set(P.pos.x, 0, P.pos.z); // pin it on the floor under the player
+    zb.mesh.position.set(P.pos.x, 0, P.pos.z);
     zb.state = 'attack'; zb.t = 0.4; zb.hasHit = false; zb.attackCd = 0;
     step(1);
   }
-  ok(dealt === 0, 'melee does not connect through the catwalk floor');
+  ok(dealt === 0, 'melee does not connect through the upper floor');
+}
+function clearHorde(G) {
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
 }
 
 // one high-power round pierces a line of zombies and every pierced kill scores
@@ -439,7 +449,7 @@ function testPenetration(ctx) {
     G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 5)),
     G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 7))
   ];
-  zs.forEach(function (z) { z.hp = 200; });
+  zs.forEach(function (z) { z.hp = 200; z.speed = 0; });   // hold the line for the aim test
   ctx.step(2);
   G.weapons.giveWeapon('l96a1');         // sniper: pierces 5
   var gun = G.weapons.current(); gun.ammo = 5;

@@ -142,6 +142,7 @@
     G.player.spawn();
     G.weapons.init();
     G.interact.init();
+    if (G.nav) G.nav.build();      // multi-layer nav graph (after colliders exist)
     G.zombies.start();
     G.audio.init();
     G.state = 'playing';

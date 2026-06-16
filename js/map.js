@@ -297,6 +297,40 @@
       return this.cellHeights[row][col];
     },
 
+    // every distinct walkable surface height at (x,z) — used by the multi-layer
+    // nav builder to discover stacked floors (ground is added separately)
+    surfaceLevelsAt: function (x, z) {
+      var out = [], ss = this.surfaces, i, s, h;
+      for (i = 0; i < ss.length; i++) {
+        s = ss[i];
+        if (x < s.x1 || x > s.x2 || z < s.z1 || z > s.z2) continue;
+        if (s.ramp) {
+          var coord = s.axis === 'x' ? x : z;
+          var t = (coord - s.c1) / (s.c2 - s.c1);
+          t = t < 0 ? 0 : (t > 1 ? 1 : t);
+          h = s.h1 + (s.h2 - s.h1) * t;
+        } else h = s.y;
+        var dup = false;
+        for (var j = 0; j < out.length; j++) if (Math.abs(out[j] - h) < 0.06) { dup = true; break; }
+        if (!dup) out.push(h);
+      }
+      return out;
+    },
+
+    // is a standing body (feet at h) crushed by a solid collider here? Used to
+    // reject nav nodes/edges that pass through walls, rails or low ceilings —
+    // and naturally keeps ground walkable beneath a thin upper floor.
+    bodyBlocked: function (x, z, h) {
+      var cols = this.colliders, lo = h + 0.25, hi = h + 1.7;
+      for (var i = 0; i < cols.length; i++) {
+        var c = cols[i];
+        if (!c.on) continue;
+        if (x < c.x1 || x > c.x2 || z < c.z1 || z > c.z2) continue;
+        if (hi > c.y1 && lo < c.y2) return true;
+      }
+      return false;
+    },
+
     roomAt: function (x, z) {
       var cr = CFG.worldToCell(x, z);
       var cell = this.cellAt(cr.col, cr.row);
@@ -346,6 +380,7 @@
       if (d.sprite) { G.scene.remove(d.sprite); d.sprite = null; }
       this.recomputeReachable();
       if (G.zombies) G.zombies.flowDirty = true;
+      if (G.nav) G.nav.dirty = true;   // reconnect the graph through the new opening
     },
 
     flyingPlank: function (pos, dir) {
@@ -648,33 +683,31 @@
     var stageSpecs = [];
     var bridgeSpecs = [];
     if (CFG.cur.id === 'derriese') {
-      // an upstairs gallery along the Mainframe Courtyard's north wall — two
-      // raised walkways flanking the garage doorway (cols 7-8 left open), each
-      // reached by a staircase the undead must climb. Reads as the real map's
-      // upper catwalks instead of one slab in the middle.
-      var westDeck = { x1: xW(4) - CELL / 2, x2: xW(6) + CELL / 2,
-                       z1: zW(5) - CELL / 2, z2: zW(5) + CELL / 2, h: 2.2,
-                       railW: true, railE: true, railN: true };
-      westDeck.stairs = { x1: westDeck.x1, x2: westDeck.x2, zTop: westDeck.z2, zBase: zW(7) + CELL / 2, steps: 6 };
-      var eastDeck = { x1: xW(9) - CELL / 2, x2: xW(11) + CELL / 2,
-                       z1: zW(5) - CELL / 2, z2: zW(5) + CELL / 2, h: 2.2,
-                       railW: true, railE: true, railN: true };
-      eastDeck.stairs = { x1: eastDeck.x1, x2: eastDeck.x2, zTop: eastDeck.z2, zBase: zW(7) + CELL / 2, steps: 6 };
-      stageSpecs.push(westDeck, eastDeck);
-      // an elevated railway joins the two galleries straight across the garage
-      // doorway — walk UNDER it through door 6, or OVER it on the catwalk
-      bridgeSpecs.push({ x1: westDeck.x2 - 0.2, x2: eastDeck.x1 + 0.2,
-                         z1: zW(5) - CELL / 2, z2: zW(5) + CELL / 2, h: 2.2 });
+      // a genuine SECOND FLOOR over the north of the Mainframe Courtyard: a thin
+      // mezzanine (ground stays a walkable room beneath, including the garage
+      // doorway you pass under), reached by a staircase, with an open railing
+      // overlooking the courtyard. Real stacked floors — the nav engine routes
+      // zombies up the stairs or under the deck as needed.
+      var floor = { x1: xW(4) - CELL / 2, x2: xW(9) + CELL / 2,
+                    z1: zW(5) - CELL / 2, z2: zW(6) + CELL / 2, h: 4.0, thin: true,
+                    railN: true, railW: true, railE: true, railS: true };
+      floor.stairs = { x1: xW(4) - CELL / 2, x2: xW(5) + CELL / 2,
+                       zTop: floor.z2, zBase: zW(8) + CELL / 2, steps: 8 };
+      stageSpecs.push(floor);
     }
-    // reserve the footprint (deck + stairs cells) so machines avoid it
-    stageSpecs.forEach(function (s) {
-      var c0 = CFG.worldToCell(s.x1 + 0.1, s.z1 + 0.1);
-      var c1 = CFG.worldToCell(s.x2 - 0.1, (s.stairs ? s.stairs.zBase : s.z2) - 0.1);
-      for (var rr = c0.row; rr <= c1.row; rr++)
-        for (var cc = c0.col; cc <= c1.col; cc++) {
+    // reserve the deck and stair footprints (separately, so we don't over-claim
+    // the whole bounding box) — machines steer clear of the structure
+    function reserveRect(x1, z1, x2, z2) {
+      var a = CFG.worldToCell(x1 + 0.1, z1 + 0.1), b = CFG.worldToCell(x2 - 0.1, z2 - 0.1);
+      for (var rr = a.row; rr <= b.row; rr++)
+        for (var cc = a.col; cc <= b.col; cc++) {
           var w = CFG.cellToWorld(cc, rr);
           occupy(new THREE.Vector3(w.x, 0, w.z));
         }
+    }
+    stageSpecs.forEach(function (s) {
+      reserveRect(s.x1, s.z1, s.x2, s.z2);
+      if (s.stairs) reserveRect(s.stairs.x1, s.stairs.zTop, s.stairs.x2, s.stairs.zBase);
     });
 
     // --- push interactables against the nearest clear wall so they never block
@@ -1170,14 +1203,19 @@
     function buildStage(s) {
       var H = s.h, dcx = (s.x1 + s.x2) / 2, dcz = (s.z1 + s.z2) / 2;
       var dw = s.x2 - s.x1, dd = s.z2 - s.z1;
-      // deck slab + solid sides (block ground-level walk-through) + surface
-      addBox(dw, 0.3, dd, dcx, H - 0.15, dcz, deckMat);
-      addBox(dw, H, 0.2, dcx, H / 2, s.z2 - 0.1, deckMat);       // front fascia
-      map.addCollider(s.x1, s.z1, s.x2, s.z2, 0, H);
+      addBox(dw, 0.3, dd, dcx, H - 0.15, dcz, deckMat);          // floor slab (visual)
+      if (s.thin) {
+        // mezzanine / upper floor: a THIN slab so the ground beneath stays a
+        // fully walkable room — a real stacked floor, not a solid block
+        map.addCollider(s.x1, s.z1, s.x2, s.z2, H - 0.25, H + 0.05);
+      } else {
+        addBox(dw, H, 0.2, dcx, H / 2, s.z2 - 0.1, deckMat);     // solid front fascia
+        map.addCollider(s.x1, s.z1, s.x2, s.z2, 0, H);           // solid catwalk block
+      }
       map.addSurface({ x1: s.x1, x2: s.x2, z1: s.z1, z2: s.z2, y: H });
       [[s.x1 + 0.3, s.z1 + 0.3], [s.x2 - 0.3, s.z1 + 0.3],
        [s.x1 + 0.3, s.z2 - 0.3], [s.x2 - 0.3, s.z2 - 0.3]].forEach(function (p) {
-        addBox(0.25, H, 0.25, p[0], H / 2, p[1], railMat);       // support posts
+        addBox(0.22, H, 0.22, p[0], H / 2, p[1], railMat);       // support posts (decorative)
       });
       // waist-high railings (you can walk under them at ground level)
       function rail(x1, z1, x2, z2) {
@@ -1188,6 +1226,12 @@
       if (s.railN) rail(s.x1, s.z1, s.x2, s.z1 + 0.12);
       if (s.railW) rail(s.x1, s.z1, s.x1 + 0.12, s.z2);
       if (s.railE) rail(s.x2 - 0.12, s.z1, s.x2, s.z2);
+      if (s.railS) {  // overlook rail with a gap where the staircase arrives
+        var st0 = s.stairs;
+        if (st0 && st0.x1 > s.x1 + 0.2) rail(s.x1, s.z2 - 0.12, st0.x1, s.z2);
+        if (st0 && st0.x2 < s.x2 - 0.2) rail(st0.x2, s.z2 - 0.12, s.x2, s.z2);
+        if (!st0) rail(s.x1, s.z2 - 0.12, s.x2, s.z2);
+      }
       // staircase: nested boxes descending south, each tread a flat surface
       var st = s.stairs;
       if (st) {

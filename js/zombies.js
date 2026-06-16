@@ -180,60 +180,16 @@
   }
 
   /* ---------------------------------------------------------- flow field */
-  var flow = null, flowTimer = 0, flowTarget = null;
-
-  function computeFlow(targetPos) {
-    var P = G.map.parsed;
-    var cr = CFG.worldToCell(targetPos.x, targetPos.z);
-    if (!G.map.passable(cr.col, cr.row)) {
-      // find nearest passable cell
-      var best = null, bd = 1e9;
-      for (var r = 0; r < P.rows; r++) for (var c = 0; c < P.cols; c++) {
-        if (!G.map.passable(c, r)) continue;
-        var d = (c - cr.col) * (c - cr.col) + (r - cr.row) * (r - cr.row);
-        if (d < bd) { bd = d; best = { col: c, row: r }; }
-      }
-      if (!best) return;
-      cr = best;
-    }
-    var dist = [];
-    for (var rr = 0; rr < P.rows; rr++) { dist[rr] = []; for (var cc = 0; cc < P.cols; cc++) dist[rr][cc] = -1; }
-    var queue = [[cr.col, cr.row]];
-    dist[cr.row][cr.col] = 0;
-    var DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
-    while (queue.length) {
-      var cur = queue.shift();
-      var d0 = dist[cur[1]][cur[0]];
-      for (var i = 0; i < 4; i++) {
-        var nc = cur[0] + DIRS[i][0], nr = cur[1] + DIRS[i][1];
-        if (nr < 0 || nr >= P.rows || nc < 0 || nc >= P.cols) continue;
-        if (dist[nr][nc] >= 0 || !G.map.passable(nc, nr)) continue;
-        // a big elevation jump between cells is a wall/ledge, not a path — this
-        // forces the horde up the stairs instead of into a deck's solid side
-        if (Math.abs(G.map.cellHeightAt(nc, nr) - G.map.cellHeightAt(cur[0], cur[1])) > STEP_MAX) continue;
-        dist[nr][nc] = d0 + 1;
-        queue.push([nc, nr]);
-      }
-    }
-    flow = dist;
+  var flowTimer = 0, flowTarget = null;
+  // pathfinding now lives in the multi-layer nav engine (js/nav.js). These
+  // wrappers keep the round-director code tidy and rebuild the graph lazily
+  // when a door opens.
+  function refreshField(target) {
+    if (G.nav.dirty) G.nav.build();
+    G.nav.computeField(target);
   }
-
-  function nextCellToward(pos) {
-    if (!flow) return null;
-    var cr = CFG.worldToCell(pos.x, pos.z);
-    var P = G.map.parsed;
-    if (cr.row < 0 || cr.row >= P.rows || cr.col < 0 || cr.col >= P.cols) return null;
-    var here = flow[cr.row] && flow[cr.row][cr.col];
-    var best = null, bd = (here === undefined || here < 0) ? 1e9 : here;
-    var DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
-    for (var i = 0; i < 4; i++) {
-      var nc = cr.col + DIRS[i][0], nr = cr.row + DIRS[i][1];
-      if (nr < 0 || nr >= P.rows || nc < 0 || nc >= P.cols) continue;
-      if (Math.abs(G.map.cellHeightAt(nc, nr) - G.map.cellHeightAt(cr.col, cr.row)) > STEP_MAX) continue;
-      var d = flow[nr][nc];
-      if (d >= 0 && d < bd) { bd = d; best = { col: nc, row: nr }; }
-    }
-    return best;
+  function navTarget(z) {
+    return G.nav.nextPoint(z.mesh.position.x, z.mesh.position.z, z.mesh.position.y);
   }
 
   /* ------------------------------------------------------------ spawning */
@@ -573,18 +529,39 @@
   }
 
   function moveToward(z, target, dt) {
-    var dir = new THREE.Vector3(target.x - z.mesh.position.x, 0, target.z - z.mesh.position.z);
-    var d = dir.length();
-    if (d < 0.05) return;
-    dir.normalize();
+    var dx = target.x - z.mesh.position.x, dz = target.z - z.mesh.position.z;
+    var d = Math.hypot(dx, dz);
+    if (d < 0.04) return;
+    var desX = dx / d, desZ = dz / d;
+    if (!z.heading) z.heading = { x: desX, z: desZ };
+    // stall detection: if a chasing zombie has barely moved (pinned on a corner
+    // or stuck sliding a contour), commit hard to the nav direction with a
+    // perpendicular nudge so it peels off and rounds the obstacle
+    var moved = z._ppos ? Math.hypot(z.mesh.position.x - z._ppos.x, z.mesh.position.z - z._ppos.z) : 1;
+    if (!z._ppos) z._ppos = { x: 0, z: 0 };
+    z._ppos.x = z.mesh.position.x; z._ppos.z = z.mesh.position.z;
+    z._stall = (moved < 0.012 && z.slowT <= 0) ? (z._stall || 0) + dt : 0;
+    if (z._stall > 0.4) {
+      if (z._jit === undefined) z._jit = Math.random() < 0.5 ? -0.6 : 0.6;
+      z.heading.x = desX - desZ * z._jit;
+      z.heading.z = desZ + desX * z._jit;
+    } else {
+      // smooth the heading so turns are continuous, not 90-degree grid snaps
+      var turn = Math.min(1, dt * 11);
+      z.heading.x += (desX - z.heading.x) * turn;
+      z.heading.z += (desZ - z.heading.z) * turn;
+    }
+    var hl = Math.hypot(z.heading.x, z.heading.z) || 1;
+    var hx = z.heading.x / hl, hz = z.heading.z / hl;
     var sp = z.speed;
     if (z.isDog && d < 6) sp *= 1.35; // lunge burst
     if (z.slowT > 0) sp *= 0.3;       // webbed (Widow's Wine) — crawl speed
-    z.mesh.position.addScaledVector(dir, sp * dt);
+    z.mesh.position.x += hx * sp * dt;
+    z.mesh.position.z += hz * sp * dt;
     var sep = separation(z);
     z.mesh.position.addScaledVector(sep, dt * 4);
     collideZombie(z);
-    z.mesh.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+    z.mesh.rotation.y = Math.atan2(hx, hz) + Math.PI;
   }
 
   function animate(z, dt, moving) {
@@ -658,11 +635,11 @@
       }
     }
 
-    // flow field refresh
+    // layered flow-field refresh (multi-floor pathing toward the player/lure)
     flowTimer -= dt;
     var target = Z.lure ? Z.lure.pos : G.player.pos;
-    if (Z.flowDirty || flowTimer <= 0 || (flowTarget && flowTarget.distanceToSquared(target) > 4)) {
-      computeFlow(target);
+    if (Z.flowDirty || G.nav.dirty || flowTimer <= 0 || (flowTarget && flowTarget.distanceToSquared(target) > 4)) {
+      refreshField(target);
       flowTarget = target.clone();
       flowTimer = 0.4;
       Z.flowDirty = false;
@@ -766,17 +743,12 @@
             // crowd around the monkey
           } else {
             moving = true;
-            var sameRoom = G.map.roomAt(z.mesh.position.x, z.mesh.position.z) ===
-                           G.map.roomAt(tpos.x, tpos.z);
-            // only beeline straight at the target on the same level; if you're up
-            // on a catwalk, fall back to the flow-field so they take the stairs
-            if (dist < 5.5 && sameRoom && sameLevel) moveToward(z, tpos, dt);
+            // close and on the same level: beeline. Otherwise descend the
+            // multi-layer nav gradient (it routes up/down stairs across floors).
+            if (dist < 4 && sameLevel) moveToward(z, tpos, dt);
             else {
-              var nc = nextCellToward(z.mesh.position);
-              if (nc) {
-                var wc = CFG.cellToWorld(nc.col, nc.row);
-                moveToward(z, wc, dt);
-              } else moveToward(z, tpos, dt);
+              var np = navTarget(z);
+              moveToward(z, np || tpos, dt);
             }
           }
           break;
