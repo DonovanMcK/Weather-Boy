@@ -356,6 +356,7 @@ async function runQuick(mapId) {
     testBosses(ctx);
     testShield(ctx);
     testSoulBox(ctx);
+    testWonderEgg(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
 }
@@ -634,6 +635,27 @@ function testPerks(ctx) {
   ok(G.player.hasPerk('phd') && G.player.hasPerk('cherry'), 'new perks are held');
   G.player.losePerks();
   ok(!G.player.hasPerk('phd') && G.player.perks.length === 0, 'perks clear on losePerks');
+}
+
+/* wonder-weapon build EE: power + 3 parts + the bench fee yields a free
+   wonder weapon. Not buildable early (needs power) or without all the parts. */
+function testWonderEgg(ctx) {
+  var G = ctx.G;
+  var ww = G.interact.ww;
+  ok(ww && ww.total === 3, 'three wonder-weapon parts defined');
+  // find the part interactables (power is on by now from earlier in the run)
+  var parts = G.interact.list.filter(function (it) { return /wonder-weapon part/i.test(it.prompt() || ''); });
+  ok(parts.length >= 1, 'wonder-weapon parts are collectable once powered');
+  // collect them all
+  G.interact.list.forEach(function (it) { if (/Take the wonder-weapon part/.test(it.prompt() || '')) it.use(); });
+  ok(ww.parts === ww.total, 'all parts collected');
+  // build it
+  G.player.points = 100000;
+  var had = G.weapons.hasWeapon(G.CFG.cur.wonder);
+  var bench = G.interact.list.filter(function (it) { return /Build the .+—/.test(it.prompt() || ''); })[0];
+  ok(!!bench, 'bench offers the build once parts are gathered');
+  bench.use();
+  ok(ww.built && G.weapons.hasWeapon(G.CFG.cur.wonder), 'assembling grants the wonder weapon');
 }
 
 /* soul-box mini easter egg: activate all relics to wake the chest, then kills

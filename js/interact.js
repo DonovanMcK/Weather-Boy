@@ -231,6 +231,60 @@
       else if (ee.souls % 5 === 0) G.hud.banner('SOULS ' + ee.souls + '/' + ee.need, '#b6f', 1.1);
     };
 
+    // --- wonder-weapon build (multi-step): power on, gather 3 hidden parts
+    // scattered behind doors, then assemble at the bench for a fee
+    I.ww = { parts: 0, total: (CFG.WW_PARTS || []).length, built: false, cost: 5000 };
+    (CFG.WW_PARTS || []).forEach(function (cell) {
+      var wc = CFG.cellToWorld(cell[0], cell[1]);
+      var pos = new THREE.Vector3(wc.x, 0, wc.z);
+      var mesh = G.util.addBox(0.28, 0.42, 0.28, pos.x, 0.2, pos.z,
+        G.util.mat(0x0a1a22, { emissive: new THREE.Color(0x1f6fa0), emissiveIntensity: 0.5 }));
+      var part = { pos: pos, mesh: mesh, taken: false };
+      add({
+        pos: pos, r: 1.8,
+        prompt: function () {
+          if (part.taken) return null;
+          if (!map.power) return 'Wonder-weapon part — needs power';
+          return 'Take the wonder-weapon part';
+        },
+        use: function () {
+          if (part.taken) return;
+          if (!map.power) { G.audio.deny(); return; }
+          part.taken = true; I.ww.parts++;
+          G.scene.remove(part.mesh);
+          G.audio.buy();
+          G.hud.banner('WW PART ' + I.ww.parts + '/' + I.ww.total, '#6cf', 2.2,
+            I.ww.parts >= I.ww.total ? 'Assemble it at the bench' : 'Keep searching…');
+        }
+      });
+    });
+    if (CFG.WW_BUILD) {
+      var wbwc = CFG.cellToWorld(CFG.WW_BUILD[0], CFG.WW_BUILD[1]);
+      var wbpos = new THREE.Vector3(wbwc.x, 0, wbwc.z);
+      G.util.addBox(1.15, 0.8, 0.85, wbpos.x, 0.4, wbpos.z,
+        G.util.mat(0x101a22, { emissive: new THREE.Color(0x2a5a7a), emissiveIntensity: 0.3 }));
+      add({
+        pos: wbpos, r: 2.2,
+        prompt: function () {
+          if (I.ww.built) return null;
+          if (!map.power) return 'Wonder-weapon bench — needs power';
+          if (I.ww.parts < I.ww.total) {
+            var left = I.ww.total - I.ww.parts;
+            return 'Wonder-weapon bench — find ' + left + ' more part' + (left > 1 ? 's' : '');
+          }
+          return 'Build the ' + CFG.WEAPONS[CFG.cur.wonder].name + ' — ' + I.ww.cost;
+        },
+        use: function () {
+          if (I.ww.built || !map.power || I.ww.parts < I.ww.total) { G.audio.deny(); return; }
+          if (!G.player.spend(I.ww.cost)) return;
+          I.ww.built = true;
+          G.weapons.giveWeapon(CFG.cur.wonder);
+          G.audio.perkJingle();
+          G.hud.banner(CFG.WEAPONS[CFG.cur.wonder].name + '!', '#6cf', 3.5, 'Assembled — wonder weapon acquired');
+        }
+      });
+    }
+
     // power switch
     add({
       pos: map.powerSwitch.pos, r: 2.4,

@@ -88,8 +88,10 @@
     PAP: { cell: [6, 10], off: [0, 0] },
     POWER: { cell: [8, 10], off: [0, 0] },
     PLAYER_SPAWN: { cell: [6, 6], off: [0, 0.5] },
-    EE_RELICS: [[1, 5], [11, 5], [6, 10]],
-    EE_SOULBOX: [6, 6]
+    EE_RELICS: [[2, 4], [10, 4], [9, 9]],
+    EE_SOULBOX: [6, 5],
+    WW_PARTS: [[1, 7], [11, 7], [3, 9]],
+    WW_BUILD: [7, 5]
   };
 
   /* ------------------------------------------------------- DER RIESE --- */
@@ -191,7 +193,9 @@
     POWER: { cell: [10, 2], off: [0, 0] },
     PLAYER_SPAWN: { cell: [7, 12], off: [0, 0.5] },
     EE_RELICS: [[1, 6], [14, 6], [6, 1]],
-    EE_SOULBOX: [8, 8]
+    EE_SOULBOX: [8, 8],
+    WW_PARTS: [[1, 9], [14, 9], [10, 1]],
+    WW_BUILD: [8, 12]
   };
 
   /* -------------------------------------------------- DER WETTERJUNGE --- */
@@ -293,8 +297,10 @@
     PAP: { cell: [8, 6], off: [0, 0] },
     POWER: { cell: [12, 1], off: [0, 0] },
     PLAYER_SPAWN: { cell: [7, 11], off: [0, 0.5] },
-    EE_RELICS: [[1, 7], [13, 7], [7, 1]],
-    EE_SOULBOX: [7, 7]
+    EE_RELICS: [[1, 9], [12, 9], [6, 2]],
+    EE_SOULBOX: [7, 7],
+    WW_PARTS: [[3, 9], [11, 9], [9, 2]],
+    WW_BUILD: [8, 12]
   };
 
   CFG.MAP_IDS = ['nacht', 'derriese', 'wetterjunge'];
@@ -307,7 +313,7 @@
     CFG.cur = m;
     ['GRID', 'ROOMS', 'DOORS', 'WINDOWS', 'RISERS', 'PERK_MACHINES', 'WALLBUYS',
      'BOX_SPOTS', 'TELEPORTERS', 'MAINFRAME', 'PAP', 'POWER', 'PLAYER_SPAWN',
-     'EE_RELICS', 'EE_SOULBOX']
+     'EE_RELICS', 'EE_SOULBOX', 'WW_PARTS', 'WW_BUILD']
       .forEach(function (k) { CFG[k] = m[k]; });
     CFG._cx = m.GRID[0].length / 2 - 0.5;
     CFG._cz = m.GRID.length / 2 - 0.5;
