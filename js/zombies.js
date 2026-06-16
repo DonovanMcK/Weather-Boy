@@ -493,6 +493,7 @@
     } else if (!opts.silent) {
       G.powerups.maybeDrop(z.mesh.position);
     }
+    if (G.interact && G.interact.onKill) G.interact.onKill(z.mesh.position);
     checkRoundEnd(z);
   }
 

@@ -172,6 +172,65 @@
       }
     });
 
+    // --- mini easter egg: activate 3 hidden relics, then fill the soul chest
+    I.ee = { relics: [], activated: 0, box: null, boxMesh: null, glow: null,
+             souls: 0, need: 30, done: false };
+    (CFG.EE_RELICS || []).forEach(function (cell) {
+      var wc = CFG.cellToWorld(cell[0], cell[1]);
+      var pos = new THREE.Vector3(wc.x, 0, wc.z);
+      var mesh = G.util.addBox(0.32, 0.5, 0.32, pos.x, 0.28, pos.z,
+        G.util.mat(0x20140a, { emissive: new THREE.Color(0x6a3a10), emissiveIntensity: 0.4 }));
+      var relic = { pos: pos, mesh: mesh, active: false };
+      I.ee.relics.push(relic);
+      add({
+        pos: pos, r: 1.8,
+        prompt: function () { return relic.active ? null : 'Activate the relic'; },
+        use: function () {
+          if (relic.active) return;
+          relic.active = true; I.ee.activated++;
+          relic.mesh.material.emissive = new THREE.Color(0x33ddaa);
+          relic.mesh.material.emissiveIntensity = 1.0;
+          G.audio.perkJingle();
+          if (I.ee.activated >= I.ee.relics.length) spawnSoulBox();
+          else G.hud.banner('RELIC ' + I.ee.activated + '/' + I.ee.relics.length, '#7fd', 2, 'Find the others…');
+        }
+      });
+    });
+    function spawnSoulBox() {
+      if (I.ee.box || !CFG.EE_SOULBOX) return;
+      var wc = CFG.cellToWorld(CFG.EE_SOULBOX[0], CFG.EE_SOULBOX[1]);
+      I.ee.box = new THREE.Vector3(wc.x, 0, wc.z);
+      I.ee.boxMesh = G.util.addBox(0.9, 0.9, 0.9, wc.x, 0.6, wc.z,
+        G.util.mat(0x0a0014, { emissive: new THREE.Color(0x8822ff), emissiveIntensity: 0.9 }));
+      I.ee.glow = new THREE.PointLight(0x9933ff, 1.3, 9);
+      I.ee.glow.position.set(wc.x, 1.5, wc.z);
+      G.scene.add(I.ee.glow);
+      G.hud.banner('SOUL CHEST AWAKENED', '#b6f', 3, 'Feed it kills nearby');
+    }
+    function rewardSoulBox() {
+      var ee = I.ee; ee.done = true;
+      if (ee.boxMesh) G.scene.remove(ee.boxMesh);
+      if (ee.glow) G.scene.remove(ee.glow);
+      var pool = CFG.FIZZ_POOL.filter(function (id) { return !G.player.hasPerk(id); });
+      if (pool.length) {
+        var pick = pool[(Math.random() * pool.length) | 0];
+        G.player.addPerk(pick); G.audio.perkJingle();
+        G.hud.banner('SOUL REWARD', '#b6f', 4, 'Free perk: ' + CFG.PERKS[pick].name);
+      } else {
+        G.weapons.maxAmmo(); G.player.addPoints(2000);
+        G.hud.banner('SOUL REWARD', '#b6f', 4, 'Max Ammo + 2000 points');
+      }
+    }
+    // counted from zombies.killZombie — souls collect when kills land near the chest
+    I.onKill = function (pos) {
+      var ee = I.ee;
+      if (!ee || !ee.box || ee.done) return;
+      if (Math.hypot(pos.x - ee.box.x, pos.z - ee.box.z) > 6.5) return;
+      ee.souls++;
+      if (ee.souls >= ee.need) rewardSoulBox();
+      else if (ee.souls % 5 === 0) G.hud.banner('SOULS ' + ee.souls + '/' + ee.need, '#b6f', 1.1);
+    };
+
     // power switch
     add({
       pos: map.powerSwitch.pos, r: 2.4,
@@ -537,6 +596,13 @@
         clearPapOffer();
         G.hud.banner('Upgrade faded back', '#b86', 1.6, 'Too slow — points lost');
       }
+    }
+
+    // soul chest idle pulse
+    if (I.ee && I.ee.boxMesh && !I.ee.done) {
+      var ps = 1 + Math.sin(G.time * 3) * 0.08;
+      I.ee.boxMesh.scale.set(ps, ps, ps);
+      I.ee.boxMesh.rotation.y += dt * 0.9;
     }
 
     // teleporter link countdowns

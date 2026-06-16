@@ -355,6 +355,7 @@ async function runQuick(mapId) {
     testTerminal(ctx);
     testBosses(ctx);
     testShield(ctx);
+    testSoulBox(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
 }
@@ -633,6 +634,29 @@ function testPerks(ctx) {
   ok(G.player.hasPerk('phd') && G.player.hasPerk('cherry'), 'new perks are held');
   G.player.losePerks();
   ok(!G.player.hasPerk('phd') && G.player.perks.length === 0, 'perks clear on losePerks');
+}
+
+/* soul-box mini easter egg: activate all relics to wake the chest, then kills
+   nearby fill it and reward a free perk */
+function testSoulBox(ctx) {
+  var G = ctx.G;
+  var ee = G.interact.ee;
+  ok(ee && ee.relics.length === 3, 'three relics placed for the mini easter egg');
+  // kills before the chest is awake do nothing
+  ee.box = null; ee.done = false; ee.souls = 0;
+  G.interact.onKill(new THREE.Vector3(0, 0, 0));
+  ok(ee.souls === 0, 'kills do nothing before the chest is awake');
+  // wake the chest, then feed it nearby kills
+  ee.box = new THREE.Vector3(0, 0, 0);
+  G.player.perks = [];
+  var before = G.player.perks.length;
+  for (var i = 0; i < ee.need; i++) G.interact.onKill(new THREE.Vector3(0, 0, 0));
+  ok(ee.done, 'soul chest fills after enough nearby kills');
+  ok(G.player.perks.length > before, 'soul chest rewards a free perk');
+  // a far kill would not have counted
+  ee.box = new THREE.Vector3(0, 0, 0); ee.done = false; ee.souls = 0;
+  G.interact.onKill(new THREE.Vector3(50, 0, 50));
+  ok(ee.souls === 0, 'far-away kills do not feed the chest');
 }
 
 /* buildable shield: blocks melee from behind, ignores hits from the front,

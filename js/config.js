@@ -87,7 +87,9 @@
     MAINFRAME: null,
     PAP: { cell: [6, 10], off: [0, 0] },
     POWER: { cell: [8, 10], off: [0, 0] },
-    PLAYER_SPAWN: { cell: [6, 6], off: [0, 0.5] }
+    PLAYER_SPAWN: { cell: [6, 6], off: [0, 0.5] },
+    EE_RELICS: [[1, 5], [11, 5], [6, 10]],
+    EE_SOULBOX: [6, 6]
   };
 
   /* ------------------------------------------------------- DER RIESE --- */
@@ -187,7 +189,9 @@
     MAINFRAME: { cell: [7, 7], off: [0, 0] },
     PAP: { cell: [9, 7], off: [0, 0] },
     POWER: { cell: [10, 2], off: [0, 0] },
-    PLAYER_SPAWN: { cell: [7, 12], off: [0, 0.5] }
+    PLAYER_SPAWN: { cell: [7, 12], off: [0, 0.5] },
+    EE_RELICS: [[1, 6], [14, 6], [6, 1]],
+    EE_SOULBOX: [8, 8]
   };
 
   /* -------------------------------------------------- DER WETTERJUNGE --- */
@@ -288,7 +292,9 @@
     MAINFRAME: { cell: [6, 6], off: [0, 0] },
     PAP: { cell: [8, 6], off: [0, 0] },
     POWER: { cell: [12, 1], off: [0, 0] },
-    PLAYER_SPAWN: { cell: [7, 11], off: [0, 0.5] }
+    PLAYER_SPAWN: { cell: [7, 11], off: [0, 0.5] },
+    EE_RELICS: [[1, 7], [13, 7], [7, 1]],
+    EE_SOULBOX: [7, 7]
   };
 
   CFG.MAP_IDS = ['nacht', 'derriese', 'wetterjunge'];
@@ -300,7 +306,8 @@
     if (!m) throw new Error('unknown map ' + id);
     CFG.cur = m;
     ['GRID', 'ROOMS', 'DOORS', 'WINDOWS', 'RISERS', 'PERK_MACHINES', 'WALLBUYS',
-     'BOX_SPOTS', 'TELEPORTERS', 'MAINFRAME', 'PAP', 'POWER', 'PLAYER_SPAWN']
+     'BOX_SPOTS', 'TELEPORTERS', 'MAINFRAME', 'PAP', 'POWER', 'PLAYER_SPAWN',
+     'EE_RELICS', 'EE_SOULBOX']
       .forEach(function (k) { CFG[k] = m[k]; });
     CFG._cx = m.GRID[0].length / 2 - 0.5;
     CFG._cz = m.GRID.length / 2 - 0.5;
