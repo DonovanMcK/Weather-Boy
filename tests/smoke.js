@@ -354,6 +354,7 @@ async function runQuick(mapId) {
     testPerks(ctx);
     testTerminal(ctx);
     testBosses(ctx);
+    testShield(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
 }
@@ -632,6 +633,24 @@ function testPerks(ctx) {
   ok(G.player.hasPerk('phd') && G.player.hasPerk('cherry'), 'new perks are held');
   G.player.losePerks();
   ok(!G.player.hasPerk('phd') && G.player.perks.length === 0, 'perks clear on losePerks');
+}
+
+/* buildable shield: blocks melee from behind, ignores hits from the front,
+   and shatters after absorbing its capacity */
+function testShield(ctx) {
+  var G = ctx.G;
+  var P = G.player;
+  P.shield = { has: true, hp: 3, max: 5 };
+  P.pos.set(0, 0, 0); P.yaw = 0;                  // facing -z (north)
+  // attacker directly behind (south, +z) is blocked
+  var blocked = P.shieldBlocks(0, 3);
+  ok(blocked && P.shield.hp === 2, 'shield eats a hit from behind');
+  // attacker in front (-z) is NOT blocked
+  ok(!P.shieldBlocks(0, -3), 'shield ignores a frontal attacker');
+  // drain it to shatter
+  P.shieldBlocks(0, 3); P.shieldBlocks(0, 3);
+  ok(!P.shield.has && P.shield.hp <= 0, 'shield shatters when drained');
+  ok(!P.shieldBlocks(0, 3), 'a shattered shield blocks nothing');
 }
 
 /* bosses: an elite spawns on a boss round when enabled, and never when the

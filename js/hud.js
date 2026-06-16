@@ -31,6 +31,7 @@
     H.pu = el('hud-powerups');
     H.downedEl = el('hud-downed');
     H.health = el('hud-health');
+    H.shield = el('hud-shield');
     H.bannerTimer = 0;
   };
 
@@ -99,6 +100,15 @@
       d.title = def.name;
       H.perksEl.appendChild(d);
     });
+  };
+
+  H.setShield = function (sh) {
+    if (!H.shield) return;
+    if (!sh || !sh.has) { H.shield.style.display = 'none'; return; }
+    H.shield.style.display = 'flex';
+    var pips = '';
+    for (var i = 0; i < sh.max; i++) pips += '<i' + (i < sh.hp ? '' : ' class="spent"') + '></i>';
+    H.shield.innerHTML = '<span class="sh-label">SHIELD</span>' + pips;
   };
 
   H.setPrompt = function (text) {

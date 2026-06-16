@@ -69,6 +69,13 @@
   #hud-health-fill { height: 100%; width: 100%; background: #d6ead6; border-radius: 3px;
     transition: width 0.12s, background 0.2s;
     background-image: repeating-linear-gradient(90deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 22px); }
+  #hud-shield { position: fixed; left: 28px; bottom: 140px; display: none;
+    align-items: center; gap: 3px; }
+  #hud-shield .sh-label { font-size: 11px; letter-spacing: 3px; color: #f9b27a;
+    margin-right: 5px; text-shadow: 0 0 5px #000; font-weight: 700; }
+  #hud-shield i { width: 14px; height: 6px; border-radius: 1px; display: inline-block;
+    background: #f9b27a; box-shadow: 0 0 4px rgba(0,0,0,0.8); }
+  #hud-shield i.spent { background: rgba(255,255,255,0.18); box-shadow: none; }
   #hud-health.low { animation: hpwarn 0.9s infinite; }
   @keyframes hpwarn { 0%,100% { box-shadow: 0 0 0 rgba(255,0,0,0); }
     50% { box-shadow: 0 0 12px rgba(255,40,40,0.8); } }
@@ -185,6 +192,7 @@
     <div id="hud-round-num">1</div>
   </div>
   <div id="hud-health"><div id="hud-health-fill"></div></div>
+  <div id="hud-shield"></div>
   <div id="hud-ammo-wrap">
     <div id="hud-gun"></div>
     <div id="hud-ammo-line"><span id="hud-mag">0</span><span id="hud-res">/ 0</span></div>

@@ -149,6 +149,29 @@
       use: function () { if (G.terminal) G.terminal.open(); }
     });
 
+    // Zombie Shield workbench — build it once, carry it on your back; it eats
+    // hits from behind until it shatters, then rebuild here
+    var bpos = new THREE.Vector3(tsp.x - 2.0, 0, tsp.z);
+    var bench = G.util.addBox(1.2, 0.85, 0.7, bpos.x, 0.42, bpos.z, G.util.mat(0x2a2018));
+    G.util.addBox(0.7, 0.85, 0.12, bpos.x, 1.0, bpos.z,
+      G.util.mat(0x3a2a20, { emissive: new THREE.Color(0x884422), emissiveIntensity: 0.25 }));
+    add({
+      pos: bpos, r: 2.2,
+      prompt: function () {
+        var sh = G.player.shield;
+        if (sh && sh.has) return null;             // already carrying it
+        return 'Build the Zombie Shield';
+      },
+      use: function () {
+        var sh = G.player.shield;
+        if (!sh || sh.has) return;
+        sh.has = true; sh.hp = sh.max;
+        G.audio.buy();
+        G.hud.banner('ZOMBIE SHIELD', '#fb8', 2, 'Blocks attacks from behind');
+        if (G.hud.setShield) G.hud.setShield(sh);
+      }
+    });
+
     // power switch
     add({
       pos: map.powerSwitch.pos, r: 2.4,

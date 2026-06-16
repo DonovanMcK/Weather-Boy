@@ -790,9 +790,14 @@
                                 z.mesh.position.z - G.player.pos.z);
             var hv = Math.abs(z.mesh.position.y - G.player.pos.y);
             if (hd < MELEE_HIT && hv < MELEE_VERT && !G.player.downed) {
-              G.player.damage(z.isDog ? Math.round(CFG.zombieMeleeDamage(Z.round) * 0.8)
-                                      : CFG.zombieMeleeDamage(Z.round));
-              G.audio.zombieAttack();
+              // the carried shield eats hits that land on your back
+              if (G.player.shieldBlocks && G.player.shieldBlocks(z.mesh.position.x, z.mesh.position.z)) {
+                G.audio.zombieAttack();
+              } else {
+                G.player.damage(z.isDog ? Math.round(CFG.zombieMeleeDamage(Z.round) * 0.8)
+                                        : CFG.zombieMeleeDamage(Z.round));
+                G.audio.zombieAttack();
+              }
             }
           }
           if (z.t > 0.62) {

@@ -24,6 +24,7 @@
     regenTimer: 0,
     onGround: true,
     downed: false, downTimer: 0, invuln: 0, _hb: 0, _widowCd: 0,
+    shield: { has: false, hp: 0, max: 5 },
     kickPitch: 0,
     shakeAmt: 0,
     bobT: 0, bobX: 0, bobY: 0, vmBobX: 0, vmBobY: 0,
@@ -48,6 +49,28 @@
     P.yaw = 0; // face -z, into the map (spawn rooms sit on the south edge)
     P.maxHp = G.CFG.PLAYER_HP;
     P.hp = P.maxHp;
+    P.shield = { has: false, hp: 0, max: 5 };
+  };
+
+  // a hit from behind is eaten by the carried shield until it shatters
+  P.shieldBlocks = function (fromX, fromZ) {
+    var sh = P.shield;
+    if (!sh || !sh.has || sh.hp <= 0) return false;
+    var bx = -Math.sin(P.yaw), bz = -Math.cos(P.yaw);   // forward (facing) vector
+    var dx = fromX - P.pos.x, dz = fromZ - P.pos.z;
+    var len = Math.hypot(dx, dz) || 1;
+    var dot = (dx / len) * bx + (dz / len) * bz;         // >0 in front, <0 behind
+    if (dot > -0.15) return false;                        // attacker is not behind you
+    sh.hp--;
+    if (sh.hp <= 0) {
+      sh.has = false;
+      G.hud.banner('SHIELD SHATTERED', '#fa6', 1.8, 'Rebuild it at the bench');
+      G.audio.land();
+    } else {
+      G.audio.hurt();
+    }
+    if (G.hud.setShield) G.hud.setShield(P.shield);
+    return true;
   };
 
   P.hasPerk = function (id) { return P.perks.indexOf(id) >= 0; };
