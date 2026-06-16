@@ -272,10 +272,14 @@
     // highest walkable height at (x,z) that a body with feet at feetY can stand
     // on, given a vertical "climb" tolerance. The base ground plane (0) always
     // qualifies; surfaces above feet+climb are ignored (you're walking under).
-    supportAt: function (x, z, feetY, climb) {
+    supportAt: function (x, z, feetY, climb, ignoreBridge) {
       var best = 0, ss = this.surfaces, i, s, h;
       for (i = 0; i < ss.length; i++) {
         s = ss[i];
+        // bridges (e.g. a catwalk over a doorway) are walkable for bodies but
+        // are skipped when sampling cell heights, so ground nav still routes
+        // under them through the passage below
+        if (ignoreBridge && s.bridge) continue;
         if (x < s.x1 || x > s.x2 || z < s.z1 || z > s.z2) continue;
         if (s.ramp) {
           var coord = s.axis === 'x' ? x : z;
@@ -642,6 +646,7 @@
     // or under the deck/stairs.
     map.stages = [];
     var stageSpecs = [];
+    var bridgeSpecs = [];
     if (CFG.cur.id === 'derriese') {
       // an upstairs gallery along the Mainframe Courtyard's north wall — two
       // raised walkways flanking the garage doorway (cols 7-8 left open), each
@@ -656,6 +661,10 @@
                        railW: true, railE: true, railN: true };
       eastDeck.stairs = { x1: eastDeck.x1, x2: eastDeck.x2, zTop: eastDeck.z2, zBase: zW(7) + CELL / 2, steps: 6 };
       stageSpecs.push(westDeck, eastDeck);
+      // an elevated railway joins the two galleries straight across the garage
+      // doorway — walk UNDER it through door 6, or OVER it on the catwalk
+      bridgeSpecs.push({ x1: westDeck.x2 - 0.2, x2: eastDeck.x1 + 0.2,
+                         z1: zW(5) - CELL / 2, z2: zW(5) + CELL / 2, h: 2.2 });
     }
     // reserve the footprint (deck + stairs cells) so machines avoid it
     stageSpecs.forEach(function (s) {
@@ -1200,6 +1209,27 @@
     }
     stageSpecs.forEach(buildStage);
 
+    // elevated railway: walkable on top, open underneath (you pass beneath it).
+    // Its surface is flagged bridge:true so ground nav ignores it.
+    function buildBridge(b) {
+      var H = b.h, cx = (b.x1 + b.x2) / 2, cz = (b.z1 + b.z2) / 2;
+      var w = b.x2 - b.x1, d = b.z2 - b.z1;
+      addBox(w, 0.22, d, cx, H - 0.11, cz, deckMat);                 // walkway slab
+      map.addSurface({ x1: b.x1, x2: b.x2, z1: b.z1, z2: b.z2, y: H, bridge: true });
+      // waist rails on both long sides (block falling off, clear underneath)
+      [b.z1 + 0.06, b.z2 - 0.06].forEach(function (rz) {
+        addBox(w, 1.0, 0.12, cx, H + 0.5, rz, railMat);
+        map.addCollider(b.x1, rz - 0.06, b.x2, rz + 0.06, H, H + 1.0);
+      });
+      // slim decorative end posts (no collider — never block the passage below)
+      [b.x1 + 0.2, b.x2 - 0.2].forEach(function (px) {
+        addBox(0.16, H, 0.16, px, H / 2, cz, railMat);
+      });
+      map.bridges = (map.bridges || []);
+      map.bridges.push({ center: new THREE.Vector3(cx, H, cz), top: H });
+    }
+    bridgeSpecs.forEach(buildBridge);
+
     // sample the support height at every cell centre so the zombie flow-field
     // can treat big elevation jumps (a deck wall) as impassable and only route
     // up the stairs, where the rise per cell is gentle
@@ -1208,7 +1238,7 @@
       ch[chr] = [];
       for (var chc = 0; chc < P.cols; chc++) {
         var cw = CFG.cellToWorld(chc, chr);
-        ch[chr][chc] = map.supportAt(cw.x, cw.z, 9999, 9999);
+        ch[chr][chc] = map.supportAt(cw.x, cw.z, 9999, 9999, true);   // ignore bridges
       }
     }
     map.cellHeights = ch;

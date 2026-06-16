@@ -371,6 +371,12 @@ function testVerticality(ctx) {
   ok(!G.map.perkMachines.some(function (m) { return m.perk === 'mule'; }), 'Mule Kick machine removed');
 
   ok(G.map.stages && G.map.stages.length >= 2, 'Der Riese has a two-walkway north gallery');
+  // an elevated railway bridges the galleries over the garage door: walkable on
+  // top, but ground nav still routes underneath through the doorway
+  ok(G.map.bridges && G.map.bridges.length >= 1, 'an elevated railway bridges the galleries');
+  var br = G.map.bridges[0];
+  ok(G.map.supportAt(br.center.x, br.center.z, br.top, 0.6) >= br.top - 0.01, 'you can walk along the bridge up top');
+  ok(G.map.supportAt(br.center.x, br.center.z, 0, 0.55) < 0.5, 'the passage beneath the bridge stays at ground level');
   var S = G.map.stages[0];
   ok(S.deckTop > 1.5, 'catwalk deck is elevated (' + S.deckTop.toFixed(1) + 'm)');
   ok(G.map.supportAt(S.deckCenter.x, S.deckCenter.z, 9, 9) > 1.5, 'deck reports a raised support height');
