@@ -928,22 +928,32 @@ async function runFull(mapId) {
     ok(G.player.points > pointsBefore, 'points awarded');
   }
 
-  /* barricade repair (freeze the horde so nothing tears it mid-rebuild) */
+  /* barricade repair (freeze the horde; isolate one window so the look-gated
+     hold-to-rebuild prompt can't be hijacked by another interactable nearby) */
   G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
   G.zombies.toSpawn = 0; G.zombies.mode = 'break'; G.zombies.breakTimer = 999;
   step(20);
-  var brokenWin = G.map.windows.filter(function (w) { return w.boards < 6; })[0];
-  if (brokenWin) {
-    var boardsBefore = brokenWin.boards;
-    moveTo(brokenWin.inside);
-    // face the barrier — the repair prompt is look-gated
-    G.player.yaw = Math.atan2(-(brokenWin.outside.x - G.player.pos.x), -(brokenWin.outside.z - G.player.pos.z));
-    step(2);
-    G.keys.KeyF = true;
-    step(60 * 3);
-    G.keys.KeyF = false;
-    ok(brokenWin.boards > boardsBefore, 'barricade rebuilt by holding F');
+  G.map.windows.forEach(function (w) { w.setBoards(6); });   // reset all
+  // pick the window whose inside is clearest of other interactables
+  function clearance(w) {
+    var min = 1e9;
+    G.interact.list.forEach(function (it) {
+      if (it.pos === w.inside) return;
+      var d = Math.hypot(it.pos.x - w.inside.x, it.pos.z - w.inside.z);
+      if (d < min) min = d;
+    });
+    return min;
   }
+  var brokenWin = G.map.windows.slice().sort(function (a, b) { return clearance(b) - clearance(a); })[0];
+  brokenWin.setBoards(2);
+  var boardsBefore = brokenWin.boards;
+  moveTo(brokenWin.inside);
+  G.player.yaw = Math.atan2(-(brokenWin.outside.x - G.player.pos.x), -(brokenWin.outside.z - G.player.pos.z));
+  step(2);
+  G.keys.KeyF = true;
+  step(60 * 3);
+  G.keys.KeyF = false;
+  ok(brokenWin.boards > boardsBefore, 'barricade rebuilt by holding F');
 
   openAllDoors(ctx);
 
