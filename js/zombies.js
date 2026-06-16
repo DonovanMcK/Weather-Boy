@@ -239,6 +239,12 @@
     var roundBump = Math.min(1.1, Z.round * 0.045); // rounds get progressively faster
     z.speed = (sprint ? 3.4 + Math.random() * 0.9 : 1.5 + Math.random() * 0.8) + roundBump;
     z.mesh = buildZombieMesh(z);
+    // from round 6 on, an occasional armored heavy joins the horde
+    if (Z.round >= 6 && Math.random() < Math.min(0.2, 0.06 + Z.round * 0.007)) {
+      z.hp = Math.round(z.hp * 1.25);
+      z.speed *= 0.9;
+      addArmor(z);
+    }
     var spot = pickWindow();
     if (!spot) return;
     if (spot.riser) {
@@ -403,15 +409,46 @@
   Z.damageZombie = function (z, dmg, opts) {
     if (z.dead) return;
     opts = opts || {};
-    if (G.powerups.timers.insta > 0) dmg = 1e9;
+    var insta = G.powerups.timers.insta > 0;
+    if (insta) dmg = 1e9;
+    // armored "heavy": plating shrugs off body shots; headshots, knife and
+    // explosives bypass it. Sustained damage cracks the armor off at ~40% hp.
+    if (z.armored && !insta && !opts.head && !opts.knife && !opts.boom) dmg *= 0.4;
     z.hp -= dmg;
     if (!opts.boom) G.player.addPoints(CFG.PTS.hit);
     if (z.hp <= 0) {
       killZombie(z, opts);
-    } else if (opts.crawlers && !z.isDog && !z.crawler && Math.random() < 0.5) {
-      makeCrawler(z);
+    } else {
+      if (z.armored && z.hp <= z.hpMax * 0.4) breakArmor(z);
+      if (opts.crawlers && !z.isDog && !z.crawler && Math.random() < 0.5) makeCrawler(z);
     }
   };
+
+  function breakArmor(z) {
+    z.armored = false;
+    (z.armorParts || []).forEach(function (m) { z.mesh.remove(m); });
+    z.armorParts = null;
+    G.hud.hitmarker(true);
+    G.audio.hitmark(true);
+  }
+
+  // strap salvaged plating onto a zombie: a chest plate, shoulder pads, helmet
+  function addArmor(z) {
+    z.armored = true;
+    z.hpMax = z.hp;
+    var mat = new THREE.MeshPhongMaterial({ map: G.tex.metal, color: 0x55585f, shininess: 35,
+      specular: new THREE.Color(0x888d96) });
+    z.armorParts = [];
+    function piece(w, h, d, x, y, zz, ry) {
+      var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      m.position.set(x, y, zz); if (ry) m.rotation.y = ry;
+      z.mesh.add(m); z.armorParts.push(m); return m;
+    }
+    piece(0.66, 0.58, 0.42, 0, 1.02, 0.02);     // chest plate
+    piece(0.26, 0.2, 0.34, -0.42, 1.28, 0);      // left pauldron
+    piece(0.26, 0.2, 0.34, 0.42, 1.28, 0);       // right pauldron
+    piece(0.46, 0.34, 0.46, 0, 1.66, 0);         // helmet
+  }
 
   // area-of-effect damage (perks, shields, traps, bosses). Optionally slows
   // (webs) survivors. Returns how many zombies were caught.

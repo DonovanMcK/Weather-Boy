@@ -359,8 +359,28 @@ async function runQuick(mapId) {
     testSoulBox(ctx);
     testWonderEgg(ctx);
     testPowerups(ctx);
+    testArmored(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
+}
+
+/* armored heavy: plating soaks body shots but not headshots, and cracks off
+   once the zombie is hurt enough */
+function testArmored(ctx) {
+  var G = ctx.G;
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+  function armored(z) { z.hp = 1000; z.hpMax = 1000; z.armored = true; z.armorParts = []; return z; }
+  var zb = armored(G.zombies.spawnAt(new THREE.Vector3(0, 0, -5)));
+  G.zombies.damageZombie(zb, 100, {});
+  var bodyLoss = 1000 - zb.hp;
+  var zh = armored(G.zombies.spawnAt(new THREE.Vector3(0, 0, -6)));
+  G.zombies.damageZombie(zh, 100, { head: true });
+  var headLoss = 1000 - zh.hp;
+  ok(bodyLoss < headLoss, 'armor soaks body shots (-' + bodyLoss + ') more than headshots (-' + headLoss + ')');
+  ok(Math.abs(bodyLoss - 40) < 1, 'body damage is cut to ~40% by the plating');
+  var zc = armored(G.zombies.spawnAt(new THREE.Vector3(0, 0, -7)));
+  G.zombies.damageZombie(zc, 700, { head: true });   // -> 300 hp, below 40%
+  ok(!zc.armored, 'armor cracks off once the heavy drops below 40% hp');
 }
 
 /* power-up variety: Bonus Points pays out, and the Death Machine drop wields a
