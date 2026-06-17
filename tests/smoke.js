@@ -931,12 +931,20 @@ function testBosses(ctx) {
    jump the round director */
 function testTerminal(ctx) {
   var G = ctx.G;
-  ok(!!G.terminal, 'settings terminal module present');
+  ok(!!G.terminal, 'developer/settings panel module present');
   ok(G.settings.perkLimit === 4 && G.settings.bossRounds === true, 'settings have sane defaults');
+  // the settings terminal must NOT be spawned anywhere in the world
+  var inWorld = G.interact.list.some(function (it) { return /settings terminal/i.test((it.prompt && it.prompt()) || ''); });
+  ok(!inWorld, 'no in-world settings terminal interaction exists');
   G.terminal.open();
-  ok(G.terminal.active, 'terminal opens and holds the game');
+  ok(G.terminal.active, 'developer panel opens and holds the game');
   G.terminal.close();
-  ok(!G.terminal.active, 'terminal closes');
+  ok(!G.terminal.active, 'developer panel closes');
+  // it is reachable from the menu UI too (open while not playing)
+  var prevState = G.state; G.state = 'menu';
+  G.terminal.open();
+  ok(G.terminal.active, 'developer panel opens from the menu UI');
+  G.terminal.close(); G.state = prevState;
   G.zombies.jumpToRound(15);
   ok(G.zombies.round === 14 && G.zombies.mode === 'break', 'jumpToRound queues round 15');
   ctx.step(140);

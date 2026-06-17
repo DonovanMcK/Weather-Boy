@@ -145,16 +145,7 @@
       });
     }
 
-    // Group 935 settings terminal — a console in spawn (no collider, so it
-    // never blocks a training lane)
-    var tsp = CFG.cellToWorld(CFG.PLAYER_SPAWN.cell[0], CFG.PLAYER_SPAWN.cell[1]);
-    var tpos = new THREE.Vector3(tsp.x + 1.9, 0, tsp.z);
-    G.Props.create('settings_terminal', { position: tpos, rotationY: faceCenter(tpos) });
-    add({
-      pos: tpos, r: 2.2,
-      prompt: function () { return G.terminal ? 'Settings terminal' : null; },
-      use: function () { if (G.terminal) G.terminal.open(); }
-    });
+    // (Developer Tools / settings live in the menu UI now — no in-world terminal)
 
     // --- Zombie Shield: scavenge 3 parts from authored maintenance spots, then
     // assemble at the wall bench. Carried on your back, eats hits from behind.

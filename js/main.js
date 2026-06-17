@@ -101,10 +101,19 @@
     document.getElementById('btn-restart').addEventListener('click', reload);
     document.getElementById('btn-restart2').addEventListener('click', reload);
 
+    // Developer Tools / settings panel — opened from the menus, never in-world
+    var openDev = function () { if (G.terminal) G.terminal.open(); };
+    var devStart = document.getElementById('btn-devtools-start');
+    var devPause = document.getElementById('btn-devtools-pause');
+    if (devStart) devStart.addEventListener('click', openDev);
+    if (devPause) devPause.addEventListener('click', openDev);
+    if (devStart) startItems.push({ el: devStart, action: openDev });
+
     G.hud.setMenuItems('start', startItems);
     G.hud.setMenuItems('pause', [
       { el: document.getElementById('btn-resume'), action: resume },
-      { el: document.getElementById('btn-restart2'), action: reload }
+      { el: document.getElementById('btn-restart2'), action: reload },
+      { el: devPause, action: openDev }
     ]);
     G.hud.setMenuItems('over', [
       { el: document.getElementById('btn-restart'), action: reload }

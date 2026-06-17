@@ -105,34 +105,44 @@
     var act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
     if (!act) return;
     e.stopPropagation();
+    var playing = G.state === 'playing';   // cheat controls only act in a live game
+    // --- player settings (apply any time, persist into the run) ---
     if (act === 'perk-') G.settings.perkLimit = Math.max(1, G.settings.perkLimit - 1);
     else if (act === 'perk+') G.settings.perkLimit = Math.min(9, G.settings.perkLimit + 1);
-    else if (act === 'cash') { var c = +document.getElementById('t-cash').value || 0; G.player.points = Math.max(0, c | 0); G.hud.setPoints(G.player.points); }
-    else if (act === 'round') { var r = +document.getElementById('t-round').value || 1; G.zombies.jumpToRound(r); G.hud.setRound(Math.max(1, r | 0)); }
+    else if (act === 'boss') G.settings.bossRounds = !G.settings.bossRounds;
+    // --- developer / cheat controls (need a live game) ---
+    else if (act === 'cash') { if (playing && G.player) { var c = +document.getElementById('t-cash').value || 0; G.player.points = Math.max(0, c | 0); G.hud.setPoints(G.player.points); } }
+    else if (act === 'round') { if (playing && G.zombies) { var r = +document.getElementById('t-round').value || 1; G.zombies.jumpToRound(r); G.hud.setRound(Math.max(1, r | 0)); } }
     else if (act === 'give' || act === 'give-pap' || act === 'give-dpap') {
-      var id = document.getElementById('t-gun').value;
-      if (id) {
-        G.weapons.giveWeapon(id);
-        var tiers = act === 'give-pap' ? 1 : act === 'give-dpap' ? 2 : 0;
-        for (var k = 0; k < tiers; k++) G.weapons.papCurrent();
+      if (playing && G.weapons) {
+        var id = document.getElementById('t-gun').value;
+        if (id) {
+          G.weapons.giveWeapon(id);
+          var tiers = act === 'give-pap' ? 1 : act === 'give-dpap' ? 2 : 0;
+          for (var k = 0; k < tiers; k++) G.weapons.papCurrent();
+        }
       }
     }
-    else if (act === 'boss') G.settings.bossRounds = !G.settings.bossRounds;
-    else if (act === 'targets') { G.zombies.spawnTargets(3); }
-    else if (act === 'targets1') { G.zombies.spawnTargets(1); }
-    else if (act === 'clear-targets') G.zombies.clearTargets();
-    else if (act === 'nohorde') G.zombies.setRangeFreeze(!G.zombies.rangeFreeze);
-    else if (act === 'maxammo') { G.weapons.maxAmmo(); G.weapons.refillCurrent(); }
+    else if (act === 'targets') { if (playing && G.zombies) G.zombies.spawnTargets(3); }
+    else if (act === 'targets1') { if (playing && G.zombies) G.zombies.spawnTargets(1); }
+    else if (act === 'clear-targets') { if (playing && G.zombies) G.zombies.clearTargets(); }
+    else if (act === 'nohorde') { if (playing && G.zombies) G.zombies.setRangeFreeze(!G.zombies.rangeFreeze); }
+    else if (act === 'maxammo') { if (playing && G.weapons) { G.weapons.maxAmmo(); G.weapons.refillCurrent(); } }
     else if (act === 'close') { T.close(); return; }
     refresh();
   }
 
+  // openable from the main menu, the pause menu, or mid-game (Developer Tools)
   T.open = function () {
-    if (G.state !== 'playing') return;
+    if (G.state === 'over') return;
     build();
     if (!root) return;
+    T._fromState = G.state;
     T.active = true;
     root.style.display = 'flex';
+    // grey out the cheat controls that need a live game
+    var live = G.state === 'playing';
+    if (root.setAttribute) root.setAttribute('data-live', live ? '1' : '0');
     refresh();
     if (typeof document !== 'undefined' && document.exitPointerLock) document.exitPointerLock();
   };
@@ -140,8 +150,8 @@
   T.close = function () {
     T.active = false;
     if (root) root.style.display = 'none';
-    // re-lock the mouse on desktop so play resumes seamlessly
-    if (!(G.remote && G.remote.connected) && typeof document !== 'undefined') {
+    // only grab the mouse back when we were mid-game; menu/pause keep the cursor
+    if (T._fromState === 'playing' && !(G.remote && G.remote.connected) && typeof document !== 'undefined') {
       var canvas = document.getElementById('game');
       if (canvas && canvas.requestPointerLock) canvas.requestPointerLock();
     }
