@@ -1243,23 +1243,24 @@
        [s.x1 + 0.3, s.z2 - 0.3], [s.x2 - 0.3, s.z2 - 0.3]].forEach(function (p) {
         addBox(0.22, H, 0.22, p[0], H / 2, p[1], railMat);       // support posts (decorative)
       });
-      // edge barriers: waist-high railings (open balcony) OR full walls (an
-      // enclosed upper ROOM) — both clear the ground beneath, so you walk under
-      var rh = s.walls ? 2.9 : 1.0;
-      var rmat = s.walls ? G.mats.wallA : railMat;
-      function rail(x1, z1, x2, z2) {
-        addBox(Math.max(0.12, x2 - x1), rh, Math.max(0.12, z2 - z1),
-               (x1 + x2) / 2, H + rh / 2, (z1 + z2) / 2, rmat);
-        map.addCollider(x1, z1, x2, z2, H, H + rh);
-      }
-      if (s.railN) rail(s.x1, s.z1, s.x2, s.z1 + 0.12);
-      if (s.railW) rail(s.x1, s.z1, s.x1 + 0.12, s.z2);
-      if (s.railE) rail(s.x2 - 0.12, s.z1, s.x2, s.z2);
-      if (s.railS) {  // overlook rail with a gap where the staircase arrives
-        var st0 = s.stairs;
-        if (st0 && st0.x1 > s.x1 + 0.2) rail(s.x1, s.z2 - 0.12, st0.x1, s.z2);
-        if (st0 && st0.x2 < s.x2 - 0.2) rail(st0.x2, s.z2 - 0.12, s.x2, s.z2);
-        if (!st0) rail(s.x1, s.z2 - 0.12, s.x2, s.z2);
+      // edge barriers: enclosed upper ROOMS keep full walls; open catwalks have
+      // NO railings (you're free to run/drop off the edges)
+      if (s.walls) {
+        var rh = 2.9, rmat = G.mats.wallA;
+        function rail(x1, z1, x2, z2) {
+          addBox(Math.max(0.12, x2 - x1), rh, Math.max(0.12, z2 - z1),
+                 (x1 + x2) / 2, H + rh / 2, (z1 + z2) / 2, rmat);
+          map.addCollider(x1, z1, x2, z2, H, H + rh);
+        }
+        if (s.railN) rail(s.x1, s.z1, s.x2, s.z1 + 0.12);
+        if (s.railW) rail(s.x1, s.z1, s.x1 + 0.12, s.z2);
+        if (s.railE) rail(s.x2 - 0.12, s.z1, s.x2, s.z2);
+        if (s.railS) {  // wall with a gap where the staircase arrives
+          var st0 = s.stairs;
+          if (st0 && st0.x1 > s.x1 + 0.2) rail(s.x1, s.z2 - 0.12, st0.x1, s.z2);
+          if (st0 && st0.x2 < s.x2 - 0.2) rail(st0.x2, s.z2 - 0.12, s.x2, s.z2);
+          if (!st0) rail(s.x1, s.z2 - 0.12, s.x2, s.z2);
+        }
       }
       // staircase: nested boxes descending south, each tread a flat surface
       var st = s.stairs;
@@ -1272,8 +1273,6 @@
           map.addCollider(st.x1, st.zTop, st.x2, z2, 0, top);
           map.addSurface({ x1: st.x1, x2: st.x2, z1: st.zTop + (i - 1) * run, z2: z2, y: top });
         }
-        addBox(0.12, 1.0, st.zBase - st.zTop, st.x1 + 0.06, H * 0.5 + 0.3, (st.zTop + st.zBase) / 2, railMat);
-        addBox(0.12, 1.0, st.zBase - st.zTop, st.x2 - 0.06, H * 0.5 + 0.3, (st.zTop + st.zBase) / 2, railMat);
       }
       map.stages.push({
         deckCenter: new THREE.Vector3(dcx, H, dcz), deckTop: H,
