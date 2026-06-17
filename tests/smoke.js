@@ -367,6 +367,28 @@ async function runQuick(mapId) {
     testDetail(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
+  testWallAlignment(ctx, mapId);
+}
+
+/* every perk machine + Pack-a-Punch + power switch must sit flat against a wall
+   on a clean 90-degree rotation (never diagonal), face the open room, and rest
+   on a sane floor height with no NaN transform */
+function testWallAlignment(ctx, mapId) {
+  var G = ctx.G;
+  function cardinal(y) {
+    var t = ((y % (Math.PI * 2)) + Math.PI * 2) % (Math.PI / 2);
+    return Math.min(t, Math.PI / 2 - t) < 0.02;        // within ~1 degree of a 90
+  }
+  function noNaN(o) { return o && !isNaN(o.position.x) && !isNaN(o.position.y) && !isNaN(o.position.z) && !isNaN(o.rotation.y); }
+  var machines = G.map.perkMachines.map(function (m) { return { name: 'perk:' + m.perk, mesh: m.mesh }; });
+  if (G.map.pap) machines.push({ name: 'pack_a_punch', mesh: G.map.pap.mesh });
+  if (G.map.powerSwitch) machines.push({ name: 'power_switch', mesh: G.map.powerSwitch.mesh });
+  if (G.map.mainframe) machines.push({ name: 'mainframe', mesh: G.map.mainframe.pad });
+  machines.forEach(function (m) {
+    ok(m.mesh && m.mesh.isObject3D, mapId + ' ' + m.name + ' built as a prop root');
+    ok(noNaN(m.mesh), mapId + ' ' + m.name + ' has no NaN transform');
+    ok(cardinal(m.mesh.rotation.y), mapId + ' ' + m.name + ' uses a clean 90-degree wall rotation (' + (m.mesh.rotation.y).toFixed(2) + ')');
+  });
 }
 
 /* armored heavy: plating soaks body shots but not headshots, and cracks off

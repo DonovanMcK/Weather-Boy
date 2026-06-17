@@ -763,16 +763,22 @@
       }
       return true;
     }
-    // yaw that points a prop's +Z front toward the room interior (so machines
-    // pushed against a wall face the open floor)
-    function faceRoomBB(p) {
+    // cardinal yaw that rotates a prop's +Z front toward the room interior from
+    // each wall (W faces +X, E faces -X, N faces +Z, S faces -Z) — clean 90s
+    var WALL_YAW = { W: Math.PI / 2, E: -Math.PI / 2, N: 0, S: Math.PI };
+    // nearest-wall cardinal facing (used for elevated machines that skip pushToWall)
+    function nearestWallYaw(p) {
       var rid = map.roomAt(p.x, p.z);
       if (!rid || !P.rooms[rid]) return 0;
-      var bb = roomInner(rid), cx = (bb.x0 + bb.x1) / 2, cz = (bb.z0 + bb.z1) / 2;
-      var dx = cx - p.x, dz = cz - p.z;
-      if (Math.hypot(dx, dz) < 0.2) return 0;
-      return Math.atan2(dx, dz);
+      var bb = roomInner(rid);
+      var d = { W: p.x - bb.x0, E: bb.x1 - p.x, N: p.z - bb.z0, S: bb.z1 - p.z };
+      var best = 'N', bv = 1e9;
+      Object.keys(d).forEach(function (k) { if (d[k] < bv) { bv = d[k]; best = k; } });
+      return WALL_YAW[best];
     }
+    // a machine's flat-against-wall facing: the wall pushToWall chose if known,
+    // otherwise the nearest wall. Always a clean 90-degree rotation.
+    function machineYaw(pos) { return pos.wallYaw != null ? pos.wallYaw : nearestWallYaw(pos); }
     // attach a prop's solid (bullet-stopping) child meshes to the world list
     function propSolids(root) {
       if (root.userData.solids) root.userData.solids.forEach(function (m) { map.solidMeshes.push(m); });
@@ -783,20 +789,24 @@
       if (Math.abs(Math.sin(yaw || 0)) > 0.5) { var t = hw; hw = hd; hd = t; }
       return map.addCollider(cx - hw, cz - hd, cx + hw, cz + hd, y1, y2);
     }
+    // placePropAgainstWall: snap a machine flat against the nearest clear wall,
+    // recording the chosen wall's cardinal yaw on the position for the prop +
+    // collider to share. Reuses door/window/occupancy avoidance.
     function pushToWall(pos, hd) {
       var rid = map.roomAt(pos.x, pos.z);
       if (!rid || !P.rooms[rid]) return pos;
       var bb = roomInner(rid);
       var cands = [
-        { x: bb.x0 + hd, z: pos.z, d: pos.x - bb.x0 },
-        { x: bb.x1 - hd, z: pos.z, d: bb.x1 - pos.x },
-        { x: pos.x, z: bb.z0 + hd, d: pos.z - bb.z0 },
-        { x: pos.x, z: bb.z1 - hd, d: bb.z1 - pos.z }
+        { x: bb.x0 + hd, z: pos.z, d: pos.x - bb.x0, yaw: WALL_YAW.W },
+        { x: bb.x1 - hd, z: pos.z, d: bb.x1 - pos.x, yaw: WALL_YAW.E },
+        { x: pos.x, z: bb.z0 + hd, d: pos.z - bb.z0, yaw: WALL_YAW.N },
+        { x: pos.x, z: bb.z1 - hd, d: bb.z1 - pos.z, yaw: WALL_YAW.S }
       ].sort(function (a, b) { return a.d - b.d; });
       for (var i = 0; i < cands.length; i++) {
         var np = new THREE.Vector3(cands[i].x, 0, cands[i].z);
-        if (spotClear(np, 1.7)) { pos.x = np.x; pos.z = np.z; break; }
+        if (spotClear(np, 1.7)) { pos.x = np.x; pos.z = np.z; pos.wallYaw = cands[i].yaw; break; }
       }
+      if (pos.wallYaw == null) pos.wallYaw = nearestWallYaw(pos);
       return pos;
     }
 
@@ -810,10 +820,10 @@
       // vending-machine prop (visuals); collider + light stay gameplay-owned
       var root = G.Props.create('perk_machine', {
         position: new THREE.Vector3(pos.x, by, pos.z),
-        rotationY: faceRoomBB(pos), variant: pm.perk, def: def
+        rotationY: machineYaw(pos), variant: pm.perk, def: def
       });
       propSolids(root);
-      propCollider(pos.x, pos.z, 0.48, 0.38, by, by + 1.9, faceRoomBB(pos));
+      propCollider(pos.x, pos.z, 0.48, 0.38, by, by + 1.9, machineYaw(pos));
       var light = new THREE.PointLight(def.color, pm.perk === 'revive' ? 0.8 : 0.25, 7);
       light.position.set(pos.x, by + 2.2, pos.z);
       G.scene.add(light);
@@ -877,11 +887,11 @@
       pushToWall(mf, 1.1);
       occupy(mf);
       var mfRoot = G.Props.create('mainframe', {
-        position: new THREE.Vector3(mf.x, 0, mf.z), rotationY: faceRoomBB(mf)
+        position: new THREE.Vector3(mf.x, 0, mf.z), rotationY: machineYaw(mf)
       });
       propSolids(mfRoot);
       var mc = mfRoot.userData.colliderBox;
-      propCollider(mf.x, mf.z, mc.hw, mc.hd, mc.y1, mc.y2, faceRoomBB(mf));
+      propCollider(mf.x, mf.z, mc.hw, mc.hd, mc.y1, mc.y2, machineYaw(mf));
       map.mainframe = { pos: mf, pad: mfRoot };
     }
 
@@ -890,7 +900,7 @@
     var pp = place(CFG.PAP);
     pushToWall(pp, 1.0);
     occupy(pp);
-    var papYaw = faceRoomBB(pp);
+    var papYaw = machineYaw(pp);
     var papRoot = G.Props.create('pack_a_punch', { position: new THREE.Vector3(pp.x, 0, pp.z), rotationY: papYaw });
     propSolids(papRoot);
     var pc = papRoot.userData.colliderBox;
@@ -916,7 +926,7 @@
     var pw = place(CFG.POWER);
     pushToWall(pw, 0.35);
     occupy(pw);
-    var pwRoot = G.Props.create('power_switch', { position: new THREE.Vector3(pw.x, 0, pw.z), rotationY: faceRoomBB(pw) });
+    var pwRoot = G.Props.create('power_switch', { position: new THREE.Vector3(pw.x, 0, pw.z), rotationY: machineYaw(pw) });
     propSolids(pwRoot);
     map.powerSwitch = { pos: pw, mesh: pwRoot, setPowered: pwRoot.userData.setPowered };
     occupy(place(CFG.PLAYER_SPAWN));

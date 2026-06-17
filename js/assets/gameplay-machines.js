@@ -446,25 +446,22 @@
     return g;
   });
 
-  /* ===================== Wall-buy fixture ============================== */
+  /* ===================== Wall-buy fixture ==============================
+     Classic, readable form: a chalk weapon outline + name + price painted
+     flush on the wall. No machine, cabinet, brackets or cables — it stays
+     visually secondary to perks / Pack-a-Punch / the box. The caller supplies
+     the chalk texture (outline + name + price). */
   G.Props.register('wallbuy_fixture', function (opts) {
     var g = PU.group('wallbuy_fixture');
-    var steel = M('bareSteel'), dark = M('darkIron');
-    // chalk/painted weapon outline plane (caller supplies the texture)
     if (opts && opts.chalkTex) {
-      var chalk = PU.panel(g, 1.5, 1.4, 0, 1.7, 0.02, new THREE.MeshBasicMaterial({
-        map: opts.chalkTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+      var chalk = PU.panel(g, 1.5, 1.4, 0, 1.55, 0.02, new THREE.MeshBasicMaterial({
+        map: opts.chalkTex, transparent: true, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -2 }));
       g.userData.chalk = chalk;
     }
-    // mounting brackets
-    [[-0.6, 1.95], [0.6, 1.95], [-0.6, 1.45], [0.6, 1.45]].forEach(function (p) {
-      PU.box(g, 0.1, 0.08, 0.08, p[0], p[1], 0.04, steel);
-    });
-    // ammo price plate + subtle electrical box
-    PU.box(g, 0.5, 0.18, 0.05, 0, 1.05, 0.04, dark);
-    PU.box(g, 0.2, 0.3, 0.12, 0.62, 1.0, 0.06, dark);
-    PU.tube(g, [[0.62, 1.15, 0.04], [0.5, 1.4, 0.04], [0.3, 1.55, 0.02]], 0.02, M('rubberHose'), 8, 5);
-    var glow = PU.sphere(g, 0.03, 0.62, 1.1, 0.1, EM(0xffcc55, 0.5, 0x1a1404), 6);
+    // a single faint readability glow, no physical hardware
+    var glow = PU.panel(g, 1.5, 1.4, 0, 1.55, 0.015,
+      new THREE.MeshBasicMaterial({ color: 0x2a2418, transparent: true, opacity: 0.12, depthWrite: false }));
     g.userData.interactive = true; g.userData.glow = glow;
     PU.interactionAnchor(g, [0, 1.4, 0.5], { maxDist: 2.2 });
     return g;
