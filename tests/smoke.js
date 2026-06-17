@@ -360,7 +360,8 @@ async function runQuick(mapId) {
     testBosses(ctx);
     testShield(ctx);
     testSoulBox(ctx);
-    testWonderEgg(ctx);
+    testShieldBuild(ctx);
+    testNoWonderBuild(ctx);
     testPowerups(ctx);
     testArmored(ctx);
     testRange(ctx);
@@ -802,25 +803,64 @@ function testPerks(ctx) {
   ok(!G.player.hasPerk('phd') && G.player.perks.length === 0, 'perks clear on losePerks');
 }
 
-/* wonder-weapon build EE: power + 3 parts + the bench fee yields a free
-   wonder weapon. Not buildable early (needs power) or without all the parts. */
-function testWonderEgg(ctx) {
+/* buildable shield: 3 authored part locations per part, one selected
+   deterministically, gathered then assembled at a wall bench. Parts must be
+   integrated (off the spawn centre) and never overlap each other or the bench. */
+function testShieldBuild(ctx) {
+  var G = ctx.G, CFG = G.CFG;
+  ['frame', 'plate', 'battery'].forEach(function (k) {
+    ok(CFG.SHIELD_PARTS && CFG.SHIELD_PARTS[k] && CFG.SHIELD_PARTS[k].length === 3,
+       'shield ' + k + ' has exactly 3 authored spawn locations');
+  });
+  var sh = G.interact.shield;
+  ok(sh && sh.parts.length === 3, 'exactly one location selected per part (3 placed)');
+  // selection is deterministic for the map seed (matches the authored hash pick)
+  var deterministic = sh.parts.every(function (p) {
+    var locs = CFG.SHIELD_PARTS[p.kind];
+    var exp = locs[G.PU.hashStr(CFG.cur.id + ':' + p.kind) % locs.length].cell;
+    return exp[0] === p.cell[0] && exp[1] === p.cell[1];
+  });
+  ok(deterministic, 'shield-part selection is deterministic for the map seed');
+  // parts mutually clear + clear of the bench
+  var bench = G.map.shieldBench;
+  ok(!!bench, 'shield bench was placed');
+  var pts = sh.parts.map(function (p) { return p.pos; }), clear = true;
+  for (var i = 0; i < pts.length; i++) {
+    for (var j = i + 1; j < pts.length; j++) if (pts[i].distanceTo(pts[j]) < 2.0) clear = false;
+    if (pts[i].distanceTo(bench.pos) < 2.0) clear = false;
+  }
+  ok(clear, 'selected shield parts + bench never overlap');
+  // not dumped in the spawn centre / a major route
+  var sc = roomCenter(G, 'S');
+  ok(pts.every(function (p) { return p.distanceTo(sc) > 3; }), 'no shield part sits in the spawn centre');
+  // clear of every door approach so part prompts never hijack a door's "Open"
+  var doorClear = pts.every(function (p) {
+    return Object.keys(G.map.doors).every(function (id) { return p.distanceTo(G.map.doors[id].pos) > 2.8; });
+  });
+  ok(doorClear, 'no shield part blocks a door approach');
+  // bench is wall-adjacent: the cell beyond its facing wall is not a room
+  var off = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[bench.face];
+  var bc = CFG.SHIELD_BENCH.cell, beyond = G.map.cellAt(bc[0] + off[0], bc[1] + off[1]);
+  ok(!beyond || beyond.type !== 'room', 'shield bench sits flat against a wall');
+  // gather the parts and assemble
+  G.interact.list.forEach(function (it) { if (/Pick up shield/.test(it.prompt() || '')) it.use(); });
+  ok(sh.count === 3, 'all three shield parts collected');
+  var build = G.interact.list.filter(function (it) { return /Build the Zombie Shield/.test(it.prompt() || ''); })[0];
+  ok(!!build, 'bench offers the build once all parts are gathered');
+  G.player.shield = G.player.shield || { has: false, hp: 0, max: 5 };
+  G.player.shield.has = false;
+  build.use();
+  ok(G.player.shield.has, 'assembling at the bench grants the Zombie Shield');
+}
+
+/* the wonder-weapon BUILD system is fully removed — no parts, bench, or state */
+function testNoWonderBuild(ctx) {
   var G = ctx.G;
-  var ww = G.interact.ww;
-  ok(ww && ww.total === 3, 'three wonder-weapon parts defined');
-  // find the part interactables (power is on by now from earlier in the run)
-  var parts = G.interact.list.filter(function (it) { return /wonder-weapon part/i.test(it.prompt() || ''); });
-  ok(parts.length >= 1, 'wonder-weapon parts are collectable once powered');
-  // collect them all
-  G.interact.list.forEach(function (it) { if (/Take the wonder-weapon part/.test(it.prompt() || '')) it.use(); });
-  ok(ww.parts === ww.total, 'all parts collected');
-  // build it
-  G.player.points = 100000;
-  var had = G.weapons.hasWeapon(G.CFG.cur.wonder);
-  var bench = G.interact.list.filter(function (it) { return /Build the .+—/.test(it.prompt() || ''); })[0];
-  ok(!!bench, 'bench offers the build once parts are gathered');
-  bench.use();
-  ok(ww.built && G.weapons.hasWeapon(G.CFG.cur.wonder), 'assembling grants the wonder weapon');
+  ok(!G.CFG.WW_PARTS && !G.CFG.WW_BUILD, 'no WW_PARTS / WW_BUILD config remains');
+  ok(!G.interact.ww, 'no wonder-weapon build state remains');
+  ok(!G.Props.has('wonder_bench') && !G.Props.has('ww_part'), 'wonder-build props removed from the registry');
+  var benchPrompt = G.interact.list.some(function (it) { return /wonder-weapon bench/i.test(it.prompt() || ''); });
+  ok(!benchPrompt, 'no wonder-weapon bench interaction exists');
 }
 
 /* soul-box mini easter egg: activate all relics to wake the chest, then kills

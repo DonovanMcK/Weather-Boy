@@ -384,16 +384,27 @@
     return g;
   });
 
-  /* ===================== Wonder-weapon part pickup ===================== */
-  G.Props.register('ww_part', function () {
-    var g = PU.group('ww_part');
-    var steel = M('bareSteel');
-    PU.beveledBox(g, 0.3, 0.18, 0.24, 0.03, steel, 0, 0.12, 0);
-    PU.cyl(g, 0.05, 0.05, 0.3, 0, 0.32, 0, M('copper'), 8);
-    PU.torus(g, 0.09, 0.02, 0, 0.36, 0, EM(0x1f6fa0, 0.7, 0x06141c), 5, 'flat');
-    PU.sphere(g, 0.05, 0, 0.46, 0, EM(0x33ccff, 0.8, 0x06141c), 8);
-    g.userData.interactive = true;
-    PU.interactionAnchor(g, [0, 0.3, 0.3], { maxDist: 1.8 });
+  /* ===================== Shield part pickup ============================
+     A scavenged shield component leaning ready to grab. opts.variant gives a
+     distinct read for frame / plate / battery. */
+  G.Props.register('shield_part', function (opts) {
+    var g = PU.group('shield_part');
+    var kind = (opts && opts.variant) || 'frame';
+    var steel = M('bareSteel'), iron = M('darkIron');
+    if (kind === 'plate') {                       // a riveted armour plate
+      PU.beveledBox(g, 0.5, 0.7, 0.08, 0.03, M('rustedMetal'), 0, 0.4, 0);
+      for (var i = 0; i < 4; i++) PU.sphere(g, 0.03, -0.18 + (i % 2) * 0.36, 0.18 + ((i / 2) | 0) * 0.4, 0.05, iron, 5);
+    } else if (kind === 'battery') {              // a power cell
+      PU.cyl(g, 0.13, 0.13, 0.42, 0, 0.21, 0, iron, 10);
+      PU.cyl(g, 0.07, 0.07, 0.06, 0, 0.45, 0, M('brass'), 8);
+      PU.torus(g, 0.14, 0.02, 0, 0.3, 0, EM(0x33ff66, 0.7, 0x06140a), 5, 'flat');
+    } else {                                      // frame / handle assembly
+      PU.beveledBox(g, 0.34, 0.5, 0.1, 0.03, steel, 0, 0.3, 0);
+      PU.cyl(g, 0.04, 0.04, 0.5, 0, 0.3, 0.08, iron, 8);
+      PU.torus(g, 0.09, 0.02, 0, 0.56, 0, EM(0x33ccff, 0.6, 0x06141c), 5, 'flat');
+    }
+    g.userData.interactive = true; g.userData.kind = kind;
+    PU.interactionAnchor(g, [0, 0.4, 0.35], { maxDist: 1.8 });
     return g;
   });
 
@@ -425,22 +436,6 @@
       (function () { var o = new THREE.Object3D(); o.position.set(0.2, 1.3, -0.3); g.add(o); return o; })(),
       (function () { var o = new THREE.Object3D(); o.position.set(-0.05, 1.3, -0.3); g.add(o); return o; })()
     ];
-    PU.colliderSpec(g, 0.68, 0.4, 0, 1.0);
-    PU.interactionAnchor(g, [0, 0.9, 0.45], { maxDist: 2.2 });
-    return g;
-  });
-  G.Props.register('wonder_bench', function (opts) {
-    var g = PU.group('wonder_bench');
-    var f = benchFrame(g);
-    // weapon cradle + electrical coils + schematic
-    PU.box(g, 0.7, 0.06, 0.2, 0, 0.95, 0.1, M('darkIron'));
-    PU.box(g, 0.08, 0.1, 0.2, -0.34, 1.0, 0.1, M('bareSteel'));
-    PU.box(g, 0.08, 0.1, 0.2, 0.34, 1.0, 0.1, M('bareSteel'));
-    for (var k = 0; k < 4; k++) PU.torus(g, 0.08, 0.02, 0.42, 1.0 + k * 0.03, -0.1, M('copper'), 5, 'x');
-    PU.panel(g, 0.5, 0.4, 0, 1.32, -0.34, SCR(opts && opts.tint ? opts.tint : 0x2a8adf, 0.5)); // schematic glow
-    PU.sphere(g, 0.03, -0.3, 0.99, 0.18, EM(0x33ccff, 0.8, 0x06141c), 6);
-    PU.sphere(g, 0.03, 0.3, 0.99, 0.18, EM(0xff8822, 0.8, 0x1a0e06), 6);
-    g.userData.interactive = true;
     PU.colliderSpec(g, 0.68, 0.4, 0, 1.0);
     PU.interactionAnchor(g, [0, 0.9, 0.45], { maxDist: 2.2 });
     return g;

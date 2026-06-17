@@ -90,8 +90,13 @@
     PLAYER_SPAWN: { cell: [6, 6], off: [0, 0.5] },
     EE_RELICS: [[2, 4], [10, 4], [9, 9]],
     EE_SOULBOX: [6, 5],
-    WW_PARTS: [[1, 7], [11, 7], [3, 9]],
-    WW_BUILD: [7, 5]
+    // authored shield-part spawns — 3 wall-adjacent maintenance spots per part
+    SHIELD_PARTS: {
+      frame:   [{ cell: [4, 2], face: 'S' }, { cell: [10, 7], face: 'S' }, { cell: [3, 9], face: 'N' }],
+      plate:   [{ cell: [7, 2], face: 'S' }, { cell: [2, 6], face: 'E' }, { cell: [5, 9], face: 'N' }],
+      battery: [{ cell: [2, 7], face: 'S' }, { cell: [10, 6], face: 'W' }, { cell: [7, 9], face: 'N' }]
+    },
+    SHIELD_BENCH: { cell: [11, 7], face: 'S' }
   };
 
   /* ------------------------------------------------------- DER RIESE --- */
@@ -195,8 +200,12 @@
     PLAYER_SPAWN: { cell: [7, 12], off: [0, 0.5] },
     EE_RELICS: [[1, 6], [14, 6], [6, 1]],
     EE_SOULBOX: [8, 8],
-    WW_PARTS: [[1, 9], [14, 9], [10, 1]],
-    WW_BUILD: [8, 12]
+    SHIELD_PARTS: {
+      frame:   [{ cell: [4, 3], face: 'S' }, { cell: [3, 8], face: 'W' }, { cell: [15, 9], face: 'S' }],
+      plate:   [{ cell: [8, 3], face: 'S' }, { cell: [12, 8], face: 'E' }, { cell: [0, 9], face: 'S' }],
+      battery: [{ cell: [11, 3], face: 'S' }, { cell: [9, 9], face: 'S' }, { cell: [3, 3], face: 'S' }]
+    },
+    SHIELD_BENCH: { cell: [1, 9], face: 'S' }
   };
 
   /* -------------------------------------------------- DER WETTERJUNGE --- */
@@ -301,8 +310,12 @@
     PLAYER_SPAWN: { cell: [7, 11], off: [0, 0.5] },
     EE_RELICS: [[1, 9], [12, 9], [6, 2]],
     EE_SOULBOX: [7, 7],
-    WW_PARTS: [[3, 9], [11, 9], [9, 2]],
-    WW_BUILD: [8, 12]
+    SHIELD_PARTS: {
+      frame:   [{ cell: [5, 3], face: 'S' }, { cell: [3, 6], face: 'E' }, { cell: [11, 6], face: 'W' }],
+      plate:   [{ cell: [8, 3], face: 'S' }, { cell: [3, 9], face: 'S' }, { cell: [11, 3], face: 'S' }],
+      battery: [{ cell: [1, 3], face: 'S' }, { cell: [9, 5], face: 'N' }, { cell: [14, 9], face: 'S' }]
+    },
+    SHIELD_BENCH: { cell: [11, 8], face: 'W' }
   };
 
   CFG.MAP_IDS = ['nacht', 'derriese', 'wetterjunge'];
@@ -315,7 +328,7 @@
     CFG.cur = m;
     ['GRID', 'ROOMS', 'DOORS', 'WINDOWS', 'RISERS', 'PERK_MACHINES', 'WALLBUYS',
      'BOX_SPOTS', 'TELEPORTERS', 'MAINFRAME', 'PAP', 'POWER', 'PLAYER_SPAWN',
-     'EE_RELICS', 'EE_SOULBOX', 'WW_PARTS', 'WW_BUILD']
+     'EE_RELICS', 'EE_SOULBOX', 'SHIELD_PARTS', 'SHIELD_BENCH']
       .forEach(function (k) { CFG[k] = m[k]; });
     CFG._cx = m.GRID[0].length / 2 - 0.5;
     CFG._cz = m.GRID.length / 2 - 0.5;

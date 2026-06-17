@@ -156,26 +156,66 @@
       use: function () { if (G.terminal) G.terminal.open(); }
     });
 
-    // Zombie Shield workbench — build it once, carry it on your back; it eats
-    // hits from behind until it shatters, then rebuild here
-    var bpos = new THREE.Vector3(tsp.x - 2.0, 0, tsp.z);
-    var shieldBench = G.Props.create('shield_bench', { position: bpos, rotationY: faceCenter(bpos) });
-    add({
-      pos: bpos, r: 2.2,
-      prompt: function () {
-        var sh = G.player.shield;
-        if (sh && sh.has) return null;             // already carrying it
-        return 'Build the Zombie Shield';
-      },
-      use: function () {
-        var sh = G.player.shield;
-        if (!sh || sh.has) return;
-        sh.has = true; sh.hp = sh.max;
-        G.audio.buy();
-        G.hud.banner('ZOMBIE SHIELD', '#fb8', 2, 'Blocks attacks from behind');
-        if (G.hud.setShield) G.hud.setShield(sh);
-      }
+    // --- Zombie Shield: scavenge 3 parts from authored maintenance spots, then
+    // assemble at the wall bench. Carried on your back, eats hits from behind.
+    var SH_YAW = { N: 0, S: Math.PI, E: -Math.PI / 2, W: Math.PI / 2 };
+    var SH_OFF = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] };
+    I.shield = { have: { frame: false, plate: false, battery: false }, count: 0, total: 3, parts: [] };
+    var shieldDefs = CFG.SHIELD_PARTS || {};
+    ['frame', 'plate', 'battery'].forEach(function (kind) {
+      var locs = shieldDefs[kind] || [];
+      if (!locs.length) return;
+      // deterministic seeded pick of one of the three authored locations
+      var loc = locs[G.PU.hashStr(CFG.cur.id + ':' + kind) % locs.length];
+      var wc = CFG.cellToWorld(loc.cell[0], loc.cell[1]);
+      var off = SH_OFF[loc.face] || [0, 0];
+      var pos = new THREE.Vector3(wc.x + off[0] * 1.4, loc.y || 0, wc.z + off[1] * 1.4);
+      var mesh = G.Props.create('shield_part', { position: pos, rotationY: SH_YAW[loc.face] || 0, variant: kind });
+      var part = { kind: kind, pos: pos, mesh: mesh, taken: false, cell: loc.cell, face: loc.face };
+      I.shield.parts.push(part);
+      add({
+        pos: pos, r: 1.7, y: loc.y || 0,
+        prompt: function () { return part.taken ? null : 'Pick up shield ' + kind; },
+        use: function () {
+          if (part.taken) return;
+          part.taken = true; I.shield.have[kind] = true; I.shield.count++;
+          G.Props.dispose(part.mesh);
+          G.audio.buy();
+          G.hud.banner('SHIELD PART ' + I.shield.count + '/' + I.shield.total, '#fb8', 2,
+            I.shield.count >= I.shield.total ? 'Assemble it at the bench' : 'Find the others…');
+        }
+      });
     });
+    // assembly bench against an authored workshop wall
+    var benchDef = CFG.SHIELD_BENCH;
+    if (benchDef) {
+      var bwc = CFG.cellToWorld(benchDef.cell[0], benchDef.cell[1]);
+      var bo = SH_OFF[benchDef.face] || [0, 0];
+      var bpos = new THREE.Vector3(bwc.x + bo[0] * 0.95, 0, bwc.z + bo[1] * 0.95);
+      G.map.shieldBench = { pos: bpos, face: benchDef.face };
+      G.Props.create('shield_bench', { position: bpos, rotationY: SH_YAW[benchDef.face] || 0 });
+      add({
+        pos: bpos, r: 2.2,
+        prompt: function () {
+          var sh = G.player.shield;
+          if (sh && sh.has) return null;
+          if (I.shield.count < I.shield.total) {
+            var left = I.shield.total - I.shield.count;
+            return 'Shield bench — find ' + left + ' more part' + (left > 1 ? 's' : '');
+          }
+          return 'Build the Zombie Shield';
+        },
+        use: function () {
+          var sh = G.player.shield;
+          if (!sh || sh.has) return;
+          if (I.shield.count < I.shield.total) { G.audio.deny(); return; }
+          sh.has = true; sh.hp = sh.max;
+          G.audio.buy();
+          G.hud.banner('ZOMBIE SHIELD', '#fb8', 2, 'Blocks attacks from behind');
+          if (G.hud.setShield) G.hud.setShield(sh);
+        }
+      });
+    }
 
     // --- mini easter egg: activate 3 hidden relics, then fill the soul chest
     I.ee = { relics: [], activated: 0, box: null, boxMesh: null, glow: null,
@@ -231,59 +271,6 @@
       if (ee.souls >= ee.need) rewardSoulBox();
       else if (ee.souls % 5 === 0) G.hud.banner('SOULS ' + ee.souls + '/' + ee.need, '#b6f', 1.1);
     };
-
-    // --- wonder-weapon build (multi-step): power on, gather 3 hidden parts
-    // scattered behind doors, then assemble at the bench for a fee
-    I.ww = { parts: 0, total: (CFG.WW_PARTS || []).length, built: false, cost: 5000 };
-    (CFG.WW_PARTS || []).forEach(function (cell) {
-      var wc = CFG.cellToWorld(cell[0], cell[1]);
-      var pos = new THREE.Vector3(wc.x, 0, wc.z);
-      var mesh = G.Props.create('ww_part', { position: pos, rotationY: faceCenter(pos) });
-      var part = { pos: pos, mesh: mesh, taken: false };
-      add({
-        pos: pos, r: 1.8,
-        prompt: function () {
-          if (part.taken) return null;
-          if (!map.power) return 'Wonder-weapon part — needs power';
-          return 'Take the wonder-weapon part';
-        },
-        use: function () {
-          if (part.taken) return;
-          if (!map.power) { G.audio.deny(); return; }
-          part.taken = true; I.ww.parts++;
-          G.scene.remove(part.mesh);
-          G.audio.buy();
-          G.hud.banner('WW PART ' + I.ww.parts + '/' + I.ww.total, '#6cf', 2.2,
-            I.ww.parts >= I.ww.total ? 'Assemble it at the bench' : 'Keep searching…');
-        }
-      });
-    });
-    if (CFG.WW_BUILD) {
-      var wbwc = CFG.cellToWorld(CFG.WW_BUILD[0], CFG.WW_BUILD[1]);
-      var wbpos = new THREE.Vector3(wbwc.x, 0, wbwc.z);
-      var wonderTint = { thundergun: 0x33ccff, wunderwaffe: 0xaa66ff, wettermacher: 0x33ffaa }[CFG.cur.wonder] || 0x2a8adf;
-      G.Props.create('wonder_bench', { position: wbpos, rotationY: faceCenter(wbpos), tint: wonderTint });
-      add({
-        pos: wbpos, r: 2.2,
-        prompt: function () {
-          if (I.ww.built) return null;
-          if (!map.power) return 'Wonder-weapon bench — needs power';
-          if (I.ww.parts < I.ww.total) {
-            var left = I.ww.total - I.ww.parts;
-            return 'Wonder-weapon bench — find ' + left + ' more part' + (left > 1 ? 's' : '');
-          }
-          return 'Build the ' + CFG.WEAPONS[CFG.cur.wonder].name + ' — ' + I.ww.cost;
-        },
-        use: function () {
-          if (I.ww.built || !map.power || I.ww.parts < I.ww.total) { G.audio.deny(); return; }
-          if (!G.player.spend(I.ww.cost)) return;
-          I.ww.built = true;
-          G.weapons.giveWeapon(CFG.cur.wonder);
-          G.audio.perkJingle();
-          G.hud.banner(CFG.WEAPONS[CFG.cur.wonder].name + '!', '#6cf', 3.5, 'Assembled — wonder weapon acquired');
-        }
-      });
-    }
 
     // power switch
     add({
