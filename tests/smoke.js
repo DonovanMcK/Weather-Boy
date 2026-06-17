@@ -977,6 +977,10 @@ function testBossCharge(ctx) {
   ok(charged, 'boss telegraphs and launches a charge');
   ok(peakSpeed > 6, 'the charge bursts well above walking speed (' + peakSpeed.toFixed(1) + ' m/s)');
   ok(hits > 0 && knock > 0, 'the charge lands a heavy hit and knocks the player back');
+  // tidy up so the elite never roams into later tests
+  G.zombies.list.slice().forEach(function (z) { if (z.isBoss) G.zombies.damageZombie(z, 1e9, { boom: true, silent: true }); });
+  step(20);
+  ctx.moveTo(roomCenter(G, 'S')); G.player.hp = G.CFG.PLAYER_HP; G.player.downed = false;
 }
 
 /* settings terminal: opens/pauses, exposes the run-tuning settings, and can

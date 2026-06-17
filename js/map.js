@@ -501,9 +501,19 @@
       var cx = wc.x + o[0] * CELL / 2, cz = wc.z + o[1] * CELL / 2;
       var alongX = (dir === 'N' || dir === 'S');
       var m = (col + row) % 2 ? G.mats.wallA : G.mats.wallB;
+      // shallow architectural trim: a base reinforcement band + an upper string
+      // course break up the flat wall (flush, no collider). Proud of the wall so
+      // only the room-facing side reads.
+      var baseMat = G.MAT.get('concreteDark'), trimMat = G.MAT.get('darkIron');
+      function band(y, h, depth, mm) {
+        if (alongX) addBox(CELL + WALL_T, h, WALL_T + depth, cx, y, cz, mm);
+        else addBox(WALL_T + depth, h, CELL + WALL_T, cx, y, cz, mm);
+      }
       if (!isWindow) {
         if (alongX) addBox(CELL + WALL_T, WALL_H, WALL_T, cx, WALL_H / 2, cz, m, { collide: true, solid: true });
         else addBox(WALL_T, WALL_H, CELL + WALL_T, cx, WALL_H / 2, cz, m, { collide: true, solid: true });
+        band(0.22, 0.44, 0.08, baseMat);       // baseboard / lower reinforcement
+        band(WALL_H - 0.5, 0.12, 0.05, trimMat); // upper string course
         return null;
       }
       var sillH = 1.0, openTop = 2.6, postW = 0.7;
@@ -512,12 +522,18 @@
         addBox(postW, WALL_H, WALL_T, cx - CELL / 2 + postW / 2, WALL_H / 2, cz, m, { solid: true });
         addBox(postW, WALL_H, WALL_T, cx + CELL / 2 - postW / 2, WALL_H / 2, cz, m, { solid: true });
         addBox(CELL, WALL_H - openTop, WALL_T, cx, (WALL_H + openTop) / 2, cz, m, { solid: true });
+        // framed opening: header lintel + sill cap
+        addBox(CELL - postW * 1.4, 0.16, WALL_T + 0.12, cx, openTop + 0.02, cz, trimMat);
+        addBox(CELL - postW * 1.4, 0.12, WALL_T + 0.14, cx, sillH - 0.02, cz, trimMat);
       } else {
         addBox(WALL_T, sillH, CELL, cx, sillH / 2, cz, m, { solid: true });
         addBox(WALL_T, WALL_H, postW, cx, WALL_H / 2, cz - CELL / 2 + postW / 2, m, { solid: true });
         addBox(WALL_T, WALL_H, postW, cx, WALL_H / 2, cz + CELL / 2 - postW / 2, m, { solid: true });
         addBox(WALL_T, WALL_H - openTop, CELL, cx, (WALL_H + openTop) / 2, cz, m, { solid: true });
+        addBox(WALL_T + 0.12, 0.16, CELL - postW * 1.4, cx, openTop + 0.02, cz, trimMat);
+        addBox(WALL_T + 0.14, 0.12, CELL - postW * 1.4, cx, sillH - 0.02, cz, trimMat);
       }
+      band(0.22, 0.44, 0.08, baseMat);          // baseboard wraps the window wall too
       map.addCollider(cx - (alongX ? CELL / 2 : WALL_T / 2), cz - (alongX ? WALL_T / 2 : CELL / 2),
                       cx + (alongX ? CELL / 2 : WALL_T / 2), cz + (alongX ? WALL_T / 2 : CELL / 2));
       return { cx: cx, cz: cz, alongX: alongX, dirVec: new THREE.Vector3(o[0], 0, o[1]) };
@@ -662,6 +678,18 @@
         mesh.add(pm);
       }
       var collider = map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2);
+      // structural door frame around the opening (decorative, stays after the
+      // debris is bought away so the doorway reads as a built threshold)
+      var frameMat = G.MAT.get('darkIron');
+      if (alongZ) {
+        addBox(CELL, 0.32, 0.7, wc.x, WALL_H - 0.3, wc.z, frameMat);                 // lintel
+        addBox(0.3, WALL_H, 0.7, wc.x - CELL / 2 + 0.15, WALL_H / 2, wc.z, frameMat); // jambs
+        addBox(0.3, WALL_H, 0.7, wc.x + CELL / 2 - 0.15, WALL_H / 2, wc.z, frameMat);
+      } else {
+        addBox(0.7, 0.32, CELL, wc.x, WALL_H - 0.3, wc.z, frameMat);
+        addBox(0.7, WALL_H, 0.3, wc.x, WALL_H / 2, wc.z - CELL / 2 + 0.15, frameMat);
+        addBox(0.7, WALL_H, 0.3, wc.x, WALL_H / 2, wc.z + CELL / 2 - 0.15, frameMat);
+      }
       // a small glowing cost chip on the debris so you can spot a buyable door;
       // the full "Open X — cost" text shows in the HUD when you look at it
       var chip = costChip(cd.cost);
