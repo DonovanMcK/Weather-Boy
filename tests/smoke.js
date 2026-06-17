@@ -358,6 +358,7 @@ async function runQuick(mapId) {
     testPerks(ctx);
     testTerminal(ctx);
     testBosses(ctx);
+    testBossCharge(ctx);
     testShield(ctx);
     testSoulBox(ctx);
     testShieldBuild(ctx);
@@ -947,6 +948,35 @@ function testBosses(ctx) {
   step(160);
   ok(!G.zombies.bossAlive(), 'no elite when boss rounds are toggled off');
   G.settings.bossRounds = true;
+}
+
+/* the Panzersoldat is a real threat: from mid-range it telegraphs and charges,
+   closing the gap fast and landing a heavy knockback hit (not a slow sponge) */
+function testBossCharge(ctx) {
+  var G = ctx.G, step = ctx.step;
+  G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+  G.zombies.mode = 'break'; G.zombies.breakTimer = 999; G.zombies.toSpawn = 0;
+  step(20);
+  var c = roomCenter(G, 'S'); ctx.moveTo(c); G.player.yaw = 0; G.player.downed = false; G.player.invuln = 0;
+  var hits = 0, knock = 0;
+  G.player.damage = function () { hits++; };
+  G.player.knockback = function () { knock++; };
+  var b = G.zombies.spawnBoss();
+  ok(b && b.isBoss, 'Panzersoldat spawned');
+  ok(b.hp < 2200 + 12 * 700, 'boss HP trimmed from pure-sponge levels (' + b.hp + ')');
+  ok(b.speed > 2.4, 'boss base move speed raised (' + b.speed.toFixed(1) + ')');
+  // place it 10m in front of the (stationary) player and let it hunt
+  b.mesh.position.set(c.x, 0, c.z - 10); b.chargeCd = 0; b.bossPhase = null;
+  var startDist = 10, charged = false, peakSpeed = 0, prev = b.mesh.position.clone();
+  for (var i = 0; i < 260; i++) {
+    step(1);
+    if (b.bossPhase === 'charge') charged = true;
+    var sp = b.mesh.position.distanceTo(prev) / 0.016; prev = b.mesh.position.clone();
+    if (sp > peakSpeed) peakSpeed = sp;
+  }
+  ok(charged, 'boss telegraphs and launches a charge');
+  ok(peakSpeed > 6, 'the charge bursts well above walking speed (' + peakSpeed.toFixed(1) + ' m/s)');
+  ok(hits > 0 && knock > 0, 'the charge lands a heavy hit and knocks the player back');
 }
 
 /* settings terminal: opens/pauses, exposes the run-tuning settings, and can

@@ -118,6 +118,17 @@
     if (P.hp <= 0) P.down();
   };
 
+  // shove the player (boss charge impact). Direct positional knockback resolved
+  // against world collision, since the movement integrator owns velocity.
+  P.knockback = function (dx, dz, dist) {
+    if (P.downed || G.state !== 'playing') return;
+    var len = Math.hypot(dx, dz) || 1;
+    P.pos.x += dx / len * (dist || 2.4);
+    P.pos.z += dz / len * (dist || 2.4);
+    collide();
+    P.shake(0.8);
+  };
+
   // Solo Quick Revive rules: 4s blackout with a countdown, then back up at
   // full health with a short mercy window — all perks (QR included) are lost.
   P.down = function () {

@@ -303,14 +303,16 @@
     G.map.effects.push(Object.assign(bolt, { userData: { vel: new THREE.Vector3(), spin: new THREE.Vector3(), life: 0.25 } }));
   }
 
-  // a single tanky elite (toggleable, perf-light — just one extra body). It
-  // spawns far like a dog and beelines you on the flow-field.
+  // a single tanky elite that actively HUNTS: beelines the horde flow-field,
+  // and from mid-range telegraphs and CHARGES — a heavy hit that knocks you
+  // back. Less of a slow bullet-sponge, more of a threat you must juke.
   function spawnBoss() {
     var z = {
       isDog: false, isBoss: true, dead: false, crawler: false,
-      hp: Math.round(2200 + Z.round * 700),
-      speed: 2.1 + Math.min(1.1, Z.round * 0.02),
-      state: 'chase', t: 0, attackCd: 0, animT: Math.random() * 9
+      hp: Math.round(1800 + Z.round * 550),
+      speed: 2.7 + Math.min(1.0, Z.round * 0.02),
+      state: 'chase', t: 0, attackCd: 0, animT: Math.random() * 9,
+      bossPhase: null, phT: 0, chargeCd: 3.5, chargeHit: false
     };
     z.mesh = buildZombieMesh(z);
     z.mesh.scale.set(1.7, 1.85, 1.7);          // looms over the horde
@@ -333,8 +335,64 @@
     Z.lightning = 0.3;
     G.audio.thunderClap();
     G.hud.banner('PANZERSOLDAT', '#f64', 3, 'An elite stalks the storm');
+    return z;
   }
+  Z.spawnBoss = spawnBoss;     // exposed for the director + tests
   Z.bossAlive = function () { return Z.list.some(function (z) { return z.isBoss && !z.dead; }); };
+
+  // Panzersoldat AI. Returns true (z.bossBusy) on frames it drives its own
+  // motion (telegraph / charge / recover), so the normal chase state is skipped.
+  function bossThink(z, dt) {
+    z.bossBusy = false;
+    if (G.player.downed) { z.bossPhase = null; return; }
+    var dx = G.player.pos.x - z.mesh.position.x, dz = G.player.pos.z - z.mesh.position.z;
+    var dist = Math.hypot(dx, dz);
+    z.chargeCd -= dt;
+
+    if (z.bossPhase === 'tele') {            // wind-up: lock on, glow flares, roar
+      z.bossBusy = true; z.phT -= dt;
+      if (z.bossLight) z.bossLight.intensity = 1.4 + Math.abs(Math.sin(z.t * 18)) * 2.0;
+      z.mesh.rotation.y = Math.atan2(dx, dz) + Math.PI;
+      if (z.phT <= 0) {
+        z.bossPhase = 'charge'; z.phT = 1.5; z.chargeHit = false;
+        var L = dist || 1; z.chargeDir = { x: dx / L, z: dz / L };
+        G.audio.zombieScream(dist);
+      }
+      return;
+    }
+    if (z.bossPhase === 'charge') {          // barrel forward; heavy hit + knockback
+      z.bossBusy = true; z.phT -= dt;
+      var bx = z.mesh.position.x, bz = z.mesh.position.z, sp = 9.5;
+      z.mesh.position.x += z.chargeDir.x * sp * dt;
+      z.mesh.position.z += z.chargeDir.z * sp * dt;
+      collideZombie(z);
+      z.mesh.rotation.y = Math.atan2(z.chargeDir.x, z.chargeDir.z) + Math.PI;
+      var moved = Math.hypot(z.mesh.position.x - bx, z.mesh.position.z - bz);
+      if (!z.chargeHit && dist < 2.4) {
+        z.chargeHit = true;
+        if (G.player.shieldBlocks && G.player.shieldBlocks(z.mesh.position.x, z.mesh.position.z)) {
+          G.audio.zombieAttack();
+        } else {
+          G.player.damage(Math.round(CFG.zombieMeleeDamage(Z.round) * 1.8));
+          if (G.player.knockback) G.player.knockback(z.chargeDir.x, z.chargeDir.z, 2.6);
+          G.audio.zombieAttack();
+        }
+      }
+      if (z.phT <= 0 || z.chargeHit || moved < sp * dt * 0.3) { z.bossPhase = 'recover'; z.phT = 1.0; }
+      return;
+    }
+    if (z.bossPhase === 'recover') {         // brief stagger before it can hunt again
+      z.bossBusy = true; z.phT -= dt;
+      if (z.bossLight) z.bossLight.intensity = 1.6;
+      if (z.phT <= 0) { z.bossPhase = null; z.chargeCd = 5 + Math.random() * 3; }
+      return;
+    }
+    // idle hunting: launch a charge from mid-range
+    if (z.chargeCd <= 0 && dist > 4.5 && dist < 18) {
+      z.bossPhase = 'tele'; z.phT = 0.8; z.bossBusy = true;
+      G.audio.thunderClap();
+    }
+  }
 
   /* --------------------------------------------------------------- rounds */
   Z.start = function () {
@@ -742,7 +800,7 @@
       if (z._chk > 5) {
         z._chk = 0;
         var movedD = z._anchor ? z.mesh.position.distanceTo(z._anchor) : 99;
-        if (movedD < 0.6 && z.state !== 'tear' && !z.dead && !z.rangeTarget &&
+        if (movedD < 0.6 && z.state !== 'tear' && !z.dead && !z.rangeTarget && !z.isBoss &&
             z.mesh.position.distanceTo(G.player.pos) > 6) z._stuck = (z._stuck || 0) + 1;
         else z._stuck = 0;
         z._anchor = z.mesh.position.clone();
@@ -753,6 +811,14 @@
           Z._shootablesDirty = true;
           continue;
         }
+      }
+
+      // boss special behaviour overrides the normal state machine while it
+      // telegraphs / charges / recovers
+      if (z.isBoss && z.state !== 'dying' && z.state !== 'flung' &&
+          z.state !== 'rise' && z.state !== 'vault') {
+        bossThink(z, dt);
+        if (z.bossBusy) { animate(z, dt, z.bossPhase === 'charge'); continue; }
       }
 
       switch (z.state) {
@@ -835,8 +901,9 @@
               if (G.player.shieldBlocks && G.player.shieldBlocks(z.mesh.position.x, z.mesh.position.z)) {
                 G.audio.zombieAttack();
               } else {
-                G.player.damage(z.isDog ? Math.round(CFG.zombieMeleeDamage(Z.round) * 0.8)
-                                        : CFG.zombieMeleeDamage(Z.round));
+                G.player.damage(z.isBoss ? Math.round(CFG.zombieMeleeDamage(Z.round) * 1.5)
+                                : z.isDog ? Math.round(CFG.zombieMeleeDamage(Z.round) * 0.8)
+                                : CFG.zombieMeleeDamage(Z.round));
                 G.audio.zombieAttack();
               }
             }
