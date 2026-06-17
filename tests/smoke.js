@@ -361,6 +361,7 @@ async function runQuick(mapId) {
     testPowerups(ctx);
     testArmored(ctx);
     testRange(ctx);
+    testDetail(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
 }
@@ -429,6 +430,14 @@ function testRange(ctx) {
   ok(!G.zombies.rangeFreeze && G.zombies.breakTimer < 1e8, 'releasing no-horde re-arms the round director');
   step(220);
   ok(G.zombies.aliveCount() > 0, 'the horde resumes after no-horde mode');
+}
+
+/* environmental detail pass: the procedural decal/marking dressing actually
+   builds (grime, blood, bullet, stencil and poster decals across the rooms) */
+function testDetail(ctx) {
+  var G = ctx.G;
+  ok(typeof G.map.decalCount === 'number' && G.map.decalCount > 12,
+     'detail pass scatters surface decals (' + G.map.decalCount + ')');
 }
 
 /* power-up variety: Bonus Points pays out, and the Death Machine drop wields a

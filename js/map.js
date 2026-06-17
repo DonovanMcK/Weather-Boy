@@ -255,6 +255,7 @@
     lamps: [],
     power: false,
     effects: [],
+    decalCount: 0,
 
     // colliders are XZ boxes with an optional vertical span [y1,y2]. Walls omit
     // the span and read as full height; raised platforms/railings pass one so
@@ -1349,6 +1350,245 @@
           mat(0x0a1a22, { emissive: new THREE.Color(0x2aa0ff), emissiveIntensity: 0.7 }));  // screen bank
       }
     }
+
+    /* ===================== environmental detail pass =====================
+       Translate the art-reference sheets into procedural dressing: grime /
+       blood / scorch / bullet decals, hazard markings, stencilled labels,
+       vintage posters, lab chalkboards, caged work-lights and themed props
+       (oil drums, factory valves, research monitors). Everything here is
+       flush to a surface or hangs overhead and adds NO walkable colliders,
+       so pathing, spawns and interaction are untouched.                    */
+    (function detailPass() {
+      map.decalCount = 0;
+      var theme = CFG.cur.id;                       // nacht | derriese | wetterjunge
+      function pick(a) { return a[(Math.random() * a.length) | 0]; }
+      function pool(n, fn) { var a = []; for (var i = 0; i < n; i++) a.push(fn()); return a; }
+      function plainTex(cv) { return new THREE.CanvasTexture(cv); }   // clamped (no wrap)
+      function decalMat(t, op) {
+        return new THREE.MeshBasicMaterial({ map: t, transparent: true,
+          depthWrite: false, opacity: op == null ? 1 : op });
+      }
+
+      /* ---- decal art (transparent canvases) ---- */
+      function bloodTex() {
+        var cv = makeCanvas(128), c = cv.getContext('2d');
+        var g = c.createRadialGradient(64, 64, 3, 64, 64, 46);
+        g.addColorStop(0, 'rgba(86,8,8,0.92)'); g.addColorStop(0.6, 'rgba(64,6,6,0.66)');
+        g.addColorStop(1, 'rgba(48,4,4,0)');
+        c.fillStyle = g; c.beginPath(); c.arc(64, 64, 46, 0, 7); c.fill();
+        for (var i = 0; i < 46; i++) {
+          var a = Math.random() * 7, r = 18 + Math.random() * 42;
+          c.fillStyle = 'rgba(' + (60 + Math.random() * 40 | 0) + ',6,6,' + (0.35 + Math.random() * 0.5) + ')';
+          c.beginPath(); c.arc(64 + Math.cos(a) * r, 64 + Math.sin(a) * r, 1 + Math.random() * 4, 0, 7); c.fill();
+        }
+        return plainTex(cv);
+      }
+      function scorchTex() {
+        var cv = makeCanvas(128), c = cv.getContext('2d');
+        var g = c.createRadialGradient(64, 64, 2, 64, 64, 54);
+        g.addColorStop(0, 'rgba(8,8,8,0.9)'); g.addColorStop(0.5, 'rgba(22,18,14,0.55)');
+        g.addColorStop(1, 'rgba(22,18,14,0)');
+        c.fillStyle = g; c.fillRect(0, 0, 128, 128);
+        for (var i = 0; i < 11; i++) {
+          var a = Math.random() * 7;
+          c.strokeStyle = 'rgba(10,8,6,' + (0.3 + Math.random() * 0.3) + ')';
+          c.lineWidth = 2 + Math.random() * 4; c.beginPath(); c.moveTo(64, 64);
+          c.lineTo(64 + Math.cos(a) * (38 + Math.random() * 24), 64 + Math.sin(a) * (38 + Math.random() * 24)); c.stroke();
+        }
+        return plainTex(cv);
+      }
+      function bulletTex() {
+        var cv = makeCanvas(128), c = cv.getContext('2d');
+        for (var i = 0; i < 7; i++) {
+          var x = 22 + Math.random() * 84, y = 22 + Math.random() * 84, r = 3 + Math.random() * 4;
+          var g = c.createRadialGradient(x, y, 1, x, y, r * 2.3);
+          g.addColorStop(0, 'rgba(0,0,0,0.85)'); g.addColorStop(0.5, 'rgba(12,12,12,0.55)');
+          g.addColorStop(1, 'rgba(120,110,95,0)');
+          c.fillStyle = g; c.beginPath(); c.arc(x, y, r * 2.3, 0, 7); c.fill();
+          c.fillStyle = 'rgba(0,0,0,0.92)'; c.beginPath(); c.arc(x, y, r * 0.5, 0, 7); c.fill();
+        }
+        return plainTex(cv);
+      }
+      function stencilTex(txt) {
+        var cv = makeCanvas(128), c = cv.getContext('2d');
+        c.font = 'bold 86px Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillStyle = 'rgba(212,202,170,0.6)'; c.fillText(txt, 64, 60);
+        c.globalCompositeOperation = 'destination-out';
+        for (var i = 0; i < 70; i++) { c.fillStyle = '#000'; c.fillRect(Math.random() * 128, Math.random() * 128, 2 + Math.random() * 3, 2 + Math.random() * 3); }
+        return plainTex(cv);
+      }
+      function posterTex() {
+        var cv = document.createElement('canvas'); cv.width = 96; cv.height = 128;
+        var c = cv.getContext('2d'); var hue = pick(['#7a2418', '#1d4d3a', '#2a3d6b', '#6b5310']);
+        c.fillStyle = hue; c.fillRect(0, 0, 96, 128);
+        c.fillStyle = 'rgba(0,0,0,0.22)'; c.fillRect(0, 0, 96, 128);
+        c.strokeStyle = '#d8c9a0'; c.lineWidth = 4; c.strokeRect(6, 6, 84, 116);
+        c.fillStyle = 'rgba(230,210,150,0.92)'; c.beginPath(); c.arc(48, 52, 26, 0, 7); c.fill();
+        c.fillStyle = hue; c.beginPath(); c.arc(48, 52, 19, 0, 7); c.fill();
+        c.fillStyle = '#f0e2bb'; c.font = 'bold 19px Georgia, serif'; c.textAlign = 'center';
+        c.fillText(pick(['VICTORY', 'REVIVE', 'RATIONS', 'VITALIS', 'GRUPPE 935']), 48, 108);
+        c.fillStyle = 'rgba(0,0,0,0.18)';
+        for (var i = 0; i < 60; i++) c.fillRect(Math.random() * 96, Math.random() * 128, 2, 2);
+        return plainTex(cv);
+      }
+      function hazardTex() {
+        var cv = makeCanvas(64), c = cv.getContext('2d');
+        c.fillStyle = '#0c0c0c'; c.fillRect(0, 0, 64, 64);
+        c.fillStyle = '#d2a017';
+        for (var i = -64; i < 64; i += 24) {
+          c.beginPath(); c.moveTo(i, 64); c.lineTo(i + 12, 64); c.lineTo(i + 12 + 64, 0); c.lineTo(i + 64, 0);
+          c.closePath(); c.fill();
+        }
+        c.fillStyle = 'rgba(0,0,0,0.22)';
+        for (var k = 0; k < 50; k++) c.fillRect(Math.random() * 64, Math.random() * 64, 2, 2);
+        var t = plainTex(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+      }
+
+      var bloodP = pool(3, bloodTex), scorchP = pool(2, scorchTex), bulletP = pool(3, bulletTex), posterP = pool(3, posterTex);
+      var hazSrc = hazardTex();
+
+      /* ---- placement helpers ---- */
+      function floorDecal(x, z, sz, t, op) {
+        var pl = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), decalMat(t, op));
+        pl.rotation.x = -Math.PI / 2; pl.rotation.z = Math.random() * 6.28;
+        pl.position.set(x, 0.03, z); pl.renderOrder = 2; G.scene.add(pl); map.decalCount++; return pl;
+      }
+      // a flat quad pinned to a wall edge, facing into the room
+      function wallPlane(e, w, h, y, material, inset) {
+        var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
+        var pl = new THREE.Mesh(new THREE.PlaneGeometry(w, h), material);
+        pl.position.set(wc.x + e.o[0] * (CELL / 2 - (inset == null ? 0.06 : inset)),
+                        y, wc.z + e.o[1] * (CELL / 2 - (inset == null ? 0.06 : inset)));
+        pl.rotation.y = Math.atan2(-e.o[0], -e.o[1]);
+        pl.renderOrder = 2; G.scene.add(pl); map.decalCount++; return pl;
+      }
+      // a group pinned to a wall edge (its +Z faces into the room)
+      function wallGroup(e, y, inset) {
+        var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
+        var g = new THREE.Group();
+        g.position.set(wc.x + e.o[0] * (CELL / 2 - (inset || 0.12)), y, wc.z + e.o[1] * (CELL / 2 - (inset || 0.12)));
+        g.rotation.y = Math.atan2(-e.o[0], -e.o[1]); G.scene.add(g); return g;
+      }
+      // emissive caged work-light hung from the ceiling (no extra PointLight —
+      // the glowing bulb reads as a fixture without taxing the light budget)
+      function cagedLight(x, z, y) {
+        var g = new THREE.Group(); g.position.set(x, y, z); G.scene.add(g);
+        pbox(g, 0.03, 0.55, 0.03, 0, 0.3, 0, dDark);
+        [-0.13, -0.02].forEach(function (yy) {
+          var ring = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.012, 6, 12), dBeam);
+          ring.rotation.x = Math.PI / 2; ring.position.y = yy; g.add(ring);
+        });
+        for (var i = 0; i < 4; i++) {
+          var a = i / 4 * Math.PI * 2;
+          pbox(g, 0.014, 0.16, 0.014, Math.cos(a) * 0.12, -0.075, Math.sin(a) * 0.12, dBeam);
+        }
+        var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8),
+          mat(0x221c10, { emissive: new THREE.Color(0xffd9a0), emissiveIntensity: 0.7 }));
+        bulb.position.y = -0.08; g.add(bulb);
+      }
+      function oilDrum(x, z) {
+        var g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = Math.random() * 6.28; G.scene.add(g);
+        var body = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.88, 12), Math.random() < 0.5 ? dRust : dPipe);
+        body.position.y = 0.44; g.add(body);
+        [0.16, 0.44, 0.72].forEach(function (yy) {
+          var r = new THREE.Mesh(new THREE.TorusGeometry(0.275, 0.018, 5, 12), dBeam);
+          r.rotation.x = Math.PI / 2; r.position.y = yy; g.add(r);
+        });
+        var lid = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.04, 12), dDark);
+        lid.position.y = 0.9; g.add(lid);
+      }
+      function valveOnWall(e) {
+        var g = wallGroup(e, 1.4 + Math.random() * 0.7, 0.12);
+        g.add(new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.035, 6, 16), dRust));
+        for (var i = 0; i < 3; i++) {
+          var sp = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.03, 0.03), dRust);
+          sp.rotation.z = i * Math.PI / 3; g.add(sp);
+        }
+        var hub = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.14, 8), dBeam);
+        hub.rotation.x = Math.PI / 2; g.add(hub);
+      }
+      function monitorOnWall(e) {
+        wallPlane(e, 0.74, 0.54, 1.7, dDark, 0.1);
+        wallPlane(e, 0.62, 0.42, 1.7, mat(0x06222e, {
+          emissive: new THREE.Color(pick([0x2aa0ff, 0x33ff88, 0x33ccff])), emissiveIntensity: 0.7
+        }), 0.085);
+      }
+
+      var INNER = function (e) { return !e.door && !e.win; };
+
+      /* ---- per-room dressing ---- */
+      Object.keys(P.rooms).forEach(function (rid) {
+        var room = P.rooms[rid], bb = roomBBox(room);
+        var isOut = outdoor.indexOf(rid) >= 0;
+        var edges = wallEdges(room), inner = edges.filter(INNER);
+
+        // floor grime: blood pools (interior) / scorch
+        var nd = 2 + (Math.random() * 2 | 0);
+        for (var d = 0; d < nd; d++) {
+          var x = bb.x0 + 0.8 + Math.random() * Math.max(0.4, bb.w - 1.6);
+          var z = bb.z0 + 0.8 + Math.random() * Math.max(0.4, bb.d - 1.6);
+          if (!clearOf(new THREE.Vector3(x, 0, z), 1.1)) continue;
+          var bloody = Math.random() < (theme === 'wetterjunge' ? 0.4 : 0.66);
+          floorDecal(x, z, 0.9 + Math.random() * 0.8, bloody ? pick(bloodP) : pick(scorchP), 0.85);
+        }
+
+        // wall grime: bullet clusters + blood spatter
+        edges.forEach(function (e) {
+          if (e.door || e.win || Math.random() > 0.28) return;
+          var t = Math.random() < 0.5 ? pick(bulletP) : pick(bloodP);
+          wallPlane(e, 0.6 + Math.random() * 0.5, 0.6 + Math.random() * 0.5,
+                    0.7 + Math.random() * 1.8, decalMat(t, 0.9));
+        });
+
+        // stencilled room label on an interior wall
+        if (inner.length) wallPlane(pick(inner), 0.8, 0.8, 2.45, decalMat(stencilTex(rid), 0.75));
+
+        // a vintage poster on an interior wall
+        if (inner.length > 1 && Math.random() < 0.6) wallPlane(pick(inner), 0.68, 0.92, 1.95, decalMat(pick(posterP)));
+
+        // overhead caged work-light (indoor rooms only)
+        if (!isOut) cagedLight(bb.cx, bb.cz, WALL_H - 0.5);
+
+        // themed flourishes
+        if (theme === 'wetterjunge') {
+          if (inner.length && Math.random() < 0.7) monitorOnWall(pick(inner));
+          if (inner.length && Math.random() < 0.45) {
+            var ce = pick(inner);
+            wallPlane(ce, 1.3, 0.92, 1.75, mat(0x18201c), 0.05);
+            wallPlane(ce, 1.22, 0.84, 1.75, new THREE.MeshBasicMaterial({
+              map: chalkTexture(['E = mc²', 'GRUPPE 935']), transparent: true, depthWrite: false }), 0.044);
+          }
+        } else {
+          if (theme === 'derriese' && inner.length && Math.random() < 0.5) valveOnWall(pick(inner));
+          // an oil drum tucked into a corner, clear of traffic and interactables
+          if (inner.length && Math.random() < 0.7) {
+            var c0 = [[bb.x0 + 0.5, bb.z0 + 0.5], [bb.x1 - 0.5, bb.z0 + 0.5],
+                      [bb.x0 + 0.5, bb.z1 - 0.5], [bb.x1 - 0.5, bb.z1 - 0.5]];
+            for (var ci = 0; ci < c0.length; ci++) {
+              var cp = new THREE.Vector3(c0[(ci + (Math.random() * 4 | 0)) % 4][0], 0, c0[(ci + (Math.random() * 4 | 0)) % 4][1]);
+              if (clearOf(cp, 1.3)) { oilDrum(cp.x, cp.z); occupied.push({ x: cp.x, z: cp.z }); break; }
+            }
+          }
+        }
+      });
+
+      // painted hazard borders ringing the raised catwalk/loft decks
+      stageSpecs.forEach(function (s) {
+        var H = s.h, bw = 0.32;
+        function strip(x1, z1, x2, z2) {
+          var w = Math.max(0.12, x2 - x1), dd = Math.max(0.12, z2 - z1);
+          var t = hazSrc.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+          t.repeat.set(Math.max(w, dd) / 0.6, 1);
+          var pl = new THREE.Mesh(new THREE.PlaneGeometry(w, dd), decalMat(t, 0.92));
+          pl.rotation.x = -Math.PI / 2; pl.position.set((x1 + x2) / 2, H + 0.04, (z1 + z2) / 2);
+          pl.renderOrder = 2; G.scene.add(pl);
+        }
+        strip(s.x1, s.z1, s.x2, s.z1 + bw);
+        strip(s.x1, s.z2 - bw, s.x2, s.z2);
+        strip(s.x1, s.z1, s.x1 + bw, s.z2);
+        strip(s.x2 - bw, s.z1, s.x2, s.z2);
+      });
+    })();
 
     map.recomputeReachable();
   };
