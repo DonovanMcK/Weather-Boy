@@ -62,9 +62,22 @@
       '<div class="row"><label>Jump to round</label><div class="ctl">' +
         '<input id="t-round" type="number" min="1" step="1"><button class="apply" data-act="round">Go</button></div></div>' +
       '<div class="row"><label>Give weapon</label><div class="ctl">' +
-        '<select id="t-gun">' + guns + '</select><button class="apply" data-act="give">Give</button></div></div>' +
+        '<select id="t-gun">' + guns + '</select></div></div>' +
+      '<div class="row"><label>&nbsp;&nbsp;at tier</label><div class="ctl">' +
+        '<button class="apply" data-act="give">Stock</button>' +
+        '<button class="apply" data-act="give-pap">Pack-a-Punch</button>' +
+        '<button class="apply" data-act="give-dpap">Double Pack</button></div></div>' +
       '<div class="row"><label>Boss rounds (every 8–12)</label><div class="ctl">' +
         '<button class="toggle" id="t-boss" data-act="boss"></button></div></div>' +
+      '<div class="sub" style="margin:14px 0 2px;color:#3ad6a0;letter-spacing:2px;">▌ TEST RANGE</div>' +
+      '<div class="row"><label>Target dummies</label><div class="ctl">' +
+        '<button data-act="targets">Spawn ×3</button>' +
+        '<button data-act="targets1">+1</button>' +
+        '<button data-act="clear-targets">Clear</button></div></div>' +
+      '<div class="row"><label>No-horde mode</label><div class="ctl">' +
+        '<button class="toggle" id="t-nohorde" data-act="nohorde"></button></div></div>' +
+      '<div class="row"><label>Refill all ammo</label><div class="ctl">' +
+        '<button class="apply" data-act="maxammo">Max Ammo</button></div></div>' +
       '<div class="foot"><button data-act="close">RESUME</button></div>' +
       '</div>';
     document.body.appendChild(root);
@@ -79,6 +92,11 @@
     var boss = document.getElementById('t-boss');
     boss.textContent = G.settings.bossRounds ? 'ON' : 'OFF';
     boss.classList.toggle('on', !!G.settings.bossRounds);
+    var nh = document.getElementById('t-nohorde');
+    if (nh && G.zombies) {
+      nh.textContent = G.zombies.rangeFreeze ? 'ON' : 'OFF';
+      nh.classList.toggle('on', !!G.zombies.rangeFreeze);
+    }
     if (G.player) document.getElementById('t-cash').value = G.player.points;
     if (G.zombies) document.getElementById('t-round').value = Math.max(1, G.zombies.round);
   }
@@ -91,8 +109,20 @@
     else if (act === 'perk+') G.settings.perkLimit = Math.min(9, G.settings.perkLimit + 1);
     else if (act === 'cash') { var c = +document.getElementById('t-cash').value || 0; G.player.points = Math.max(0, c | 0); G.hud.setPoints(G.player.points); }
     else if (act === 'round') { var r = +document.getElementById('t-round').value || 1; G.zombies.jumpToRound(r); G.hud.setRound(Math.max(1, r | 0)); }
-    else if (act === 'give') { var id = document.getElementById('t-gun').value; if (id) G.weapons.giveWeapon(id); }
+    else if (act === 'give' || act === 'give-pap' || act === 'give-dpap') {
+      var id = document.getElementById('t-gun').value;
+      if (id) {
+        G.weapons.giveWeapon(id);
+        var tiers = act === 'give-pap' ? 1 : act === 'give-dpap' ? 2 : 0;
+        for (var k = 0; k < tiers; k++) G.weapons.papCurrent();
+      }
+    }
     else if (act === 'boss') G.settings.bossRounds = !G.settings.bossRounds;
+    else if (act === 'targets') { G.zombies.spawnTargets(3); }
+    else if (act === 'targets1') { G.zombies.spawnTargets(1); }
+    else if (act === 'clear-targets') G.zombies.clearTargets();
+    else if (act === 'nohorde') G.zombies.setRangeFreeze(!G.zombies.rangeFreeze);
+    else if (act === 'maxammo') { G.weapons.maxAmmo(); G.weapons.refillCurrent(); }
     else if (act === 'close') { T.close(); return; }
     refresh();
   }

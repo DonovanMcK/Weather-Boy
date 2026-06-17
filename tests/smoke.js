@@ -360,6 +360,7 @@ async function runQuick(mapId) {
     testWonderEgg(ctx);
     testPowerups(ctx);
     testArmored(ctx);
+    testRange(ctx);
   }
   if (mapId === 'derriese') testVerticality(ctx);
 }
@@ -381,6 +382,53 @@ function testArmored(ctx) {
   var zc = armored(G.zombies.spawnAt(new THREE.Vector3(0, 0, -7)));
   G.zombies.damageZombie(zc, 700, { head: true });   // -> 300 hp, below 40%
   ok(!zc.armored, 'armor cracks off once the heavy drops below 40% hp');
+}
+
+/* shooting range: hand out guns at each upgrade tier, and stand up stationary
+   dummies that respawn forever while the no-horde hold keeps the field quiet */
+function testRange(ctx) {
+  var G = ctx.G, step = ctx.step, P = G.player;
+
+  // give-at-tier (terminal "Stock / Pack-a-Punch / Double Pack")
+  G.weapons.slots.length = 0; G.weapons.maxSlots = 2;
+  G.weapons.giveWeapon('m1911');
+  ok(!G.weapons.current().papped, 'Stock give hands over an un-upgraded gun');
+  G.weapons.giveWeapon('mp5k'); G.weapons.papCurrent();
+  ok(G.weapons.current().papped && !G.weapons.current().dpap, 'Pack-a-Punch give is single-packed');
+  G.weapons.giveWeapon('python'); G.weapons.papCurrent(); G.weapons.papCurrent();
+  ok(G.weapons.current().papped && G.weapons.current().dpap, 'Double Pack give is double-packed');
+
+  // no-horde hold clears the live horde and parks the round director
+  ctx.moveTo(roomCenter(G, 'S'));
+  P.yaw = 0;
+  G.zombies.setRangeFreeze(true);
+  G.zombies.clearTargets();
+  G.zombies.spawnTargets(3);
+  var live = function () { return G.zombies.list.filter(function (z) { return z.rangeTarget && !z.dead; }); };
+  ok(live().length === 3, 'spawns three target dummies');
+  ok(G.zombies.rangeOn, 'range mode goes live');
+
+  var t0 = live()[0];
+  var pos0 = t0.mesh.position.clone();
+  step(60);
+  ok(t0.mesh.position.distanceTo(pos0) < 0.25, 'dummies stand still and never advance');
+  ok(G.zombies.list.every(function (z) { return z.rangeTarget; }), 'no-horde mode holds the round (no horde spawns)');
+
+  // a downed dummy pops straight back up
+  var n0 = live().length;
+  G.zombies.damageZombie(t0, 1e9, { boom: true });
+  ok(live().length === n0, 'a downed dummy respawns on the spot');
+
+  // clear wipes them and drops out of range mode
+  G.zombies.clearTargets();
+  ok(!G.zombies.list.some(function (z) { return z.rangeTarget; }), 'Clear removes every dummy');
+  ok(!G.zombies.rangeOn, 'range mode ends when the dummies are cleared');
+
+  // releasing the hold re-arms the director and the horde returns
+  G.zombies.setRangeFreeze(false);
+  ok(!G.zombies.rangeFreeze && G.zombies.breakTimer < 1e8, 'releasing no-horde re-arms the round director');
+  step(220);
+  ok(G.zombies.aliveCount() > 0, 'the horde resumes after no-horde mode');
 }
 
 /* power-up variety: Bonus Points pays out, and the Death Machine drop wields a
