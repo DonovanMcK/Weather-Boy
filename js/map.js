@@ -465,6 +465,8 @@
       plank: new THREE.MeshLambertMaterial({ map: G.tex.wood, color: 0xdbc8a8 }),
       metal: new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x8e949c })
     };
+    // rebuild the shared prop material cache against this map's fresh textures
+    if (G.MAT && G.MAT.reset) G.MAT.reset();
 
     // per-map atmosphere
     var atmos = CFG.cur.atmos;
@@ -761,6 +763,26 @@
       }
       return true;
     }
+    // yaw that points a prop's +Z front toward the room interior (so machines
+    // pushed against a wall face the open floor)
+    function faceRoomBB(p) {
+      var rid = map.roomAt(p.x, p.z);
+      if (!rid || !P.rooms[rid]) return 0;
+      var bb = roomInner(rid), cx = (bb.x0 + bb.x1) / 2, cz = (bb.z0 + bb.z1) / 2;
+      var dx = cx - p.x, dz = cz - p.z;
+      if (Math.hypot(dx, dz) < 0.2) return 0;
+      return Math.atan2(dx, dz);
+    }
+    // attach a prop's solid (bullet-stopping) child meshes to the world list
+    function propSolids(root) {
+      if (root.userData.solids) root.userData.solids.forEach(function (m) { map.solidMeshes.push(m); });
+    }
+    // a world collider for a prop, swapping half-extents when it faces ±X so the
+    // footprint follows the rotated body (machines sit wall-aligned = cardinal)
+    function propCollider(cx, cz, hw, hd, y1, y2, yaw) {
+      if (Math.abs(Math.sin(yaw || 0)) > 0.5) { var t = hw; hw = hd; hd = t; }
+      return map.addCollider(cx - hw, cz - hd, cx + hw, cz + hd, y1, y2);
+    }
     function pushToWall(pos, hd) {
       var rid = map.roomAt(pos.x, pos.z);
       if (!rid || !P.rooms[rid]) return pos;
@@ -779,61 +801,24 @@
     }
 
     // perk machines: vending cabinets with a lit bottle decal facing the room
-    function perkDecalTexture(def) {
-      var cv = document.createElement('canvas');
-      cv.width = 128; cv.height = 256;
-      var c = cv.getContext('2d');
-      c.fillStyle = '#101216'; c.fillRect(0, 0, 128, 256);
-      var col = '#' + new THREE.Color(def.color).getHexString();
-      c.strokeStyle = col; c.lineWidth = 4;
-      c.strokeRect(8, 8, 112, 240);
-      // bottle silhouette
-      c.fillStyle = col;
-      c.fillRect(54, 60, 20, 16);   // neck
-      c.beginPath();
-      c.moveTo(48, 76); c.lineTo(80, 76); c.lineTo(86, 96); c.lineTo(86, 170);
-      c.lineTo(42, 170); c.lineTo(42, 96); c.closePath();
-      c.fill();
-      c.fillStyle = '#101216';
-      c.fillRect(48, 110, 32, 26);  // label band
-      c.fillStyle = '#fff';
-      c.font = 'bold 26px Georgia, serif'; c.textAlign = 'center';
-      c.fillText(def.icon, 64, 131);
-      c.fillStyle = col;
-      c.font = 'bold 17px Georgia, serif';
-      c.fillText(def.name.split(' ')[0].toUpperCase(), 64, 212);
-      return new THREE.CanvasTexture(cv);
-    }
-
     CFG.PERK_MACHINES.forEach(function (pm) {
       var def = CFG.PERKS[pm.perk];
       var pos = place(pm);
       if (!pm.y) pushToWall(pos, 0.55);   // elevated machines stay where placed
       occupy(pos);
       var by = pos.y;                     // floor height this machine sits on
-      var body = addBox(0.95, 1.85, 0.75, pos.x, by + 0.92, pos.z,
-        new THREE.MeshLambertMaterial({ map: G.tex.metal, color: def.color }), { solid: true });
-      map.addCollider(pos.x - 0.48, pos.z - 0.38, pos.x + 0.48, pos.z + 0.38, by, by + 1.9);
-      addBox(0.99, 0.12, 0.79, pos.x, by + 1.9, pos.z, G.mats.metal);
-      addBox(0.99, 0.1, 0.79, pos.x, by + 0.06, pos.z, mat(0x1a1c20));
-      // decal on the face pointing toward the room interior
-      var roomCtr = P.rooms[map.roomAt(pos.x, pos.z)] ? P.rooms[map.roomAt(pos.x, pos.z)].center : null;
-      var dx = roomCtr ? roomCtr.x - pos.x : 0, dz = roomCtr ? roomCtr.z - pos.z : 1;
-      var decal = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 1.5),
-        new THREE.MeshLambertMaterial({ map: perkDecalTexture(def), transparent: true,
-          emissive: new THREE.Color(def.color), emissiveIntensity: 0.35, emissiveMap: null }));
-      if (Math.abs(dx) > Math.abs(dz)) {
-        decal.position.set(pos.x + Math.sign(dx) * 0.39, by + 1.0, pos.z);
-        decal.rotation.y = dx > 0 ? Math.PI / 2 : -Math.PI / 2;
-      } else {
-        decal.position.set(pos.x, by + 1.0, pos.z + (dz >= 0 ? 0.39 : -0.39));
-        decal.rotation.y = dz >= 0 ? 0 : Math.PI;
-      }
-      G.scene.add(decal);
+      // vending-machine prop (visuals); collider + light stay gameplay-owned
+      var root = G.Props.create('perk_machine', {
+        position: new THREE.Vector3(pos.x, by, pos.z),
+        rotationY: faceRoomBB(pos), variant: pm.perk, def: def
+      });
+      propSolids(root);
+      propCollider(pos.x, pos.z, 0.48, 0.38, by, by + 1.9, faceRoomBB(pos));
       var light = new THREE.PointLight(def.color, pm.perk === 'revive' ? 0.8 : 0.25, 7);
       light.position.set(pos.x, by + 2.2, pos.z);
       G.scene.add(light);
-      map.perkMachines.push({ perk: pm.perk, pos: pos, mesh: body, light: light });
+      map.perkMachines.push({ perk: pm.perk, pos: pos, mesh: root, light: light,
+        setPowered: root.userData.setPowered });
     });
 
     // wall buys — chalk drawn flush on the inner wall face (was floating in the
@@ -852,14 +837,13 @@
       var isFrags = wb.gun === 'frags';
       var def = isFrags ? { name: 'Frag Grenades' } : CFG.WEAPONS[wb.gun];
       var cost = isFrags ? CFG.FRAGS_COST : def.wall;
-      var plane = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6),
-        new THREE.MeshBasicMaterial({ map: chalkTexture([def.name, cost + ' pts']),
-          transparent: true, depthWrite: false, side: THREE.FrontSide,
-          polygonOffset: true, polygonOffsetFactor: -2 }));
-      plane.position.copy(wallPos);
-      plane.rotation.y = { N: Math.PI, S: 0, E: -Math.PI / 2, W: Math.PI / 2 }[wb.face] + Math.PI;
-      G.scene.add(plane);
-      map.wallbuys.push({ gun: wb.gun, isFrags: isFrags, cost: cost, pos: pos, mesh: plane });
+      // wall-buy fixture: chalk outline + brackets + price plate + cabling
+      var fixture = G.Props.create('wallbuy_fixture', {
+        position: new THREE.Vector3(wc.x + tx + o[0] * FACE, (pos.y || 0), wc.z + tz + o[1] * FACE),
+        rotationY: Math.atan2(-o[0], -o[1]),
+        chalkTex: chalkTexture([def.name, cost + ' pts'])
+      });
+      map.wallbuys.push({ gun: wb.gun, isFrags: isFrags, cost: cost, pos: pos, mesh: fixture });
     });
 
     CFG.BOX_SPOTS.forEach(function (bs, i) {
@@ -873,20 +857,17 @@
     CFG.TELEPORTERS.forEach(function (t) {
       var pos = place(t);
       occupy(pos);
-      var ring = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.5, 0.18, 20),
-        mat(0x331111, { emissive: new THREE.Color(0x111111) }));
-      ring.position.set(pos.x, 0.09, pos.z);
-      G.scene.add(ring);
-      for (var p = 0; p < 3; p++) {
-        var ang = p / 3 * Math.PI * 2;
-        var px = pos.x + Math.cos(ang) * 1.7, pz = pos.z + Math.sin(ang) * 1.7;
-        addBox(0.3, 2.6, 0.3, px, 1.3, pz, G.mats.metal, { collide: true, solid: true });
-        addBox(0.36, 0.2, 0.36, px, 2.7, pz, mat(0x222230, { emissive: new THREE.Color(0x2288cc), emissiveIntensity: 0.5 }));
-      }
+      var root = G.Props.create('teleporter_pad', { position: new THREE.Vector3(pos.x, 0, pos.z) });
+      propSolids(root);
+      // conduit-post colliders, derived from the prop's actual post layout
+      (root.userData.posts || []).forEach(function (pp) {
+        map.addCollider(pos.x + pp.x - 0.15, pos.z + pp.z - 0.15, pos.x + pp.x + 0.15, pos.z + pp.z + 0.15, 0, 2.6);
+      });
       var light = new THREE.PointLight(0x22ddff, 0, 7);
       light.position.set(pos.x, 2, pos.z);
       G.scene.add(light);
-      map.teleporters.push({ id: t.id, pos: pos, ring: ring, light: light, linked: false, linking: false, linkTimer: 0 });
+      map.teleporters.push({ id: t.id, pos: pos, ring: root.userData.energy, light: light,
+        linked: false, linking: false, linkTimer: 0 });
     });
 
     // mainframe
@@ -895,14 +876,13 @@
       var mf = place(CFG.MAINFRAME);
       pushToWall(mf, 1.1);
       occupy(mf);
-      var mfPad = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.6, 0.2, 24),
-        mat(0x515c66, { emissive: new THREE.Color(0x114455), emissiveIntensity: 0.5 }));
-      mfPad.position.set(mf.x, 0.1, mf.z);
-      G.scene.add(mfPad);
-      // link terminal sits on the pad (no stray collider in the open room)
-      addBox(0.55, 1.2, 0.45, mf.x, 0.7, mf.z, G.mats.metal, { collide: true, solid: true });
-      addBox(0.62, 0.42, 0.16, mf.x, 1.15, mf.z + 0.26, mat(0x111418, { emissive: new THREE.Color(0x22cc66), emissiveIntensity: 0.6 }));
-      map.mainframe = { pos: mf, pad: mfPad };
+      var mfRoot = G.Props.create('mainframe', {
+        position: new THREE.Vector3(mf.x, 0, mf.z), rotationY: faceRoomBB(mf)
+      });
+      propSolids(mfRoot);
+      var mc = mfRoot.userData.colliderBox;
+      propCollider(mf.x, mf.z, mc.hw, mc.hd, mc.y1, mc.y2, faceRoomBB(mf));
+      map.mainframe = { pos: mf, pad: mfRoot };
     }
 
     // pack-a-punch: a chunkier machine — base, sloped hopper, glowing feed
@@ -910,24 +890,12 @@
     var pp = place(CFG.PAP);
     pushToWall(pp, 1.0);
     occupy(pp);
-    var papDark = new THREE.MeshPhongMaterial({ map: G.tex.metal, color: 0x26262f, shininess: 30,
-      specular: new THREE.Color(0x44447a) });
-    var papGlow = mat(0x140a2a, { emissive: new THREE.Color(0x7a33ff), emissiveIntensity: 0.7 });
-    var papGold = new THREE.MeshPhongMaterial({ color: 0xc9a030, shininess: 80, specular: new THREE.Color(0xfff0b0) });
-    var papBody = addBox(1.5, 1.2, 0.95, pp.x, 0.6, pp.z, papDark, { collide: true, solid: true });
-    addBox(1.6, 0.18, 1.05, pp.x, 0.09, pp.z, papDark);             // base plinth
-    // sloped hopper on top
-    var hopper = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.62, 0.7, 4),
-      papDark);
-    hopper.rotation.y = Math.PI / 4;
-    hopper.position.set(pp.x, 1.55, pp.z);
-    G.scene.add(hopper);
-    addBox(0.95, 0.5, 0.12, pp.x, 0.85, pp.z + 0.5, papGlow);       // glowing feed slot
-    addBox(0.7, 0.1, 0.45, pp.x, 0.38, pp.z + 0.62, papGold);       // output tray
-    addBox(1.56, 0.1, 1.0, pp.x, 1.18, pp.z, papGold);              // gold trim band
-    var papL = new THREE.PointLight(0x8844ff, 0.7, 6);
-    papL.position.set(pp.x, 1.3, pp.z + 0.6);
-    G.scene.add(papL);
+    var papYaw = faceRoomBB(pp);
+    var papRoot = G.Props.create('pack_a_punch', { position: new THREE.Vector3(pp.x, 0, pp.z), rotationY: papYaw });
+    propSolids(papRoot);
+    var pc = papRoot.userData.colliderBox;
+    propCollider(pp.x, pp.z, pc.hw, pc.hd, pc.y1, pc.y2, papYaw);
+    var papBody = papRoot;
     var field = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.0, 3.4, 16, 1, true),
       new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.28, side: THREE.DoubleSide }));
     field.position.set(pp.x, 1.7, pp.z);
@@ -948,25 +916,41 @@
     var pw = place(CFG.POWER);
     pushToWall(pw, 0.35);
     occupy(pw);
-    var lever = addBox(0.8, 1.4, 0.3, pw.x, 1.3, pw.z, mat(0x7c2a22, { emissive: new THREE.Color(0x330000) }), { solid: true });
-    addBox(0.16, 0.5, 0.12, pw.x, 1.55, pw.z + 0.18, G.mats.metal);
-    map.powerSwitch = { pos: pw, mesh: lever };
+    var pwRoot = G.Props.create('power_switch', { position: new THREE.Vector3(pw.x, 0, pw.z), rotationY: faceRoomBB(pw) });
+    propSolids(pwRoot);
+    map.powerSwitch = { pos: pw, mesh: pwRoot, setPowered: pwRoot.userData.setPowered };
     occupy(place(CFG.PLAYER_SPAWN));
 
     /* ------------------------------------------------- lights + fixtures */
+    // designed ceiling fixture per map theme: a caged bunker lamp, an industrial
+    // dome, or a cold institutional fixture. The bulb keeps a PRIVATE material so
+    // the flicker loop can drive its emissiveIntensity without touching the
+    // shared prop material cache.
     function addLamp(x, z, color) {
+      var theme = CFG.cur.id, iron = G.MAT.get('darkIron'), housing = G.MAT.get('paintedMetal');
       var fixture = new THREE.Group();
-      var cone = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.34, 10, 1, true),
-        new THREE.MeshLambertMaterial({ color: 0x3a3f46, side: THREE.DoubleSide }));
-      cone.position.y = 0.1;
-      fixture.add(cone);
+      var rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 6), G.mats.metal);
+      rod.position.y = 0.55; fixture.add(rod);
+      if (theme === 'derriese') {                       // industrial dome light
+        var dome = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), housing);
+        dome.position.y = 0.16; fixture.add(dome);
+      } else {                                          // caged bunker lamp
+        var cap = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.18, 12, 1, true),
+          new THREE.MeshLambertMaterial({ color: 0x3a3f46, side: THREE.DoubleSide }));
+        cap.position.y = 0.16; fixture.add(cap);
+        [0.04, -0.08].forEach(function (yy) {
+          var ring = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.012, 6, 14), iron);
+          ring.rotation.x = Math.PI / 2; ring.position.y = yy; fixture.add(ring);
+        });
+        for (var i = 0; i < 4; i++) {
+          var a = i / 4 * Math.PI * 2;
+          var wire = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.2, 0.012), iron);
+          wire.position.set(Math.cos(a) * 0.14, -0.02, Math.sin(a) * 0.14); fixture.add(wire);
+        }
+      }
       var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8),
         new THREE.MeshLambertMaterial({ color: 0x222018, emissive: new THREE.Color(0xffe9b0), emissiveIntensity: 0.35 }));
-      bulb.position.y = -0.04;
-      fixture.add(bulb);
-      var rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 6), G.mats.metal);
-      rod.position.y = 0.55;
-      fixture.add(rod);
+      bulb.position.y = -0.04; fixture.add(bulb);
       fixture.position.set(x, WALL_H - 0.55, z);
       G.scene.add(fixture);
       var light = new THREE.PointLight(color, 0.75, 18, 1);
@@ -1021,11 +1005,6 @@
     var dDark = new THREE.MeshLambertMaterial({ color: 0x2a2c30 });
     var dPipe = new THREE.MeshLambertMaterial({ color: 0x6b7077 });
     var dConc = new THREE.MeshLambertMaterial({ map: G.tex.wall, color: 0x8a857c });
-    var dGlass = new THREE.MeshLambertMaterial({ color: 0x1b3a30, transparent: true, opacity: 0.55,
-      emissive: new THREE.Color(0x33ff88), emissiveIntensity: 0.35 });
-    function glowMat(col, i) {
-      return new THREE.MeshLambertMaterial({ color: 0x0e1014, emissive: new THREE.Color(col), emissiveIntensity: i || 0.7 });
-    }
     function pbox(parent, w, h, d, x, y, z, m, rx) {
       var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
       b.position.set(x, y, z); if (rx) b.rotation.x = rx;
@@ -1060,86 +1039,24 @@
       return es;
     }
 
-    /* ---- themed hero structures (built local to a group, back toward -z) -- */
-    function heroGenerators(g) {
-      [-0.55, 0.55].forEach(function (ox) {
-        pbox(g, 0.9, 1.3, 0.7, ox, 0.65, -0.15, dRust);
-        pbox(g, 0.96, 0.18, 0.76, ox, 1.45, -0.15, dBeam);
-        pbox(g, 0.5, 0.32, 0.05, ox, 0.95, 0.2, glowMat(0xffaa33, 0.7));
-        pcyl(g, 0.07, 0.07, 1.1, ox + 0.3, 2.05, -0.25, dPipe, 8);
-      });
-      pcyl(g, 0.06, 0.06, 1.3, 0, 1.0, -0.32, dPipe, 8, 'x');
-    }
-    function heroFurnace(g) {
-      pcyl(g, 0.72, 0.72, 1.9, 0, 1.05, -0.2, dRust, 16);
-      pbox(g, 1.0, 0.75, 0.12, 0, 0.62, 0.46, glowMat(0xff4410, 1.1));
-      pcyl(g, 0.18, 0.18, 1.4, 0.42, 2.4, -0.2, dPipe, 10);
-      pbox(g, 1.7, 0.3, 0.7, 0, 0.15, -0.1, dDark);
-      var fl = new THREE.PointLight(0xff5a1e, 0.9, 7); fl.position.set(0, 0.7, 0.6); g.add(fl);
-    }
-    function heroLab(g) {
-      pbox(g, 1.7, 0.85, 0.6, 0, 0.42, -0.1, dDark);
-      [-0.55, 0, 0.55].forEach(function (ox) {
-        pcyl(g, 0.22, 0.22, 0.95, ox, 1.32, -0.1, dGlass, 12);
-        pcyl(g, 0.25, 0.25, 0.1, ox, 0.9, -0.1, dBeam, 12);
-        pcyl(g, 0.25, 0.25, 0.1, ox, 1.82, -0.1, dBeam, 12);
-      });
-      var ll = new THREE.PointLight(0x33ff88, 0.5, 6); ll.position.set(0, 1.5, 0.2); g.add(ll);
-    }
-    function heroTruck(g) {
-      pbox(g, 1.1, 0.5, 2.1, 0, 0.55, 0.1, dRust);
-      pbox(g, 1.0, 0.62, 0.95, 0, 0.85, -0.7, dRust);
-      pbox(g, 0.9, 0.4, 0.75, 0, 1.05, -0.66, dDark);
-      [[-0.58, -0.72], [0.58, -0.72], [-0.58, 0.75], [0.58, 0.75]].forEach(function (w) {
-        pcyl(g, 0.3, 0.3, 0.26, w[0], 0.3, w[1], dDark, 12, 'x');
-      });
-    }
-    function heroShelves(g) {
-      [-0.9, 0.9].forEach(function (ox) { pbox(g, 0.09, 2.1, 0.62, ox, 1.05, -0.1, dBeam); });
-      [0.45, 1.1, 1.75].forEach(function (y) { pbox(g, 1.85, 0.08, 0.6, 0, y, -0.1, dBeam); });
-      [[-0.55, 0.75, dRust], [0.4, 0.75, G.mats.wood], [0.0, 1.4, G.mats.plank], [0.55, 1.4, dRust], [-0.4, 2.05, G.mats.wood]]
-        .forEach(function (c) { pbox(g, 0.5, 0.46, 0.46, c[0], c[1], -0.1, c[2]); });
-    }
-    function heroServers(g) {
-      [-0.6, 0, 0.6].forEach(function (ox) {
-        pbox(g, 0.5, 1.7, 0.55, ox, 0.85, -0.12, dDark);
-        pbox(g, 0.44, 1.5, 0.04, ox, 0.85, 0.16, glowMat(0x33ccff, 0.55));
-      });
-      var dish = pcyl(g, 0.62, 0.5, 0.12, 0, 2.35, -0.15, dConc, 18); dish.rotation.x = 0.6;
-      pcyl(g, 0.05, 0.05, 0.6, 0, 2.05, -0.15, dBeam, 6);
-    }
-    function heroPipes(g) {
-      [-0.32, -0.11, 0.11, 0.32].forEach(function (ox, i) {
-        pcyl(g, 0.08, 0.08, 2.5, ox, 1.4, -0.25, i % 2 ? dRust : dPipe, 8);
-      });
-      pbox(g, 1.3, 0.42, 0.42, 0, 0.32, -0.22, dDark);
-      pcyl(g, 0.13, 0.13, 0.3, 0.0, 0.55, 0.05, dRust, 8, 'z');
-    }
-    function heroSandbags(g) {
-      for (var rr = 0; rr < 3; rr++) {
-        for (var i = 0; i < 4; i++) {
-          var off = (rr % 2) * 0.21;
-          pbox(g, 0.5, 0.28, 0.42, -0.72 + i * 0.42 + off, 0.14 + rr * 0.26, -0.1,
-            new THREE.MeshLambertMaterial({ color: i % 2 ? 0x756a4e : 0x645a40 }));
-        }
-      }
-    }
-    function heroCrates(g) {
-      pbox(g, 0.85, 0.85, 0.85, -0.3, 0.43, -0.12, dRust);
-      pbox(g, 0.72, 0.72, 0.72, 0.45, 0.37, 0.08, G.mats.wood);
-      pbox(g, 0.6, 0.6, 0.6, -0.18, 1.16, -0.12, G.mats.plank);
+    /* ---- themed hero structures: pick a registry prop by room name. The prop
+       (front +Z) is added into the wall-facing group placeHero builds, so it
+       reads as the room's centrepiece. Collider stays the 2x2 placeHero box. */
+    function heroTypeFor(name) {
+      var n = (name || '').toLowerCase();
+      return /generator|power/.test(n) ? 'generator'
+        : /furnace|boiler/.test(n) ? 'pressure_tank'
+        : /lab|research|control|test/.test(n) ? 'lab_cabinet'
+        : /garage|crash|vehicle/.test(n) ? 'tool_cart'
+        : /storage|supply|cargo/.test(n) ? 'electrical_cabinet'
+        : /comms|radar|dome|tower|weather/.test(n) ? 'radar_console'
+        : /catwalk|pipe|teleporter/.test(n) ? 'pipe_cluster'
+        : /courtyard|bunker|help|spawn|yard|entrance/.test(n) ? 'sandbag_stack'
+        : 'ammo_crate';
     }
     function buildHero(name, g) {
-      var n = name.toLowerCase();
-      if (/generator|power/.test(n)) heroGenerators(g);
-      else if (/furnace/.test(n)) heroFurnace(g);
-      else if (/lab/.test(n)) heroLab(g);
-      else if (/garage/.test(n)) heroTruck(g);
-      else if (/storage/.test(n)) heroShelves(g);
-      else if (/comms|radar|dome/.test(n)) heroServers(g);
-      else if (/catwalk/.test(n)) heroPipes(g);
-      else if (/courtyard|crash|bunker|help|spawn/.test(n)) heroSandbags(g);
-      else heroCrates(g);
+      var prop = G.Props.create(heroTypeFor(name), { addToScene: false, seed: (G.PU.hashStr(name) || 1) });
+      g.add(prop);
     }
     function placeHero(room, name) {
       var es = wallEdges(room).filter(function (e) { return !e.door && !e.win; });
@@ -1486,16 +1403,11 @@
           mat(0x221c10, { emissive: new THREE.Color(0xffd9a0), emissiveIntensity: 0.7 }));
         bulb.position.y = -0.08; g.add(bulb);
       }
+      // reusable oil drum from the prop registry (decorative here — tucked
+      // against walls, so no world collider is registered)
       function oilDrum(x, z) {
-        var g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = Math.random() * 6.28; G.scene.add(g);
-        var body = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.88, 12), Math.random() < 0.5 ? dRust : dPipe);
-        body.position.y = 0.44; g.add(body);
-        [0.16, 0.44, 0.72].forEach(function (yy) {
-          var r = new THREE.Mesh(new THREE.TorusGeometry(0.275, 0.018, 5, 12), dBeam);
-          r.rotation.x = Math.PI / 2; r.position.y = yy; g.add(r);
-        });
-        var lid = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.04, 12), dDark);
-        lid.position.y = 0.9; g.add(lid);
+        G.Props.create('oil_drum', { position: new THREE.Vector3(x, 0, z),
+          rotationY: Math.random() * 6.28, seed: ((x * 131 + z * 17) | 0) || 1 });
       }
       function valveOnWall(e) {
         var g = wallGroup(e, 1.4 + Math.random() * 0.7, 0.12);

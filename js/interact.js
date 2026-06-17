@@ -22,6 +22,15 @@
     CFG = G.CFG;
     var map = G.map;
 
+    // yaw that points a prop's +Z front toward its room centre
+    function faceCenter(pos) {
+      var rid = map.roomAt(pos.x, pos.z), rm = rid && map.parsed.rooms[rid], c = rm && rm.center;
+      if (!c) return 0;
+      var dx = c.x - pos.x, dz = c.z - pos.z;
+      if (Math.hypot(dx, dz) < 0.2) return 0;
+      return Math.atan2(dx, dz);
+    }
+
     // doors
     Object.keys(map.doors).forEach(function (id) {
       var d = map.doors[id];
@@ -140,9 +149,7 @@
     // never blocks a training lane)
     var tsp = CFG.cellToWorld(CFG.PLAYER_SPAWN.cell[0], CFG.PLAYER_SPAWN.cell[1]);
     var tpos = new THREE.Vector3(tsp.x + 1.9, 0, tsp.z);
-    G.util.addBox(0.8, 1.05, 0.55, tpos.x, 0.52, tpos.z, G.util.mat(0x14201c));
-    G.util.addBox(0.72, 0.5, 0.1, tpos.x, 1.2, tpos.z,
-      G.util.mat(0x0c241d, { emissive: new THREE.Color(0x33d6a0), emissiveIntensity: 0.8 }));
+    G.Props.create('settings_terminal', { position: tpos, rotationY: faceCenter(tpos) });
     add({
       pos: tpos, r: 2.2,
       prompt: function () { return G.terminal ? 'Settings terminal' : null; },
@@ -152,9 +159,7 @@
     // Zombie Shield workbench — build it once, carry it on your back; it eats
     // hits from behind until it shatters, then rebuild here
     var bpos = new THREE.Vector3(tsp.x - 2.0, 0, tsp.z);
-    var bench = G.util.addBox(1.2, 0.85, 0.7, bpos.x, 0.42, bpos.z, G.util.mat(0x2a2018));
-    G.util.addBox(0.7, 0.85, 0.12, bpos.x, 1.0, bpos.z,
-      G.util.mat(0x3a2a20, { emissive: new THREE.Color(0x884422), emissiveIntensity: 0.25 }));
+    var shieldBench = G.Props.create('shield_bench', { position: bpos, rotationY: faceCenter(bpos) });
     add({
       pos: bpos, r: 2.2,
       prompt: function () {
@@ -178,8 +183,7 @@
     (CFG.EE_RELICS || []).forEach(function (cell) {
       var wc = CFG.cellToWorld(cell[0], cell[1]);
       var pos = new THREE.Vector3(wc.x, 0, wc.z);
-      var mesh = G.util.addBox(0.32, 0.5, 0.32, pos.x, 0.28, pos.z,
-        G.util.mat(0x20140a, { emissive: new THREE.Color(0x6a3a10), emissiveIntensity: 0.4 }));
+      var mesh = G.Props.create('relic_pedestal', { position: pos, rotationY: faceCenter(pos) });
       var relic = { pos: pos, mesh: mesh, active: false };
       I.ee.relics.push(relic);
       add({
@@ -188,8 +192,7 @@
         use: function () {
           if (relic.active) return;
           relic.active = true; I.ee.activated++;
-          relic.mesh.material.emissive = new THREE.Color(0x33ddaa);
-          relic.mesh.material.emissiveIntensity = 1.0;
+          if (relic.mesh.userData.activate) relic.mesh.userData.activate();
           G.audio.perkJingle();
           if (I.ee.activated >= I.ee.relics.length) spawnSoulBox();
           else G.hud.banner('RELIC ' + I.ee.activated + '/' + I.ee.relics.length, '#7fd', 2, 'Find the others…');
@@ -200,11 +203,8 @@
       if (I.ee.box || !CFG.EE_SOULBOX) return;
       var wc = CFG.cellToWorld(CFG.EE_SOULBOX[0], CFG.EE_SOULBOX[1]);
       I.ee.box = new THREE.Vector3(wc.x, 0, wc.z);
-      I.ee.boxMesh = G.util.addBox(0.9, 0.9, 0.9, wc.x, 0.6, wc.z,
-        G.util.mat(0x0a0014, { emissive: new THREE.Color(0x8822ff), emissiveIntensity: 0.9 }));
-      I.ee.glow = new THREE.PointLight(0x9933ff, 1.3, 9);
-      I.ee.glow.position.set(wc.x, 1.5, wc.z);
-      G.scene.add(I.ee.glow);
+      I.ee.boxMesh = G.Props.create('soul_chest', { position: I.ee.box });
+      I.ee.glow = null;   // the chest carries its own internal glow light
       G.hud.banner('SOUL CHEST AWAKENED', '#b6f', 3, 'Feed it kills nearby');
     }
     function rewardSoulBox() {
@@ -227,6 +227,7 @@
       if (!ee || !ee.box || ee.done) return;
       if (Math.hypot(pos.x - ee.box.x, pos.z - ee.box.z) > 6.5) return;
       ee.souls++;
+      if (ee.boxMesh && ee.boxMesh.userData.setCharge) ee.boxMesh.userData.setCharge(ee.souls / ee.need);
       if (ee.souls >= ee.need) rewardSoulBox();
       else if (ee.souls % 5 === 0) G.hud.banner('SOULS ' + ee.souls + '/' + ee.need, '#b6f', 1.1);
     };
@@ -237,8 +238,7 @@
     (CFG.WW_PARTS || []).forEach(function (cell) {
       var wc = CFG.cellToWorld(cell[0], cell[1]);
       var pos = new THREE.Vector3(wc.x, 0, wc.z);
-      var mesh = G.util.addBox(0.28, 0.42, 0.28, pos.x, 0.2, pos.z,
-        G.util.mat(0x0a1a22, { emissive: new THREE.Color(0x1f6fa0), emissiveIntensity: 0.5 }));
+      var mesh = G.Props.create('ww_part', { position: pos, rotationY: faceCenter(pos) });
       var part = { pos: pos, mesh: mesh, taken: false };
       add({
         pos: pos, r: 1.8,
@@ -261,8 +261,8 @@
     if (CFG.WW_BUILD) {
       var wbwc = CFG.cellToWorld(CFG.WW_BUILD[0], CFG.WW_BUILD[1]);
       var wbpos = new THREE.Vector3(wbwc.x, 0, wbwc.z);
-      G.util.addBox(1.15, 0.8, 0.85, wbpos.x, 0.4, wbpos.z,
-        G.util.mat(0x101a22, { emissive: new THREE.Color(0x2a5a7a), emissiveIntensity: 0.3 }));
+      var wonderTint = { thundergun: 0x33ccff, wunderwaffe: 0xaa66ff, wettermacher: 0x33ffaa }[CFG.cur.wonder] || 0x2a8adf;
+      G.Props.create('wonder_bench', { position: wbpos, rotationY: faceCenter(wbpos), tint: wonderTint });
       add({
         pos: wbpos, r: 2.2,
         prompt: function () {
@@ -294,7 +294,7 @@
         map.setPower();
         G.audio.powerOn();
         G.hud.banner('POWER ON', '#ff5', 3, 'The machines hum to life');
-        map.powerSwitch.mesh.material.emissive = new THREE.Color(0x115511);
+        if (map.powerSwitch.setPowered) map.powerSwitch.setPowered(true);
         if (CFG.cur.papRule === 'power' && !map.pap.unlocked) map.pap.unlock();
       }
     });
@@ -463,53 +463,11 @@
   };
 
   /* --------------------------------------------------------- mystery box */
+  // the Mystery Box is a registered prop (occult supply chest). It exposes the
+  // userData.lid contract the roll/settle animation drives (closed y≈0.85,
+  // open y≈1.1) plus an internal glow + weapon display anchor.
   function buildBoxMesh(pos) {
-    var grp = new THREE.Group();
-    var woodMat = new THREE.MeshPhongMaterial({ map: G.tex.wood, color: 0x9a7448, shininess: 8 });
-    var bandMat = new THREE.MeshPhongMaterial({ map: G.tex.metal, color: 0x6b7079, shininess: 45,
-      specular: new THREE.Color(0x888f99) });
-    var glowMat = new THREE.MeshPhongMaterial({ color: 0x101830,
-      emissive: new THREE.Color(0x3a6bff), emissiveIntensity: 0.6, shininess: 60 });
-    function part(w, h, d, x, y, z, m) {
-      var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
-      b.position.set(x, y, z); grp.add(b); return b;
-    }
-    // crate body + corner posts + steel banding
-    part(1.7, 0.8, 0.9, 0, 0.42, 0, woodMat);
-    [[-0.82, -0.42], [0.82, -0.42], [-0.82, 0.42], [0.82, 0.42]].forEach(function (c) {
-      part(0.1, 0.84, 0.1, c[0], 0.42, c[1], bandMat);
-    });
-    part(1.74, 0.1, 0.94, 0, 0.18, 0, bandMat);     // lower band
-    part(1.74, 0.1, 0.94, 0, 0.66, 0, bandMat);     // upper band
-    part(0.22, 0.34, 0.06, 0, 0.42, 0.46, bandMat); // front latch plate
-    part(0.1, 0.12, 0.05, 0, 0.3, 0.49, glowMat);   // latch
-    // hinged lid (animated open via userData.lid.position.y)
-    var lid = part(1.74, 0.16, 0.94, 0, 0.9, 0, woodMat);
-    lid.add(new THREE.Mesh(new THREE.BoxGeometry(1.78, 0.06, 0.98), bandMat));
-    // glowing blue question mark panel on the lid
-    var qTex = questionTexture();
-    var q = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5),
-      new THREE.MeshBasicMaterial({ map: qTex, transparent: true }));
-    q.position.set(0, 0.09, 0); q.rotation.x = -Math.PI / 2;
-    lid.add(q);
-    var glow = new THREE.PointLight(0x4a7bff, 0.6, 4);
-    glow.position.y = 1.1; grp.add(glow);
-    grp.position.copy(pos);
-    G.scene.add(grp);
-    grp.userData.lid = lid;
-    return grp;
-  }
-
-  function questionTexture() {
-    var cv = document.createElement('canvas');
-    cv.width = cv.height = 128;
-    var c = cv.getContext('2d');
-    c.fillStyle = 'rgba(10,20,50,0.85)'; c.fillRect(0, 0, 128, 128);
-    c.strokeStyle = '#6ea8ff'; c.lineWidth = 5; c.strokeRect(6, 6, 116, 116);
-    c.font = 'bold 96px Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillStyle = '#bcd8ff'; c.shadowColor = '#3a6bff'; c.shadowBlur = 18;
-    c.fillText('?', 64, 70);
-    return new THREE.CanvasTexture(cv);
+    return G.Props.create('mystery_box', { position: pos });
   }
 
   I.moveBox = function (idx, silent) {

@@ -104,7 +104,10 @@ function createGame() {
   };
   vm.createContext(sandbox);
 
-  ['config', 'audio', 'hud', 'map', 'nav', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'remote', 'terminal', 'main']
+  ['config', 'audio', 'hud',
+   'assets/materials', 'assets/prop-utils', 'assets/prop-registry',
+   'assets/gameplay-machines', 'assets/environment-props', 'assets/interactive-props',
+   'map', 'nav', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'remote', 'terminal', 'main']
     .forEach(function (name) {
       var src = fs.readFileSync(path.join(__dirname, '..', 'js', name + '.js'), 'utf8');
       vm.runInContext(src, sandbox, { filename: name + '.js' });
@@ -1230,8 +1233,87 @@ function runGunModels() {
   ok(true, 'gun models built without error');
 }
 
+/* prop registry: every builder constructs, returns a Group, exposes the
+   interaction / animation / collider contract, shares cached materials, and
+   releases resources on dispose */
+function runProps() {
+  console.log('\n=== prop registry ===');
+  var ctx = createGame(); var G = ctx.G;
+  G.startGame('nacht');                       // builds G.tex + the material cache
+  var perks = G.CFG.PERKS;
+  function mk(type, extra) {
+    var opts = { addToScene: false }; if (extra) Object.keys(extra).forEach(function (k) { opts[k] = extra[k]; });
+    if (type === 'perk_machine' && !opts.def) { opts.variant = 'revive'; opts.def = perks.revive || { color: 0xff4444, name: 'Revive', icon: '+' }; }
+    return G.Props.create(type, opts);
+  }
+  var types = G.Props.list();
+  ok(types.length >= 30, 'prop registry exposes the full set (' + types.length + ')');
+
+  var fallbacks = 0, nan = 0, notGroup = 0;
+  types.forEach(function (type) {
+    var root;
+    try { root = mk(type); } catch (e) { ok(false, type + ' threw: ' + e.message); return; }
+    if (!root || !root.isObject3D || root.type !== 'Group') notGroup++;
+    if (root && root.userData.fallback) fallbacks++;
+    var bad = false;
+    root.traverse(function (o) {
+      ['x', 'y', 'z'].forEach(function (k) {
+        if (isNaN(o.position[k]) || isNaN(o.scale[k]) || isNaN(o.rotation[k])) bad = true;
+      });
+    });
+    if (bad) nan++;
+  });
+  ok(notGroup === 0, 'every builder returns a THREE.Group root');
+  ok(fallbacks === 0, 'no builder fell back to the placeholder crate');
+  ok(nan === 0, 'no prop has NaN position / scale / rotation');
+
+  // interaction anchors on every interactive machine
+  ['mystery_box', 'perk_machine', 'pack_a_punch', 'power_switch', 'teleporter_pad', 'mainframe', 'settings_terminal', 'soul_chest']
+    .forEach(function (t) {
+      var a = mk(t).userData.interactionAnchor;
+      ok(a && a.isObject3D, t + ' exposes a root-level interaction anchor');
+    });
+
+  // animation / state handles
+  var box = mk('mystery_box');
+  ok(box.userData.lid && box.userData.internalGlow && box.userData.weaponDisplayAnchor,
+     'mystery_box exposes lid + internal glow + weapon display anchor');
+  var pap = mk('pack_a_punch');
+  ok(pap.userData.rollers && pap.userData.rollers.length && pap.userData.glow, 'pack_a_punch exposes rollers + glow');
+  var ps = mk('power_switch');
+  ok(ps.userData.lever && typeof ps.userData.setPowered === 'function', 'power_switch exposes lever + setPowered()');
+  var tp = mk('teleporter_pad');
+  ok(tp.userData.energy && tp.userData.posts && tp.userData.posts.length === 3, 'teleporter_pad exposes energy surface + 3 posts');
+  var sc = mk('soul_chest');
+  ok(typeof sc.userData.setCharge === 'function', 'soul_chest exposes setCharge()');
+  var wbar = mk('window_barricade');
+  ok(wbar.userData.planks && wbar.userData.planks.length >= 4 && typeof wbar.userData.setBoards === 'function',
+     'window_barricade exposes independent planks + setBoards()');
+
+  // collider metadata where players must not pass through
+  ['mystery_box', 'perk_machine', 'pack_a_punch', 'mainframe', 'soul_chest', 'locker', 'generator'].forEach(function (t) {
+    ok(!!mk(t).userData.colliderBox, t + ' declares a simplified collider box');
+  });
+
+  // shared material cache
+  ok(G.MAT.get('bareSteel') === G.MAT.get('bareSteel'), 'named materials are cached and shared');
+  ok(G.MAT.emissive(0x33ff66, 0.8) === G.MAT.emissive(0x33ff66, 0.8), 'identical emissive materials are shared');
+
+  // dispose releases the prop and detaches it
+  var live = G.Props.create('generator', { position: new THREE.Vector3(0, 0, 0) });
+  ok(live.parent === G.scene, 'a created prop attaches to the scene');
+  G.Props.dispose(live);
+  ok(!live.parent, 'a disposed prop is detached from the scene');
+
+  // gallery builds one of every prop
+  var gal = G.Props.gallery({ addToScene: false });
+  var galProps = gal.holder.children.filter(function (c) { return c.userData && c.userData.propType; }).length;
+  ok(galProps === types.length, 'prop gallery lays out every registered prop (' + galProps + ')');
+}
+
 if (require.main === module) {
   (async function () {
+    runProps();
     await runFull('wetterjunge');
     await runQuick('nacht');
     await runQuick('derriese');
