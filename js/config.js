@@ -194,7 +194,7 @@
       { id: 'B', cell: [15, 7], off: [0, 0] },
       { id: 'C', cell: [7, 1],  off: [0, 0] }
     ],
-    MAINFRAME: { cell: [7, 7], off: [0, 0] },
+    MAINFRAME: { cell: [7, 5], off: [0, -0.8], y: 3.2 },   // on the rear (north) catwalk
     PAP: { cell: [9, 7], off: [0, 0] },
     POWER: { cell: [10, 2], off: [0, 0] },
     PLAYER_SPAWN: { cell: [7, 12], off: [0, 0.5] },

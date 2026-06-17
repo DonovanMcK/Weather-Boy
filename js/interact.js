@@ -293,7 +293,8 @@
             if (!G.player.spend(CFG.TELE_USE_COST)) return;
             G.audio.teleport();
             G.hud.flashWhite();
-            G.player.pos.set(map.mainframe.pos.x, 0, map.mainframe.pos.z + 1.5);
+            // land on the catwalk just in front of the Mainframe (its own floor level)
+            G.player.pos.set(map.mainframe.pos.x, map.mainframe.pos.y || 0, map.mainframe.pos.z + 1.5);
             G.player.vel.set(0, 0, 0);
             return;
           }

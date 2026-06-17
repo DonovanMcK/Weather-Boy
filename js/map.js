@@ -707,8 +707,12 @@
       var eastDeck = { x1: xW(12) - CELL / 2, x2: xW(12) + CELL / 2,
                        z1: zW(5) - CELL / 2, z2: zW(7) + CELL / 2, h: H, thin: true, railW: true };
       eastDeck.stairs = { x1: eastDeck.x1, x2: eastDeck.x2, zTop: eastDeck.z2, zBase: zW(9), steps: 8 };
+      // rear catwalk widened to two cells deep so the Mainframe has a real
+      // focal platform: footprint, a passing lane and zombie approach + turning
+      // space (still a thin deck — the courtyard floor stays walkable beneath).
       var northDeck = { x1: xW(3) - CELL / 2, x2: xW(12) + CELL / 2,
-                        z1: zW(5) - CELL / 2, z2: zW(5) + CELL / 2, h: H, thin: true, railS: true };
+                        z1: zW(5) - CELL / 2, z2: zW(6) + CELL / 2, h: H, thin: true, railS: true,
+                        supports: true };
       stageSpecs.push(westDeck, eastDeck, northDeck);
     }
     if (CFG.cur.id === 'wetterjunge') {
@@ -880,18 +884,20 @@
         linked: false, linking: false, linkTimer: 0 });
     });
 
-    // mainframe
+    // mainframe — on Der Riese it sits on the widened rear catwalk (elevated);
+    // elsewhere it's a ground machine pushed flat to a wall
     map.mainframe = null;
     if (CFG.MAINFRAME) {
       var mf = place(CFG.MAINFRAME);
-      pushToWall(mf, 1.1);
+      if (!mf.y) pushToWall(mf, 1.1);     // elevated mainframe keeps its deck spot
       occupy(mf);
+      var mby = mf.y || 0, mfYaw = machineYaw(mf);
       var mfRoot = G.Props.create('mainframe', {
-        position: new THREE.Vector3(mf.x, 0, mf.z), rotationY: machineYaw(mf)
+        position: new THREE.Vector3(mf.x, mby, mf.z), rotationY: mfYaw
       });
       propSolids(mfRoot);
       var mc = mfRoot.userData.colliderBox;
-      propCollider(mf.x, mf.z, mc.hw, mc.hd, mc.y1, mc.y2, machineYaw(mf));
+      propCollider(mf.x, mf.z, mc.hw, mc.hd, mby + mc.y1, mby + mc.y2, mfYaw);
       map.mainframe = { pos: mf, pad: mfRoot };
     }
 
@@ -1171,6 +1177,20 @@
        [s.x1 + 0.3, s.z2 - 0.3], [s.x2 - 0.3, s.z2 - 0.3]].forEach(function (p) {
         addBox(0.22, H, 0.22, p[0], H / 2, p[1], railMat);       // support posts (decorative)
       });
+      // a widened deck is visibly braced: a row of posts along the back wall, an
+      // under-deck cross-beam and angled brackets — decorative (no colliders, so
+      // the courtyard route beneath stays clear)
+      if (s.supports) {
+        var span = s.x2 - s.x1, nP = Math.max(2, Math.round(span / 3.5));
+        for (var pi = 1; pi < nP; pi++) {
+          var px = s.x1 + span * pi / nP;
+          addBox(0.2, H, 0.2, px, H / 2, s.z1 + 0.3, railMat);            // back-wall post
+          addBox(0.16, 0.16, dd - 0.6, px, H - 0.4, dcz, dBeam);         // under-deck joist
+          var br = addBox(0.5, 0.12, 0.12, px, H - 0.55, s.z2 - 0.45, dBeam); // front bracket
+          br.rotation.x = 0.5;
+        }
+        addBox(span - 0.4, 0.16, 0.16, dcx, H - 0.4, s.z2 - 0.3, dBeam); // front edge beam
+      }
       // edge barriers: enclosed upper ROOMS keep full walls; open catwalks have
       // NO railings (you're free to run/drop off the edges)
       if (s.walls) {

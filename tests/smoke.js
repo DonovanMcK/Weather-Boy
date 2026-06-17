@@ -127,7 +127,7 @@ function createGame() {
       }
     },
     pressF: function () { windowStub.dispatch('keydown', { code: 'KeyF' }); },
-    moveTo: function (pos) { G.player.pos.set(pos.x, 0, pos.z); G.player.vel.set(0, 0, 0); },
+    moveTo: function (pos) { G.player.pos.set(pos.x, pos.y || 0, pos.z); G.player.vel.set(0, 0, 0); },
     setPad: function (p) { fakePads[0] = p; },
     keyup: function (code) { windowStub.dispatch('keyup', { code: code }); }
   };
@@ -367,8 +367,30 @@ async function runQuick(mapId) {
     testRange(ctx);
     testDetail(ctx);
   }
-  if (mapId === 'derriese') testVerticality(ctx);
+  if (mapId === 'derriese') { testVerticality(ctx); testMainframeCatwalk(ctx); }
   testWallAlignment(ctx, mapId);
+}
+
+/* Der Riese Mainframe lives on the widened rear catwalk: an upper-layer focal
+   machine, with the courtyard floor still walkable beneath and zombies able to
+   path up to a player using it */
+function testMainframeCatwalk(ctx) {
+  var G = ctx.G, mf = G.map.mainframe;
+  ok(mf && mf.pos.y > 3.0, 'Mainframe sits on the upper catwalk layer (y=' + (mf ? mf.pos.y.toFixed(1) : '-') + ')');
+  var lv = G.map.surfaceLevelsAt(mf.pos.x, mf.pos.z);
+  ok(lv.some(function (l) { return Math.abs(l - mf.pos.y) < 0.5; }), 'walkable deck surface present at the Mainframe');
+  // the thin deck leaves headroom: a standing body still fits on the floor below
+  ok(!G.map.bodyBlocked(mf.pos.x, mf.pos.z, 0), 'courtyard floor stays walkable beneath the Mainframe');
+  var up = G.nav.nearest(mf.pos.x, mf.pos.z, mf.pos.y);
+  var dn = G.nav.nearest(mf.pos.x, mf.pos.z, 0);
+  ok(up && Math.abs(up.y - mf.pos.y) < 0.7, 'an upper nav node exists at the Mainframe');
+  ok(dn && dn.y < 1.0, 'a separate ground nav node exists beneath the Mainframe');
+  // a zombie on the courtyard floor can reach the Mainframe via the stairs
+  G.nav.computeField(mf.pos);
+  var floor = G.CFG.cellToWorld(7, 9);
+  var n = G.nav.nearest(floor.x, floor.z, 0);
+  ok(n && isFinite(n.dist) && n.dist < 1e8, 'zombies can path from the courtyard up to the Mainframe');
+  ok(Math.abs(mf.pos.y) > 2.0, 'Mainframe interaction is gated to the catwalk, not the floor below');
 }
 
 /* every perk machine + Pack-a-Punch + power switch must sit flat against a wall
