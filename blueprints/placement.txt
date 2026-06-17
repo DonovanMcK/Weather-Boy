@@ -1,0 +1,74 @@
+============================================================
+  NACHT — NACHT DER UNTOTEN
+============================================================
+    0123456789012
+ 0  ...yWyyyyy...
+ 1  ...yyyPyyy...
+ 2  ...yyyyyyy...
+ 3  ......1......
+ 4  hhR.sssss.Rgg
+ 5  hPh2ssOss3gPg
+ 6  Whs.sssss.ggW
+ 7  hhs.WPssW.sbg
+ 8  ......4......
+ 9  ...uuuuuuR...
+10  ...uuu$u!u...
+11  ...uWuuuuu...
+12  .............
+
+  rooms: s=Spawn Room, y=Crash Site, h=Help Room, g=Generator Room, u=Lower Bunker
+  legend: P=perk F=wunderfizz $=PaP !=power M=mainframe T=teleporter
+          B=box W=wallbuy R=relic O=soulchest s=shieldpart b=shieldbench
+  shield parts selected this seed: frame[10,7]S  plate[2,6]E  battery[2,7]S
+  shield bench: [11,7]S
+
+============================================================
+  DERRIESE — DER RIESE
+============================================================
+    0123456789012345
+ 0  tt.gWggggggWg.pp
+ 1  tt7gggRTggggg8pp
+ 2  tt.ggggggg!gg.pp
+ 3  Ft.gsggggggsg.pP
+ 4  .4.....6......5.
+ 5  Wl.WcPcMccccW.fW
+ 6  lR.cccccccccc.Rf
+ 7  Tl2cccccc$ccc3fT
+ 8  ll.ccPccOcccs.Pf
+ 9  lb.cccccccccc.ff
+10  .......1........
+11  .....ssssss.....
+12  .....sPssss.....
+13  .....sWssWs.....
+
+  rooms: s=Spawn, c=Teleporter-C Courtyard, l=Animal Testing, f=Furnace Room, g=Auto Garage, t=West Catwalk, p=East Catwalk
+  legend: P=perk F=wunderfizz $=PaP !=power M=mainframe T=teleporter
+          B=box W=wallbuy R=relic O=soulchest s=shieldpart b=shieldbench
+  shield parts selected this seed: frame[4,3]S  plate[12,8]E  battery[11,3]S
+  shield bench: [1,9]S
+
+============================================================
+  WETTERJUNGE — DER WETTERJUNGE
+============================================================
+    012345678901234
+ 0  aaaa.Wdddd.bbWb
+ 1  aaPa6dddTd8b!bb
+ 2  Waaa.dRddd.bbFb
+ 3  aaaa.dddsd.bbbb
+ 4  ..2....7....5..
+ 5  Wlll.ccccs.rPWW
+ 6  llll.cMc$c.srTr
+ 7  lPll3ccOcc4rrPr
+ 8  WTll.ccccc.brrr
+ 9  lRll.ccccc.rRrr
+10  .......1.......
+11  .....sssss.....
+12  .....sPsss.....
+13  .....sWsWs.....
+14  ...............
+
+  rooms: s=Spawn, c=Courtyard, l=Laboratory, r=Storage, d=Radar Dome, a=Generator, b=Comms Tower
+  legend: P=perk F=wunderfizz $=PaP !=power M=mainframe T=teleporter
+          B=box W=wallbuy R=relic O=soulchest s=shieldpart b=shieldbench
+  shield parts selected this seed: frame[11,6]W  plate[8,3]S  battery[9,5]N
+  shield bench: [11,8]W

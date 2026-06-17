@@ -1145,16 +1145,31 @@
       // a themed hero structure
       placeHero(room, room.id && CFG.ROOMS[room.id] ? CFG.ROOMS[room.id].name : '');
 
-      // scattered floor debris hugging walls (decorative, no collider)
-      edges.filter(function (e) { return !e.door && !e.win; }).forEach(function (e, idx) {
-        if (idx % 3) return;
-        var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
-        var px = wc.x + e.o[0] * (CELL / 2 - 0.5) + (e.o[0] ? 0 : (Math.random() - 0.5) * 1.5);
-        var pz = wc.z + e.o[1] * (CELL / 2 - 0.5) + (e.o[1] ? 0 : (Math.random() - 0.5) * 1.5);
-        if (!clearOf(new THREE.Vector3(px, 0, pz), 1.0)) return;
-        var s = 0.25 + Math.random() * 0.35;
-        addBox(s, s * 0.6, s, px, s * 0.3, pz, idx % 2 ? dDark : dConc);
-      });
+      // one authored corner cluster per indoor room (replaces uniform debris
+      // litter): a themed primary filler + a small supporting piece, tucked into
+      // a dead corner out of the circling lane. Deterministic per map load, no
+      // colliders (decorative) so navigation is untouched.
+      if (!isOut) {
+        var clr = G.PU.seeded(G.PU.hashStr('clutter:' + rid));
+        var fillers = {
+          nacht: ['ammo_crate', 'sandbag_stack', 'wood_crate', 'debris_pile'],
+          derriese: ['wood_crate', 'oil_drum', 'pallet', 'debris_pile'],
+          wetterjunge: ['wood_crate', 'gas_cylinder', 'field_radio', 'debris_pile']
+        }[CFG.cur.id] || ['wood_crate', 'debris_pile'];
+        var corners = [[bb.x0 + 0.85, bb.z0 + 0.85], [bb.x1 - 0.85, bb.z0 + 0.85],
+                       [bb.x0 + 0.85, bb.z1 - 0.85], [bb.x1 - 0.85, bb.z1 - 0.85]];
+        var start = (clr() * 4) | 0;
+        for (var ci2 = 0; ci2 < 4; ci2++) {
+          var cc = corners[(ci2 + start) % 4], cp = new THREE.Vector3(cc[0], 0, cc[1]);
+          if (!clearOf(cp, 1.4)) continue;
+          var prim = fillers[(clr() * fillers.length) | 0];
+          G.Props.create(prim, { position: cp, rotationY: clr() * 6.28, seed: (G.PU.hashStr(rid + prim) || 1) });
+          var o2 = clr() < 0.5 ? [0.75, 0] : [0, 0.75];
+          G.Props.create('debris_pile', { position: new THREE.Vector3(cc[0] + o2[0], 0, cc[1] + o2[1]), seed: (G.PU.hashStr(rid) >>> 3) || 2 });
+          occupy(cp);
+          break;
+        }
+      }
     });
 
     /* --------------------------------------------------- raised catwalks */
