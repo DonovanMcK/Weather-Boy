@@ -407,7 +407,7 @@
     // mystery box
     I.box = {
       spotIdx: 0, uses: 0, rolling: false, offer: null, offerTimer: 0,
-      mesh: null, offerSprite: null, recent: []
+      mesh: null, offerSprite: null, recent: [], lastRarity: null
     };
     I.moveBox(0, true);
     map.boxSpots.forEach(function (spot, idx) {
@@ -532,19 +532,21 @@
         I.moveBox(next);
         return;
       }
-      // weighted weapon pick (monkeys count as a pseudo-roll); recent rolls are
-      // excluded so you don't get the same gun two-three times in a row
-      var pool = boxPool(true);
-      var weights = pool.map(function (id) { return CFG.WEAPONS[id].box; });
-      if (!G.player.hasMonkeys && box.recent.indexOf('_monkeys') < 0) {
-        pool.push('_monkeys'); weights.push(CFG.MONKEY_BOX_WEIGHT);
-      }
-      var total = weights.reduce(function (a, b) { return a + b; }, 0);
-      var pick = Math.random() * total, chosen = pool[0];
-      for (var i = 0; i < pool.length; i++) {
-        pick -= weights[i];
-        if (pick <= 0) { chosen = pool[i]; break; }
-      }
+      // two-stage rarity roll: pick a rarity bucket by the configured odds, then
+      // a weapon within it. Normal firearms dominate; special/wonder weapons are
+      // genuinely rare, never roll twice in a row, and are gated in early rounds.
+      var owned = {};
+      G.weapons.slots.forEach(function (s) { owned[s.id] = true; });
+      var res = CFG.rollBoxWeapon({
+        round: G.zombies ? G.zombies.round : 1,
+        mapWonder: CFG.cur.wonder,
+        owned: owned,
+        recent: box.recent,
+        lastRarity: box.lastRarity,
+        includeMonkeys: !G.player.hasMonkeys
+      }, Math.random);
+      var chosen = res.id;
+      box.lastRarity = res.rarity;
       box.recent.push(chosen);
       while (box.recent.length > 4) box.recent.shift();   // remember the last 4
       if (chosen === '_monkeys') {

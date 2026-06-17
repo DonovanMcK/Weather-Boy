@@ -768,6 +768,90 @@
   CFG.PAP_AMMO_COST = 4500;       // wall refill once upgraded
   CFG.FRAGS_COST = 250;
 
+  /* ===================== weapon rarity + Mystery Box odds ================
+     Two-stage box selection: pick a RARITY bucket by these target shares, then
+     a weapon within it (weighted by the per-weapon `box` value). This keeps
+     normal firearms the overwhelming majority regardless of how many weapons
+     live in each bucket, and makes special/wonder weapons genuinely rare.
+     Death Machine stays a power-up (never boxed).                          */
+  CFG.RARITY_TARGET = { common: 0.50, uncommon: 0.30, rare: 0.14, special: 0.05, wonder: 0.012 };
+  CFG.WONDER_MIN_ROUND = 5;              // wonder weapons can't roll before round 5
+  CFG.POST_SPECIAL_SPECIAL_MULT = 0.30;  // dampen special right after a special/wonder
+  CFG.POST_SPECIAL_WONDER_MULT = 0.0;    // never two wonders/specials back-to-back at full odds
+  CFG.BOX_EXCLUDE = ['deathmachine'];    // power-up only — never in the box pool
+
+  // default bucket by weapon class; specific guns can override below
+  CFG.CLASS_RARITY = {
+    pistol: 'common', smg: 'uncommon', shotgun: 'uncommon', rifle: 'uncommon',
+    lmg: 'rare', sniper: 'rare', launcher: 'rare', minigun: 'special',
+    raygun: 'special', thunder: 'wonder', wunder: 'wonder', storm: 'wonder'
+  };
+  // promote dependable, basic full-autos / pump shotguns to the common pool
+  CFG.RARITY_COMMON = ['mp5k', 'mp40', 'pm63', 'mpl', 'uzi', 'ppsh', 'm16', 'famas', 'type25', 'olympia', 'stakeout'];
+  // explicit per-weapon overrides (strong semis, power/utility, ray guns, wonders)
+  CFG.RARITY_OVERRIDE = {
+    python: 'uncommon', executioner: 'uncommon',
+    fal: 'rare', m14: 'rare', sheiva: 'rare', g11: 'rare',
+    m72law: 'rare', chinalake: 'rare',
+    raygun: 'special', raygun2: 'special', deathmachine: 'special',
+    thunder: 'wonder', wunderwaffe: 'wonder', stormcaller: 'wonder'
+  };
+  CFG.weaponRarity = function (id) {
+    var w = CFG.WEAPONS[id]; if (!w) return 'common';
+    if (CFG.RARITY_OVERRIDE[id]) return CFG.RARITY_OVERRIDE[id];
+    if (CFG.RARITY_COMMON.indexOf(id) >= 0) return 'common';
+    return CFG.CLASS_RARITY[w.cls] || 'uncommon';
+  };
+  CFG.RARITY_ORDER = ['common', 'uncommon', 'rare', 'special', 'wonder'];
+
+  // pure, deterministic Mystery Box roll. state: { round, mapWonder, owned{},
+  // recent[], lastRarity, includeMonkeys }. rng defaults to Math.random.
+  // returns { id, rarity } where id may be '_monkeys' (a rare tactical pseudo-roll).
+  CFG.rollBoxWeapon = function (state, rng) {
+    state = state || {}; rng = rng || Math.random;
+    function buildBuckets(useRecent, useOwned) {
+      var b = { common: [], uncommon: [], rare: [], special: [], wonder: [] };
+      Object.keys(CFG.WEAPONS).forEach(function (id) {
+        var w = CFG.WEAPONS[id];
+        if (!w.box) return;
+        if (CFG.BOX_EXCLUDE.indexOf(id) >= 0) return;
+        if (w.wonder && id !== state.mapWonder) return;     // only this map's wonder
+        if (useOwned && state.owned && state.owned[id]) return;
+        if (useRecent && state.recent && state.recent.indexOf(id) >= 0) return;
+        b[CFG.weaponRarity(id)].push(id);
+      });
+      if (state.includeMonkeys && !(useRecent && state.recent && state.recent.indexOf('_monkeys') >= 0)) {
+        b.rare.push('_monkeys');
+      }
+      return b;
+    }
+    var buckets = buildBuckets(true, true);
+    if (!CFG.RARITY_ORDER.some(function (k) { return buckets[k].length; })) buckets = buildBuckets(false, true);
+    if (!CFG.RARITY_ORDER.some(function (k) { return buckets[k].length; })) buckets = buildBuckets(false, false);
+
+    var w = {}; Object.keys(CFG.RARITY_TARGET).forEach(function (k) { w[k] = CFG.RARITY_TARGET[k]; });
+    if ((state.round || 1) < CFG.WONDER_MIN_ROUND) w.wonder = 0;
+    if (state.lastRarity === 'special' || state.lastRarity === 'wonder') {
+      w.special *= CFG.POST_SPECIAL_SPECIAL_MULT;
+      w.wonder *= CFG.POST_SPECIAL_WONDER_MULT;
+    }
+    if (state.lastRarity === 'wonder') w.wonder = 0;        // no consecutive wonder rolls
+
+    var avail = [], tot = 0;
+    CFG.RARITY_ORDER.forEach(function (k) { if (buckets[k].length && w[k] > 0) { avail.push(k); tot += w[k]; } });
+    if (!tot) { avail = CFG.RARITY_ORDER.filter(function (k) { return buckets[k].length; }); tot = avail.length; avail.forEach(function () {}); }
+    var pick = rng() * (tot || 1), rarity = avail[0] || 'common';
+    for (var i = 0; i < avail.length; i++) { pick -= (w[avail[i]] || 1); if (pick <= 0) { rarity = avail[i]; break; } }
+
+    var list = buckets[rarity] || [];
+    if (!list.length) return { id: Object.keys(CFG.WEAPONS)[0], rarity: 'common' };
+    var iw = list.map(function (id) { return id === '_monkeys' ? CFG.MONKEY_BOX_WEIGHT : (CFG.WEAPONS[id].box || 1); });
+    var itot = iw.reduce(function (a, b2) { return a + b2; }, 0), ip = rng() * itot, id = list[0];
+    for (var j = 0; j < list.length; j++) { ip -= iw[j]; if (ip <= 0) { id = list[j]; break; } }
+    return { id: id, rarity: rarity };
+  };
+
+
   /* --------------------------------------------------------------- rounds */
   CFG.zombiesForRound = function (r) {
     var early = [6, 8, 13, 18, 24, 27, 28, 28, 29];

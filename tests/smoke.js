@@ -1311,8 +1311,44 @@ function runProps() {
   ok(galProps === types.length, 'prop gallery lays out every registered prop (' + galProps + ')');
 }
 
+/* mystery box rarity: 10k+ simulated rolls per map must land near the
+   configured distribution, never roll two wonders in a row, and lock wonders
+   out of the earliest rounds */
+function runRarity() {
+  console.log('\n=== mystery box rarity (12k rolls/map) ===');
+  var CFG = require('../js/config.js');
+  var maps = [['nacht', 'thunder'], ['derriese', 'wunderwaffe'], ['wetterjunge', 'stormcaller']];
+  var N = 12000;
+  maps.forEach(function (m) {
+    var counts = { common: 0, uncommon: 0, rare: 0, special: 0, wonder: 0 };
+    var recent = [], last = null, prev = false, consec = 0;
+    for (var i = 0; i < N; i++) {
+      var r = CFG.rollBoxWeapon({ round: 12, mapWonder: m[1], owned: {}, recent: recent, lastRarity: last, includeMonkeys: true });
+      counts[r.rarity]++;
+      if (r.rarity === 'wonder' && prev) consec++;
+      prev = (r.rarity === 'wonder'); last = r.rarity;
+      recent.push(r.id); while (recent.length > 4) recent.shift();
+    }
+    var p = function (k) { return counts[k] / N; };
+    console.log('   ' + m[0] + ': ' + CFG.RARITY_ORDER.map(function (k) { return k + ' ' + (100 * p(k)).toFixed(1) + '%'; }).join('  '));
+    ok(p('common') >= 0.42 && p('common') <= 0.58, m[0] + ' common rate in 42-58% (' + (100 * p('common')).toFixed(1) + ')');
+    ok(p('uncommon') >= 0.22 && p('uncommon') <= 0.38, m[0] + ' uncommon rate in 22-38% (' + (100 * p('uncommon')).toFixed(1) + ')');
+    ok(p('rare') >= 0.08 && p('rare') <= 0.20, m[0] + ' rare rate in 8-20% (' + (100 * p('rare')).toFixed(1) + ')');
+    ok(p('special') >= 0.01 && p('special') <= 0.08, m[0] + ' special rate in 1-8% (' + (100 * p('special')).toFixed(2) + ')');
+    ok(p('wonder') >= 0.001 && p('wonder') <= 0.025, m[0] + ' wonder rate in 0.1-2.5% (' + (100 * p('wonder')).toFixed(2) + ')');
+    ok(consec === 0, m[0] + ' never rolls two wonders in a row');
+  });
+  var early = 0;
+  for (var i = 0; i < 6000; i++) {
+    if (CFG.rollBoxWeapon({ round: 1, mapWonder: 'thunder', owned: {}, recent: [], lastRarity: null, includeMonkeys: true }).rarity === 'wonder') early++;
+  }
+  ok(early === 0, 'no wonder rolls before round ' + CFG.WONDER_MIN_ROUND + ' (0 in 6000)');
+  ok(CFG.BOX_EXCLUDE.indexOf('deathmachine') >= 0, 'Death Machine is excluded from the box pool');
+}
+
 if (require.main === module) {
   (async function () {
+    runRarity();
     runProps();
     await runFull('wetterjunge');
     await runQuick('nacht');
