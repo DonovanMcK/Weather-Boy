@@ -792,16 +792,27 @@ function testPerks(ctx) {
    integrated (off the spawn centre) and never overlap each other or the bench. */
 function testShieldBuild(ctx) {
   var G = ctx.G, CFG = G.CFG;
-  ['frame', 'plate', 'battery'].forEach(function (k) {
-    ok(CFG.SHIELD_PARTS && CFG.SHIELD_PARTS[k] && CFG.SHIELD_PARTS[k].length === 3,
-       'shield ' + k + ' has exactly 3 authored spawn locations');
+  var KINDS = ['frame', 'plate', 'glass'];
+  ok(!CFG.SHIELD_PARTS.battery, 'battery component replaced (no longer used)');
+  KINDS.forEach(function (k) {
+    var def = CFG.SHIELD_PARTS[k];
+    ok(def && def.room && def.spots && def.spots.length === 3,
+       'shield ' + k + ' has a room + exactly 3 authored spots');
   });
+  function distinct(a) { var s = {}; a.forEach(function (x) { s[x] = 1; }); return Object.keys(s).length; }
+  // each component is assigned a DIFFERENT room
+  var rooms = KINDS.map(function (k) { return CFG.SHIELD_PARTS[k].room; });
+  ok(distinct(rooms) === 3, 'each shield component spawns in a different room (' + rooms.join('/') + ')');
   var sh = G.interact.shield;
-  ok(sh && sh.parts.length === 3, 'exactly one location selected per part (3 placed)');
+  ok(sh && sh.parts.length === 3, 'exactly one location selected per component (3 placed)');
+  // the selected parts actually sit in their assigned rooms, all distinct
+  var placedRooms = sh.parts.map(function (p) { return G.map.roomAt(p.pos.x, p.pos.z); });
+  ok(distinct(placedRooms) === 3, 'placed parts occupy three distinct rooms (' + placedRooms.join('/') + ')');
+  ok(sh.parts.every(function (p) { return G.map.roomAt(p.pos.x, p.pos.z) === p.room; }), 'each part lands in its assigned room');
   // selection is deterministic for the map seed (matches the authored hash pick)
   var deterministic = sh.parts.every(function (p) {
-    var locs = CFG.SHIELD_PARTS[p.kind];
-    var exp = locs[G.PU.hashStr(CFG.cur.id + ':' + p.kind) % locs.length].cell;
+    var spots = CFG.SHIELD_PARTS[p.kind].spots;
+    var exp = spots[G.PU.hashStr(CFG.cur.id + ':' + p.kind) % spots.length].cell;
     return exp[0] === p.cell[0] && exp[1] === p.cell[1];
   });
   ok(deterministic, 'shield-part selection is deterministic for the map seed');

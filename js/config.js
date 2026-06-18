@@ -91,10 +91,13 @@
     EE_RELICS: [[2, 4], [10, 4], [9, 9]],
     EE_SOULBOX: [6, 5],
     // authored shield-part spawns — 3 wall-adjacent maintenance spots per part
+    // each shield component lives in its OWN room (3 authored wall spots each);
+    // one is picked per match. Rooms: frame=Crash Site, plate=Lower Bunker,
+    // glass=Help Room. Bench in the Generator Room.
     SHIELD_PARTS: {
-      frame:   [{ cell: [4, 2], face: 'S' }, { cell: [10, 7], face: 'S' }, { cell: [3, 9], face: 'N' }],
-      plate:   [{ cell: [7, 2], face: 'S' }, { cell: [2, 6], face: 'E' }, { cell: [5, 9], face: 'N' }],
-      battery: [{ cell: [2, 7], face: 'S' }, { cell: [10, 6], face: 'W' }, { cell: [7, 9], face: 'N' }]
+      frame: { room: 'Y', spots: [{ cell: [4, 2], face: 'S' }, { cell: [7, 2], face: 'S' }, { cell: [9, 2], face: 'S' }] },
+      plate: { room: 'U', spots: [{ cell: [3, 9], face: 'N' }, { cell: [5, 9], face: 'N' }, { cell: [7, 9], face: 'N' }] },
+      glass: { room: 'H', spots: [{ cell: [2, 6], face: 'E' }, { cell: [1, 7], face: 'S' }, { cell: [2, 7], face: 'S' }] }
     },
     SHIELD_BENCH: { cell: [11, 7], face: 'S' }
   };
@@ -200,10 +203,11 @@
     PLAYER_SPAWN: { cell: [7, 12], off: [0, 0.5] },
     EE_RELICS: [[1, 6], [14, 6], [6, 1]],
     EE_SOULBOX: [8, 8],
+    // frame=Auto Garage, plate=Teleporter-C Courtyard, glass=Animal Testing.
     SHIELD_PARTS: {
-      frame:   [{ cell: [4, 3], face: 'S' }, { cell: [3, 8], face: 'W' }, { cell: [15, 9], face: 'S' }],
-      plate:   [{ cell: [8, 3], face: 'S' }, { cell: [12, 8], face: 'E' }, { cell: [0, 9], face: 'S' }],
-      battery: [{ cell: [11, 3], face: 'S' }, { cell: [9, 9], face: 'S' }, { cell: [3, 3], face: 'S' }]
+      frame: { room: 'G', spots: [{ cell: [4, 3], face: 'S' }, { cell: [8, 3], face: 'S' }, { cell: [11, 3], face: 'S' }] },
+      plate: { room: 'C', spots: [{ cell: [8, 5], face: 'N' }, { cell: [3, 8], face: 'W' }, { cell: [9, 9], face: 'S' }] },
+      glass: { room: 'L', spots: [{ cell: [0, 8], face: 'W' }, { cell: [1, 8], face: 'E' }, { cell: [0, 9], face: 'S' }] }
     },
     SHIELD_BENCH: { cell: [1, 9], face: 'S' }
   };
@@ -310,12 +314,13 @@
     PLAYER_SPAWN: { cell: [7, 11], off: [0, 0.5] },
     EE_RELICS: [[1, 9], [12, 9], [6, 2]],
     EE_SOULBOX: [7, 7],
+    // frame=Radar Dome, plate=Laboratory, glass=Storage. Bench in the Generator.
     SHIELD_PARTS: {
-      frame:   [{ cell: [5, 3], face: 'S' }, { cell: [3, 6], face: 'E' }, { cell: [11, 6], face: 'W' }],
-      plate:   [{ cell: [8, 3], face: 'S' }, { cell: [3, 9], face: 'S' }, { cell: [11, 3], face: 'S' }],
-      battery: [{ cell: [1, 3], face: 'S' }, { cell: [9, 5], face: 'N' }, { cell: [14, 9], face: 'S' }]
+      frame: { room: 'D', spots: [{ cell: [5, 3], face: 'S' }, { cell: [8, 3], face: 'S' }, { cell: [9, 3], face: 'S' }] },
+      plate: { room: 'L', spots: [{ cell: [3, 5], face: 'N' }, { cell: [3, 6], face: 'E' }, { cell: [3, 9], face: 'S' }] },
+      glass: { room: 'R', spots: [{ cell: [11, 6], face: 'W' }, { cell: [11, 8], face: 'W' }, { cell: [14, 9], face: 'S' }] }
     },
-    SHIELD_BENCH: { cell: [11, 8], face: 'W' }
+    SHIELD_BENCH: { cell: [3, 3], face: 'S' }
   };
 
   CFG.MAP_IDS = ['nacht', 'derriese', 'wetterjunge'];

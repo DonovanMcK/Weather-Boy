@@ -385,8 +385,9 @@
   });
 
   /* ===================== Shield part pickup ============================
-     A scavenged shield component leaning ready to grab. opts.variant gives a
-     distinct read for frame / plate / battery. */
+     A scavenged shield component leaning ready to grab. The three components
+     map to recognizable sections of the finished riot shield: the welded metal
+     FRAME, the riveted armour PLATE, and the reinforced viewing GLASS. */
   G.Props.register('shield_part', function (opts) {
     var g = PU.group('shield_part');
     var kind = (opts && opts.variant) || 'frame';
@@ -394,11 +395,13 @@
     if (kind === 'plate') {                       // a riveted armour plate
       PU.beveledBox(g, 0.5, 0.7, 0.08, 0.03, M('rustedMetal'), 0, 0.4, 0);
       for (var i = 0; i < 4; i++) PU.sphere(g, 0.03, -0.18 + (i % 2) * 0.36, 0.18 + ((i / 2) | 0) * 0.4, 0.05, iron, 5);
-    } else if (kind === 'battery') {              // a power cell
-      PU.cyl(g, 0.13, 0.13, 0.42, 0, 0.21, 0, iron, 10);
-      PU.cyl(g, 0.07, 0.07, 0.06, 0, 0.45, 0, M('brass'), 8);
-      PU.torus(g, 0.14, 0.02, 0, 0.3, 0, EM(0x33ff66, 0.7, 0x06140a), 5, 'flat');
-    } else {                                      // frame / handle assembly
+    } else if (kind === 'glass') {                // reinforced viewing window in a frame
+      PU.beveledBox(g, 0.46, 0.4, 0.05, 0.02, iron, 0, 0.5, 0);          // metal surround
+      PU.panel(g, 0.34, 0.28, 0, 0.5, 0.035, M('glass'));                // bulletproof pane (front)
+      PU.panel(g, 0.34, 0.28, 0, 0.5, -0.035, M('glass'));               // (back)
+      for (var w = 0; w < 3; w++) PU.box(g, 0.34, 0.012, 0.012, 0, 0.4 + w * 0.1, 0.04, iron); // mesh wires
+      PU.box(g, 0.5, 0.06, 0.1, 0, 0.27, 0, iron);                       // base lip it rests on
+    } else {                                      // welded frame / handle assembly
       PU.beveledBox(g, 0.34, 0.5, 0.1, 0.03, steel, 0, 0.3, 0);
       PU.cyl(g, 0.04, 0.04, 0.5, 0, 0.3, 0.08, iron, 8);
       PU.torus(g, 0.09, 0.02, 0, 0.56, 0, EM(0x33ccff, 0.6, 0x06141c), 5, 'flat');

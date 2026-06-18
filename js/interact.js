@@ -147,25 +147,31 @@
 
     // (Developer Tools / settings live in the menu UI now — no in-world terminal)
 
-    // --- Zombie Shield: scavenge 3 parts from authored maintenance spots, then
-    // assemble at the wall bench. Carried on your back, eats hits from behind.
+    // reusable wall-mount: place a prop's BACK flush against the wall in `face`
+    // direction of `cell`, then in by halfDepth, with the matching cardinal yaw.
     var SH_YAW = { N: 0, S: Math.PI, E: -Math.PI / 2, W: Math.PI / 2 };
     var SH_OFF = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] };
-    I.shield = { have: { frame: false, plate: false, battery: false }, count: 0, total: 3, parts: [] };
+    function wallMount(cell, face, halfDepth, y) {
+      var wc = CFG.cellToWorld(cell[0], cell[1]), o = SH_OFF[face] || [0, 0];
+      var inset = (CFG.CELL / 2) - 0.175 - (halfDepth || 0);   // inner wall face, in by half-depth
+      return { pos: new THREE.Vector3(wc.x + o[0] * inset, y || 0, wc.z + o[1] * inset), yaw: SH_YAW[face] || 0 };
+    }
+
+    // --- Zombie Shield: scavenge 3 components, each in its OWN room, then
+    // assemble at the wall bench. Carried on your back, eats hits from behind.
+    var SHIELD_KINDS = ['frame', 'plate', 'glass'];
+    I.shield = { have: { frame: false, plate: false, glass: false }, count: 0, total: 3, parts: [] };
     var shieldDefs = CFG.SHIELD_PARTS || {};
-    ['frame', 'plate', 'battery'].forEach(function (kind) {
-      var locs = shieldDefs[kind] || [];
-      if (!locs.length) return;
-      // deterministic seeded pick of one of the three authored locations
-      var loc = locs[G.PU.hashStr(CFG.cur.id + ':' + kind) % locs.length];
-      var wc = CFG.cellToWorld(loc.cell[0], loc.cell[1]);
-      var off = SH_OFF[loc.face] || [0, 0];
-      var pos = new THREE.Vector3(wc.x + off[0] * 1.4, loc.y || 0, wc.z + off[1] * 1.4);
-      var mesh = G.Props.create('shield_part', { position: pos, rotationY: SH_YAW[loc.face] || 0, variant: kind });
-      var part = { kind: kind, pos: pos, mesh: mesh, taken: false, cell: loc.cell, face: loc.face };
+    SHIELD_KINDS.forEach(function (kind) {
+      var def = shieldDefs[kind]; if (!def || !def.spots || !def.spots.length) return;
+      // deterministic seeded pick of one of the three authored spots in this room
+      var loc = def.spots[G.PU.hashStr(CFG.cur.id + ':' + kind) % def.spots.length];
+      var m = wallMount(loc.cell, loc.face, 0.16, loc.y);
+      var mesh = G.Props.create('shield_part', { position: m.pos, rotationY: m.yaw, variant: kind });
+      var part = { kind: kind, pos: m.pos, mesh: mesh, taken: false, cell: loc.cell, face: loc.face, room: def.room };
       I.shield.parts.push(part);
       add({
-        pos: pos, r: 1.7, y: loc.y || 0,
+        pos: m.pos, r: 1.7, y: loc.y || 0,
         prompt: function () { return part.taken ? null : 'Pick up shield ' + kind; },
         use: function () {
           if (part.taken) return;
@@ -177,14 +183,18 @@
         }
       });
     });
-    // assembly bench against an authored workshop wall
+    // assembly bench: back flush to its workshop wall, with a tight collider that
+    // matches the visible bench (no loose invisible barrier around it)
     var benchDef = CFG.SHIELD_BENCH;
     if (benchDef) {
-      var bwc = CFG.cellToWorld(benchDef.cell[0], benchDef.cell[1]);
-      var bo = SH_OFF[benchDef.face] || [0, 0];
-      var bpos = new THREE.Vector3(bwc.x + bo[0] * 0.95, 0, bwc.z + bo[1] * 0.95);
+      var bm = wallMount(benchDef.cell, benchDef.face, 0.4, 0);
+      var bpos = bm.pos;
       G.map.shieldBench = { pos: bpos, face: benchDef.face };
-      G.Props.create('shield_bench', { position: bpos, rotationY: SH_YAW[benchDef.face] || 0 });
+      G.Props.create('shield_bench', { position: bpos, rotationY: bm.yaw });
+      // tight collider = bench footprint (1.32 x 0.8), swapped when wall-aligned ±X
+      var bhw = 0.66, bhd = 0.4;
+      if (benchDef.face === 'E' || benchDef.face === 'W') { var bt = bhw; bhw = bhd; bhd = bt; }
+      G.map.addCollider(bpos.x - bhw, bpos.z - bhd, bpos.x + bhw, bpos.z + bhd, 0, 1.0);
       add({
         pos: bpos, r: 2.2,
         prompt: function () {
