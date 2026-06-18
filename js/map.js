@@ -842,24 +842,61 @@
       return pos;
     }
 
+    // FLUSH wall mount: pin a prop's BACK against the nearest wall whose front
+    // STANDING spot is actually clear (not a window/door/corner), and face it
+    // into the room. center = inner wall face + halfDepth + 3cm. baseY = floor
+    // height (for elevated catwalk machines). Returns { x, z, yaw }.
+    var INWARD = { W: [1, 0], E: [-1, 0], N: [0, 1], S: [0, -1] };
+    function wallFlush(pos, halfDepth, baseY) {
+      baseY = baseY || 0;
+      var rid = map.roomAt(pos.x, pos.z);
+      if (!rid || !P.rooms[rid]) return { x: pos.x, z: pos.z, yaw: 0 };
+      var bb = roomInner(rid), gap = halfDepth + 0.03;
+      var cands = [
+        { x: bb.x0 + gap, z: pos.z, d: pos.x - bb.x0, yaw: WALL_YAW.W, f: 'W' },
+        { x: bb.x1 - gap, z: pos.z, d: bb.x1 - pos.x, yaw: WALL_YAW.E, f: 'E' },
+        { x: pos.x, z: bb.z0 + gap, d: pos.z - bb.z0, yaw: WALL_YAW.N, f: 'N' },
+        { x: pos.x, z: bb.z1 - gap, d: bb.z1 - pos.z, yaw: WALL_YAW.S, f: 'S' }
+      ].sort(function (a, b) { return a.d - b.d; });
+      function standClear(cx, cz, f) {
+        var io = INWARD[f], sx = cx + io[0] * 0.95, sz = cz + io[1] * 0.95;
+        var cr = CFG.worldToCell(sx, sz), cell = map.cellAt(cr.col, cr.row);
+        if (!cell || cell.type !== 'room') return false;            // stand spot in the room
+        if (map.bodyBlocked(sx, sz, baseY + 0.2)) return false;     // not inside a wall/prop
+        if (!Object.keys(map.doors).every(function (id) {
+          return Math.hypot(map.doors[id].pos.x - cx, map.doors[id].pos.z - cz) > 2.2; })) return false;
+        if (!map.windows.every(function (w) {
+          return Math.hypot(w.inside.x - cx, w.inside.z - cz) > 1.4; })) return false;
+        return true;
+      }
+      for (var i = 0; i < cands.length; i++) {
+        if (standClear(cands[i].x, cands[i].z, cands[i].f)) return { x: cands[i].x, z: cands[i].z, yaw: cands[i].yaw };
+      }
+      return { x: cands[0].x, z: cands[0].z, yaw: cands[0].yaw };
+    }
+
     // perk machines: vending cabinets with a lit bottle decal facing the room
     CFG.PERK_MACHINES.forEach(function (pm) {
       var def = CFG.PERKS[pm.perk];
       var pos = place(pm);
-      if (!pm.y) pushToWall(pos, 0.55);   // elevated machines stay where placed
-      occupy(pos);
       var by = pos.y;                     // floor height this machine sits on
-      // vending-machine prop (visuals); collider + light stay gameplay-owned
+      var fl = wallFlush(pos, 0.4, by);  // pin its back flat to a clear wall
+      pos.x = fl.x; pos.z = fl.z;
+      occupy(pos);
       var root = G.Props.create('perk_machine', {
-        position: new THREE.Vector3(pos.x, by, pos.z),
-        rotationY: machineYaw(pos), variant: pm.perk, def: def
+        position: new THREE.Vector3(fl.x, by, fl.z),
+        rotationY: fl.yaw, variant: pm.perk, def: def
       });
       propSolids(root);
-      propCollider(pos.x, pos.z, 0.48, 0.38, by, by + 1.9, machineYaw(pos));
+      propCollider(fl.x, fl.z, 0.48, 0.4, by, by + 1.9, fl.yaw);
       var light = new THREE.PointLight(def.color, pm.perk === 'revive' ? 0.8 : 0.25, 7);
-      light.position.set(pos.x, by + 2.2, pos.z);
+      light.position.set(fl.x, by + 2.2, fl.z);
       G.scene.add(light);
-      map.perkMachines.push({ perk: pm.perk, pos: pos, mesh: root, light: light,
+      // the interaction point is where you STAND (just in front of the cabinet),
+      // not the cabinet centre — so the prompt/buy works flush against a wall
+      var fwd = { x: Math.sin(fl.yaw), z: Math.cos(fl.yaw) };
+      var stand = new THREE.Vector3(fl.x + fwd.x * 0.95, by, fl.z + fwd.z * 0.95);
+      map.perkMachines.push({ perk: pm.perk, pos: stand, mesh: root, light: light,
         setPowered: root.userData.setPowered });
     });
 
@@ -917,24 +954,26 @@
     map.mainframe = null;
     if (CFG.MAINFRAME) {
       var mf = place(CFG.MAINFRAME);
-      if (!mf.y) pushToWall(mf, 1.1);     // elevated mainframe keeps its deck spot
+      var mby = mf.y || 0;
+      var mfl = wallFlush(mf, 0.25, mby);  // back flat to a clear wall (deck or ground)
+      mf.x = mfl.x; mf.z = mfl.z;
       occupy(mf);
-      var mby = mf.y || 0, mfYaw = machineYaw(mf);
       var mfRoot = G.Props.create('mainframe', {
-        position: new THREE.Vector3(mf.x, mby, mf.z), rotationY: mfYaw
+        position: new THREE.Vector3(mfl.x, mby, mfl.z), rotationY: mfl.yaw
       });
       propSolids(mfRoot);
       var mc = mfRoot.userData.colliderBox;
-      propCollider(mf.x, mf.z, mc.hw, mc.hd, mby + mc.y1, mby + mc.y2, mfYaw);
+      propCollider(mfl.x, mfl.z, mc.hw, mc.hd, mby + mc.y1, mby + mc.y2, mfl.yaw);
       map.mainframe = { pos: mf, pad: mfRoot };
     }
 
     // pack-a-punch: a chunkier machine — base, sloped hopper, glowing feed
     // slot and a gold output tray
     var pp = place(CFG.PAP);
-    pushToWall(pp, 1.0);
+    var ppfl = wallFlush(pp, 0.48);
+    pp.x = ppfl.x; pp.z = ppfl.z;
     occupy(pp);
-    var papYaw = machineYaw(pp);
+    var papYaw = ppfl.yaw;
     var papRoot = G.Props.create('pack_a_punch', { position: new THREE.Vector3(pp.x, 0, pp.z), rotationY: papYaw });
     propSolids(papRoot);
     var pc = papRoot.userData.colliderBox;
@@ -958,9 +997,10 @@
 
     // power switch
     var pw = place(CFG.POWER);
-    pushToWall(pw, 0.35);
+    var pwfl = wallFlush(pw, 0.12);
+    pw.x = pwfl.x; pw.z = pwfl.z;
     occupy(pw);
-    var pwRoot = G.Props.create('power_switch', { position: new THREE.Vector3(pw.x, 0, pw.z), rotationY: machineYaw(pw) });
+    var pwRoot = G.Props.create('power_switch', { position: new THREE.Vector3(pw.x, 0, pw.z), rotationY: pwfl.yaw });
     propSolids(pwRoot);
     map.powerSwitch = { pos: pw, mesh: pwRoot, setPowered: pwRoot.userData.setPowered };
     occupy(place(CFG.PLAYER_SPAWN));

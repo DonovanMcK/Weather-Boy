@@ -410,14 +410,30 @@ function testWallAlignment(ctx, mapId) {
     return Math.min(t, Math.PI / 2 - t) < 0.02;        // within ~1 degree of a 90
   }
   function noNaN(o) { return o && !isNaN(o.position.x) && !isNaN(o.position.y) && !isNaN(o.position.z) && !isNaN(o.rotation.y); }
-  var machines = G.map.perkMachines.map(function (m) { return { name: 'perk:' + m.perk, mesh: m.mesh }; });
-  if (G.map.pap) machines.push({ name: 'pack_a_punch', mesh: G.map.pap.mesh });
-  if (G.map.powerSwitch) machines.push({ name: 'power_switch', mesh: G.map.powerSwitch.mesh });
-  if (G.map.mainframe) machines.push({ name: 'mainframe', mesh: G.map.mainframe.pad });
+  // distance from a machine's BACK face to the nearest room inner-wall plane —
+  // small = flush against the wall (not floating in the room)
+  function roomInner(rid) {
+    var cells = G.map.parsed.rooms[rid].cells, minc = 99, maxc = -99, minr = 99, maxr = -99;
+    cells.forEach(function (cr) { if (cr[0] < minc) minc = cr[0]; if (cr[0] > maxc) maxc = cr[0]; if (cr[1] < minr) minr = cr[1]; if (cr[1] > maxr) maxr = cr[1]; });
+    var a = G.CFG.cellToWorld(minc, minr), b = G.CFG.cellToWorld(maxc, maxr);
+    return { x0: a.x - 2 + 0.35, x1: b.x + 2 - 0.35, z0: a.z - 2 + 0.35, z1: b.z + 2 - 0.35 };
+  }
+  function backGap(mesh, hd) {
+    var yaw = mesh.rotation.y, p = mesh.position;
+    var bx = p.x - hd * Math.sin(yaw), bz = p.z - hd * Math.cos(yaw);   // back-face point
+    var rid = G.map.roomAt(p.x, p.z); if (!rid || !G.map.parsed.rooms[rid]) return 0;
+    var bb = roomInner(rid);
+    return Math.min(Math.abs(bx - bb.x0), Math.abs(bb.x1 - bx), Math.abs(bz - bb.z0), Math.abs(bb.z1 - bz));
+  }
+  var machines = G.map.perkMachines.map(function (m) { return { name: 'perk:' + m.perk, mesh: m.mesh, hd: 0.4 }; });
+  if (G.map.pap) machines.push({ name: 'pack_a_punch', mesh: G.map.pap.mesh, hd: 0.48 });
+  if (G.map.powerSwitch) machines.push({ name: 'power_switch', mesh: G.map.powerSwitch.mesh, hd: 0.12 });
+  if (G.map.mainframe) machines.push({ name: 'mainframe', mesh: G.map.mainframe.pad, hd: 0.25 });
   machines.forEach(function (m) {
     ok(m.mesh && m.mesh.isObject3D, mapId + ' ' + m.name + ' built as a prop root');
     ok(noNaN(m.mesh), mapId + ' ' + m.name + ' has no NaN transform');
-    ok(cardinal(m.mesh.rotation.y), mapId + ' ' + m.name + ' uses a clean 90-degree wall rotation (' + (m.mesh.rotation.y).toFixed(2) + ')');
+    ok(cardinal(m.mesh.rotation.y), mapId + ' ' + m.name + ' uses a clean 90-degree wall rotation');
+    ok(backGap(m.mesh, m.hd) < 0.15, mapId + ' ' + m.name + ' sits FLUSH against the wall (gap ' + backGap(m.mesh, m.hd).toFixed(2) + 'm)');
   });
 }
 
