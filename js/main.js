@@ -127,6 +127,15 @@
       else if (e.code === 'Enter') G.hud.menuActivate();
     });
 
+    // direct in-match Developer Tools toggle (Backquote `~`). Opens/closes the
+    // panel without leaving the match — the panel freezes the sim while open
+    // (it never resets the run) and restores mouse-look on close.
+    window.addEventListener('keydown', function (e) {
+      if (e.code !== 'Backquote' || !G.terminal) return;
+      if (G.state !== 'playing' && G.state !== 'paused') return;
+      if (G.terminal.active) G.terminal.close(); else G.terminal.open();
+    });
+
     document.addEventListener('pointerlockchange', function () {
       // if you're driving with a phone, losing the mouse lock must not pause you
       if (G.remote && G.remote.connected) return;

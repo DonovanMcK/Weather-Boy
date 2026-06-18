@@ -69,13 +69,6 @@
         '<button class="apply" data-act="give-dpap">Double Pack</button></div></div>' +
       '<div class="row"><label>Boss rounds (every 8–12)</label><div class="ctl">' +
         '<button class="toggle" id="t-boss" data-act="boss"></button></div></div>' +
-      '<div class="sub" style="margin:14px 0 2px;color:#3ad6a0;letter-spacing:2px;">▌ TEST RANGE</div>' +
-      '<div class="row"><label>Target dummies</label><div class="ctl">' +
-        '<button data-act="targets">Spawn ×3</button>' +
-        '<button data-act="targets1">+1</button>' +
-        '<button data-act="clear-targets">Clear</button></div></div>' +
-      '<div class="row"><label>No-horde mode</label><div class="ctl">' +
-        '<button class="toggle" id="t-nohorde" data-act="nohorde"></button></div></div>' +
       '<div class="row"><label>Refill all ammo</label><div class="ctl">' +
         '<button class="apply" data-act="maxammo">Max Ammo</button></div></div>' +
       '<div class="foot"><button data-act="close">RESUME</button></div>' +
@@ -92,11 +85,6 @@
     var boss = document.getElementById('t-boss');
     boss.textContent = G.settings.bossRounds ? 'ON' : 'OFF';
     boss.classList.toggle('on', !!G.settings.bossRounds);
-    var nh = document.getElementById('t-nohorde');
-    if (nh && G.zombies) {
-      nh.textContent = G.zombies.rangeFreeze ? 'ON' : 'OFF';
-      nh.classList.toggle('on', !!G.zombies.rangeFreeze);
-    }
     if (G.player) document.getElementById('t-cash').value = G.player.points;
     if (G.zombies) document.getElementById('t-round').value = Math.max(1, G.zombies.round);
   }
@@ -105,7 +93,7 @@
     var act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
     if (!act) return;
     e.stopPropagation();
-    var playing = G.state === 'playing';   // cheat controls only act in a live game
+    var playing = (G.state === 'playing' || G.state === 'paused') && !!G.player;   // a live match exists
     // --- player settings (apply any time, persist into the run) ---
     if (act === 'perk-') G.settings.perkLimit = Math.max(1, G.settings.perkLimit - 1);
     else if (act === 'perk+') G.settings.perkLimit = Math.min(9, G.settings.perkLimit + 1);
@@ -123,10 +111,6 @@
         }
       }
     }
-    else if (act === 'targets') { if (playing && G.zombies) G.zombies.spawnTargets(3); }
-    else if (act === 'targets1') { if (playing && G.zombies) G.zombies.spawnTargets(1); }
-    else if (act === 'clear-targets') { if (playing && G.zombies) G.zombies.clearTargets(); }
-    else if (act === 'nohorde') { if (playing && G.zombies) G.zombies.setRangeFreeze(!G.zombies.rangeFreeze); }
     else if (act === 'maxammo') { if (playing && G.weapons) { G.weapons.maxAmmo(); G.weapons.refillCurrent(); } }
     else if (act === 'close') { T.close(); return; }
     refresh();
@@ -140,8 +124,8 @@
     T._fromState = G.state;
     T.active = true;
     root.style.display = 'flex';
-    // grey out the cheat controls that need a live game
-    var live = G.state === 'playing';
+    // grey out the cheat controls that need a live match (playing OR paused)
+    var live = (G.state === 'playing' || G.state === 'paused') && !!G.player;
     if (root.setAttribute) root.setAttribute('data-live', live ? '1' : '0');
     refresh();
     if (typeof document !== 'undefined' && document.exitPointerLock) document.exitPointerLock();

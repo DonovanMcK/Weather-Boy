@@ -452,8 +452,7 @@
 
   Z.aliveCount = function () {
     var n = 0;
-    // range dummies don't count toward the round's body total
-    Z.list.forEach(function (z) { if (!z.dead && !z.rangeTarget) n++; });
+    Z.list.forEach(function (z) { if (!z.dead) n++; });
     return n;
   };
 
@@ -562,8 +561,6 @@
       G.powerups.maybeDrop(z.mesh.position);
     }
     if (G.interact && G.interact.onKill) G.interact.onKill(z.mesh.position);
-    // range dummies pop straight back up so you never run out of something to shoot
-    if (z.rangeTarget && Z.rangeOn) { Z.spawnTarget(z.rangeSpot); return; }
     checkRoundEnd(z);
   }
 
@@ -735,10 +732,8 @@
     if (G.state !== 'playing') return;
     var i, z;
 
-    // round director (held while the test range "no horde" mode is on)
-    if (Z.rangeFreeze) {
-      // nothing advances — only the parked range dummies remain
-    } else if (Z.mode === 'break') {
+    // round director
+    if (Z.mode === 'break') {
       Z.breakTimer -= dt;
       if (Z.breakTimer <= 0) beginRound();
     } else if (Z.toSpawn > 0) {
@@ -800,7 +795,7 @@
       if (z._chk > 5) {
         z._chk = 0;
         var movedD = z._anchor ? z.mesh.position.distanceTo(z._anchor) : 99;
-        if (movedD < 0.6 && z.state !== 'tear' && !z.dead && !z.rangeTarget && !z.isBoss &&
+        if (movedD < 0.6 && z.state !== 'tear' && !z.dead && !z.isBoss &&
             z.mesh.position.distanceTo(G.player.pos) > 6) z._stuck = (z._stuck || 0) + 1;
         else z._stuck = 0;
         z._anchor = z.mesh.position.clone();
@@ -822,10 +817,6 @@
       }
 
       switch (z.state) {
-        case 'dummy':
-          // a range target: rooted in place, just breathes its idle animation
-          break;
-
         case 'rise':
           z.mesh.position.y += dt * 1.7;
           if (z.mesh.position.y >= 0) {
@@ -951,82 +942,9 @@
     return z;
   };
 
-  /* ---------------------------------------------------------- shooting range
-     Stationary "dummies" for the test range. They never advance and never
-     swing (attackCd parked at infinity), they carry full round-scaled HP so
-     time-to-kill reads true, and while the range is live they respawn on the
-     spot the instant they drop so you can keep emptying mags into them. */
-  Z.rangeOn = false;
-  Z.rangeFreeze = false;
-
-  Z.spawnTarget = function (pos) {
-    var y = pos.y || 0;
-    var z = {
-      isDog: false, dead: false, crawler: false, rangeTarget: true,
-      hp: CFG.zombieHealth(Math.max(1, Z.round)),
-      speed: 0, state: 'dummy', t: 0, attackCd: 1e9, animT: Math.random() * 9,
-      rangeSpot: { x: pos.x, y: y, z: pos.z }
-    };
-    z.hpMax = z.hp;
-    z.mesh = buildZombieMesh(z);
-    z.mesh.position.set(pos.x, y, pos.z);
-    // face the dummy back toward the shooter
-    var dx = G.player.pos.x - pos.x, dz = G.player.pos.z - pos.z;
-    z.mesh.rotation.y = Math.atan2(dx, dz);
-    G.scene.add(z.mesh);
-    Z.list.push(z);
-    Z.rangeOn = true;
-    Z._shootablesDirty = true;
-    return z;
-  };
-
-  // line up n dummies in a row a few metres ahead of where you're looking
-  Z.spawnTargets = function (n) {
-    n = n || 3;
-    var p = G.player.pos;
-    var fx = -Math.sin(G.player.yaw), fz = -Math.cos(G.player.yaw); // forward
-    var rx = -fz, rz = fx;                                          // right
-    var y = p.y || 0;
-    var spread = 2.2, dist = 8;
-    for (var k = 0; k < n; k++) {
-      var off = (k - (n - 1) / 2) * spread;
-      Z.spawnTarget({ x: p.x + fx * dist + rx * off, y: y, z: p.z + fz * dist + rz * off });
-    }
-  };
-
-  Z.clearTargets = function () {
-    Z.rangeOn = false;
-    for (var i = Z.list.length - 1; i >= 0; i--) {
-      if (Z.list[i].rangeTarget) { G.scene.remove(Z.list[i].mesh); Z.list.splice(i, 1); }
-    }
-    Z._shootablesDirty = true;
-  };
-
-  // "no horde" hold: wipe the live horde and park the round director so the
-  // range stays quiet. Turning it off kicks a fresh round on the next break.
-  Z.setRangeFreeze = function (on) {
-    Z.rangeFreeze = !!on;
-    if (on) {
-      for (var i = Z.list.length - 1; i >= 0; i--) {
-        var z = Z.list[i];
-        if (z.rangeTarget || z.dead) continue;
-        G.scene.remove(z.mesh); Z.list.splice(i, 1);
-      }
-      Z.toSpawn = 0;
-      Z.mode = 'break';
-      Z.breakTimer = 1e9;
-      Z._shootablesDirty = true;
-    } else {
-      Z.mode = 'break';
-      Z.breakTimer = 1.5;
-    }
-  };
-
   Z.reset = function () {
     Z.list.forEach(function (z) { G.scene.remove(z.mesh); });
     Z.list = [];
-    Z.rangeOn = false;
-    Z.rangeFreeze = false;
     Z._shootablesDirty = true;
   };
 })();

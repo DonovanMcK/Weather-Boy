@@ -365,7 +365,7 @@ async function runQuick(mapId) {
     testNoWonderBuild(ctx);
     testPowerups(ctx);
     testArmored(ctx);
-    testRange(ctx);
+    testNoRange(ctx);
     testDetail(ctx);
   }
   if (mapId === 'derriese') { testVerticality(ctx); testMainframeCatwalk(ctx); }
@@ -434,51 +434,12 @@ function testArmored(ctx) {
   ok(!zc.armored, 'armor cracks off once the heavy drops below 40% hp');
 }
 
-/* shooting range: hand out guns at each upgrade tier, and stand up stationary
-   dummies that respawn forever while the no-horde hold keeps the field quiet */
-function testRange(ctx) {
-  var G = ctx.G, step = ctx.step, P = G.player;
-
-  // give-at-tier (terminal "Stock / Pack-a-Punch / Double Pack")
-  G.weapons.slots.length = 0; G.weapons.maxSlots = 2;
-  G.weapons.giveWeapon('m1911');
-  ok(!G.weapons.current().papped, 'Stock give hands over an un-upgraded gun');
-  G.weapons.giveWeapon('mp5k'); G.weapons.papCurrent();
-  ok(G.weapons.current().papped && !G.weapons.current().dpap, 'Pack-a-Punch give is single-packed');
-  G.weapons.giveWeapon('python'); G.weapons.papCurrent(); G.weapons.papCurrent();
-  ok(G.weapons.current().papped && G.weapons.current().dpap, 'Double Pack give is double-packed');
-
-  // no-horde hold clears the live horde and parks the round director
-  ctx.moveTo(roomCenter(G, 'S'));
-  P.yaw = 0;
-  G.zombies.setRangeFreeze(true);
-  G.zombies.clearTargets();
-  G.zombies.spawnTargets(3);
-  var live = function () { return G.zombies.list.filter(function (z) { return z.rangeTarget && !z.dead; }); };
-  ok(live().length === 3, 'spawns three target dummies');
-  ok(G.zombies.rangeOn, 'range mode goes live');
-
-  var t0 = live()[0];
-  var pos0 = t0.mesh.position.clone();
-  step(60);
-  ok(t0.mesh.position.distanceTo(pos0) < 0.25, 'dummies stand still and never advance');
-  ok(G.zombies.list.every(function (z) { return z.rangeTarget; }), 'no-horde mode holds the round (no horde spawns)');
-
-  // a downed dummy pops straight back up
-  var n0 = live().length;
-  G.zombies.damageZombie(t0, 1e9, { boom: true });
-  ok(live().length === n0, 'a downed dummy respawns on the spot');
-
-  // clear wipes them and drops out of range mode
-  G.zombies.clearTargets();
-  ok(!G.zombies.list.some(function (z) { return z.rangeTarget; }), 'Clear removes every dummy');
-  ok(!G.zombies.rangeOn, 'range mode ends when the dummies are cleared');
-
-  // releasing the hold re-arms the director and the horde returns
-  G.zombies.setRangeFreeze(false);
-  ok(!G.zombies.rangeFreeze && G.zombies.breakTimer < 1e8, 'releasing no-horde re-arms the round director');
-  step(220);
-  ok(G.zombies.aliveCount() > 0, 'the horde resumes after no-horde mode');
+/* the shooting-range dev feature is fully removed */
+function testNoRange(ctx) {
+  var G = ctx.G;
+  ok(!G.zombies.spawnTargets && !G.zombies.spawnTarget && !G.zombies.clearTargets && !G.zombies.setRangeFreeze,
+     'range dummy API removed from the zombie director');
+  ok(G.zombies.rangeOn === undefined && G.zombies.rangeFreeze === undefined, 'range state flags removed');
 }
 
 /* environmental detail pass: the procedural decal/marking dressing actually
@@ -992,15 +953,32 @@ function testTerminal(ctx) {
   // the settings terminal must NOT be spawned anywhere in the world
   var inWorld = G.interact.list.some(function (it) { return /settings terminal/i.test((it.prompt && it.prompt()) || ''); });
   ok(!inWorld, 'no in-world settings terminal interaction exists');
+  // opens DURING a live match without leaving 'playing' or resetting the run
+  G.state = 'playing';
   G.terminal.open();
-  ok(G.terminal.active, 'developer panel opens and holds the game');
+  ok(G.terminal.active && G.state === 'playing', 'panel opens mid-match without leaving play state');
   G.terminal.close();
-  ok(!G.terminal.active, 'developer panel closes');
+  ok(!G.terminal.active && G.state === 'playing', 'closing restores the match (still playing)');
+  // the cheat controls treat both playing AND paused as a live match
+  G.state = 'paused';
+  var rd0 = G.zombies.round;
+  G.terminal.open(); G.zombies.jumpToRound(20); G.terminal.close();
+  ok(G.zombies.round === 19, 'dev cheats apply while paused (jump queued)');
+  G.zombies.round = rd0; G.zombies.mode = 'active';
+  // the Backquote hotkey toggles the panel in-match
+  G.state = 'playing';
+  ctx.win.dispatch('keydown', { code: 'Backquote' });
+  ok(G.terminal.active, 'Backquote opens the panel mid-match');
+  ctx.win.dispatch('keydown', { code: 'Backquote' });
+  ok(!G.terminal.active, 'Backquote closes the panel');
+  // repeated open/close keeps a single overlay root (no listener/DOM duplication)
+  for (var oc = 0; oc < 4; oc++) { G.terminal.open(); G.terminal.close(); }
+  ok(!G.terminal.active, 'panel stable after repeated open/close');
   // it is reachable from the menu UI too (open while not playing)
   var prevState = G.state; G.state = 'menu';
   G.terminal.open();
   ok(G.terminal.active, 'developer panel opens from the menu UI');
-  G.terminal.close(); G.state = prevState;
+  G.terminal.close(); G.state = prevState === 'menu' ? 'playing' : prevState;
   G.zombies.jumpToRound(15);
   ok(G.zombies.round === 14 && G.zombies.mode === 'break', 'jumpToRound queues round 15');
   ctx.step(140);
