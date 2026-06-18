@@ -578,6 +578,15 @@ function testVerticality(ctx) {
   var gc = roomCenter(G, 'G');   // Auto Garage (indoor; WALL_H=4, ceiling ~3.9)
   ok(G.map.bodyBlocked(gc.x, gc.z, 3.5), 'indoor room has a solid ceiling (roof collision present)');
   ok(!G.map.bodyBlocked(gc.x, gc.z, 0), 'the floor below stays walkable');
+  // ceilings render from above too (not see-through from the catwalk)
+  var aCeil = null;
+  G.scene.traverse(function (o) { if (!aCeil && o.material && o.material.side === THREE.DoubleSide && o.material.color && o.material.color.getHex() === 0x55504a) aCeil = o; });
+  ok(!!aCeil, 'ceiling tiles are double-sided (not see-through from above)');
+  // doorways are roofed (no open slot above a threshold that touches an indoor room)
+  var roofedDoor = Object.keys(G.map.doors).some(function (id) {
+    var d = G.map.doors[id]; return G.map.bodyBlocked(d.pos.x, d.pos.z, 3.5);
+  });
+  ok(roofedDoor, 'doorways are roofed (ceiling above the threshold)');
 
   // upper floor is FULLY functional: a perk sits up on the catwalk and is only
   // buyable from the catwalk (height-gated), not from the ground below

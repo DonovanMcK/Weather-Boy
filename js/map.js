@@ -1085,7 +1085,9 @@
        structure per room (generators, furnace, lab tanks, wrecked truck,
        server racks, sandbags...). Outdoor rooms stay open to the sky.       */
     var outdoor = CFG.cur.OUTDOOR || [];
-    var dCeil = new THREE.MeshLambertMaterial({ map: G.tex.wall, color: 0x55504a });
+    // ceilings render from BOTH sides so you can't see down through a roof from
+    // the catwalk/above (single-sided planes were invisible from the top)
+    var dCeil = new THREE.MeshLambertMaterial({ map: G.tex.wall, color: 0x55504a, side: THREE.DoubleSide });
     var dBeam = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x55585e });
     var dRust = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x86603c });
     var dDark = new THREE.MeshLambertMaterial({ color: 0x2a2c30 });
@@ -1254,6 +1256,29 @@
         }
       }
     });
+
+    // roof the DOORWAYS too: door cells belong to no room, so the room ceiling
+    // loop skips them — leaving an open slot to the sky above every threshold.
+    // Only roof a doorway that touches an indoor room, and never under a deck.
+    for (var dr = 0; dr < P.rows; dr++) {
+      for (var dc = 0; dc < P.cols; dc++) {
+        if (!P.cells[dr][dc] || P.cells[dr][dc].type !== 'door') continue;
+        var touchesIndoor = [[0, -1], [0, 1], [1, 0], [-1, 0]].some(function (o) {
+          var n = map.cellAt(dc + o[0], dr + o[1]);
+          return n && n.type === 'room' && outdoor.indexOf(n.room) < 0;
+        });
+        if (!touchesIndoor) continue;
+        var dwc = CFG.cellToWorld(dc, dr);
+        var underDeckD = stageSpecs.some(function (sp) {
+          return dwc.x >= sp.x1 - 0.1 && dwc.x <= sp.x2 + 0.1 && dwc.z >= sp.z1 - 0.1 && dwc.z <= sp.z2 + 0.1;
+        });
+        if (underDeckD) continue;
+        var dcl = new THREE.Mesh(floorGeo, dCeil);
+        dcl.rotation.x = Math.PI / 2; dcl.position.set(dwc.x, WALL_H - 0.02, dwc.z);
+        G.scene.add(dcl);
+        map.addCollider(dwc.x - CELL / 2, dwc.z - CELL / 2, dwc.x + CELL / 2, dwc.z + CELL / 2, WALL_H - 0.12, WALL_H + 0.6);
+      }
+    }
 
     /* --------------------------------------------------- raised catwalks */
     var deckMat = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x6b6f78 });
