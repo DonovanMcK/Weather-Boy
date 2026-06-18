@@ -398,6 +398,16 @@ function testMainframeCatwalk(ctx) {
   var n = G.nav.nearest(floor.x, floor.z, 0);
   ok(n && isFinite(n.dist) && n.dist < 1e8, 'zombies can path from the courtyard up to the Mainframe');
   ok(Math.abs(mf.pos.y) > 2.0, 'Mainframe interaction is gated to the catwalk, not the floor below');
+
+  // the stairs carry MULTIPLE nav lanes across their width so the horde spreads
+  // instead of choking single-file (finer nav resolution)
+  var stg = G.map.stages[0];
+  var sx1 = stg.deckCenter.x - 2, sx2 = stg.deckCenter.x + 2;
+  var laneX = {};
+  G.nav.nodes.forEach(function (nd) {
+    if (nd.x >= sx1 - 0.5 && nd.x <= sx2 + 0.5 && nd.z >= 4 && nd.z <= 10 && nd.y > 0.3 && nd.y < 3.1) laneX[nd.x.toFixed(1)] = 1;
+  });
+  ok(Object.keys(laneX).length >= 3, 'the staircase carries 3+ nav lanes across its width (' + Object.keys(laneX).length + ')');
 }
 
 /* every perk machine + Pack-a-Punch + power switch must sit flat against a wall

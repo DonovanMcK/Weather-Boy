@@ -20,7 +20,7 @@
   'use strict';
   var G = window.G;
 
-  var NR = 2.0;            // nav sample spacing (m) — finer than the 4m map grid
+  var NR = 1.5;            // nav sample spacing (m) — finer than the 4m map grid
   // max height change a single edge may span. Sized so a staircase (sampled
   // every NR metres) stays connected as a gentle slope, while a full floor's
   // edge (whole-storey drop) does not — forcing routes through the stairs.
