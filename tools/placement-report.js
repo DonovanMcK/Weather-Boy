@@ -26,15 +26,20 @@ CFG.MAP_IDS.forEach(function (id) {
   (CFG.cur.WALLBUYS || []).forEach(function (w) { mark(w.cell[0], w.cell[1], 'W'); });
   (CFG.cur.BOX_SPOTS || []).forEach(function (b) { mark(b[0], b[1], 'B'); });
   (CFG.cur.TELEPORTERS || []).forEach(function (t) { mark(t.cell[0], t.cell[1], 'T'); });
-  (CFG.cur.EE_RELICS || []).forEach(function (c) { mark(c[0], c[1], 'R'); });
+  // 3 active relics, chosen deterministically from the 9 authored spots
+  var relicPool = (CFG.cur.RELIC_SPOTS || []).slice(), relicSeed = hashStr(id + ':relics');
+  for (var rp = 0; rp < 3 && relicPool.length; rp++) {
+    var rl = relicPool.splice((relicSeed + rp * 7919) % relicPool.length, 1)[0];
+    mark(rl.cell[0], rl.cell[1], 'R');
+  }
   if (CFG.cur.EE_SOULBOX) mark(CFG.cur.EE_SOULBOX[0], CFG.cur.EE_SOULBOX[1], 'O');
   if (CFG.cur.PAP) mark(CFG.cur.PAP.cell[0], CFG.cur.PAP.cell[1], '$');
   if (CFG.cur.POWER) mark(CFG.cur.POWER.cell[0], CFG.cur.POWER.cell[1], '!');
   if (CFG.cur.MAINFRAME) mark(CFG.cur.MAINFRAME.cell[0], CFG.cur.MAINFRAME.cell[1], 'M');
-  // selected shield parts (deterministic) + bench
-  ['frame', 'plate', 'battery'].forEach(function (k) {
-    var locs = CFG.SHIELD_PARTS && CFG.SHIELD_PARTS[k]; if (!locs) return;
-    var loc = locs[hashStr(id + ':' + k) % locs.length];
+  // selected shield parts (deterministic, one per component room) + bench
+  ['frame', 'plate', 'glass'].forEach(function (k) {
+    var def = CFG.SHIELD_PARTS && CFG.SHIELD_PARTS[k]; if (!def || !def.spots) return;
+    var loc = def.spots[hashStr(id + ':' + k) % def.spots.length];
     mark(loc.cell[0], loc.cell[1], 's');
   });
   if (CFG.SHIELD_BENCH) mark(CFG.SHIELD_BENCH.cell[0], CFG.SHIELD_BENCH.cell[1], 'b');
@@ -56,9 +61,9 @@ CFG.MAP_IDS.forEach(function (id) {
   out('  rooms: ' + Object.keys(CFG.cur.ROOMS).map(function (k) { return k.toLowerCase() + '=' + CFG.cur.ROOMS[k].name; }).join(', '));
   out('  legend: P=perk F=wunderfizz $=PaP !=power M=mainframe T=teleporter');
   out('          B=box W=wallbuy R=relic O=soulchest s=shieldpart b=shieldbench');
-  out('  shield parts selected this seed: ' + ['frame', 'plate', 'battery'].map(function (k) {
-    var locs = CFG.SHIELD_PARTS[k]; var loc = locs[hashStr(id + ':' + k) % locs.length];
-    return k + '[' + loc.cell.join(',') + ']' + loc.face;
+  out('  shield parts selected this seed: ' + ['frame', 'plate', 'glass'].map(function (k) {
+    var def = CFG.SHIELD_PARTS[k]; var loc = def.spots[hashStr(id + ':' + k) % def.spots.length];
+    return k + '(' + def.room + ')[' + loc.cell.join(',') + ']' + loc.face;
   }).join('  '));
   out('  shield bench: [' + CFG.SHIELD_BENCH.cell.join(',') + ']' + CFG.SHIELD_BENCH.face);
   out('');
