@@ -1128,12 +1128,20 @@
       var edges = wallEdges(room);
 
       if (!isOut) {
-        // ceiling tiles + cross beams
+        // ceiling tiles + cross beams + a solid ceiling collider so the roof
+        // collision matches the visible ceiling (no dropping into a roofed room
+        // from above, nothing standing on the roof)
         room.cells.forEach(function (cr) {
           var wc = CFG.cellToWorld(cr[0], cr[1]);
           var cl = new THREE.Mesh(floorGeo, dCeil);
           cl.rotation.x = Math.PI / 2; cl.position.set(wc.x, WALL_H - 0.02, wc.z);
           G.scene.add(cl);
+          // solid ceiling — but NOT under a stacked floor (loft/deck), whose own
+          // floor is the ceiling and where the player legitimately stands above
+          var underDeck = stageSpecs.some(function (sp) {
+            return wc.x >= sp.x1 - 0.1 && wc.x <= sp.x2 + 0.1 && wc.z >= sp.z1 - 0.1 && wc.z <= sp.z2 + 0.1;
+          });
+          if (!underDeck) map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2, WALL_H - 0.12, WALL_H + 0.6);
         });
         var along = bb.w >= bb.d;
         var span = along ? bb.d : bb.w, n = Math.max(1, Math.round(span / 4));

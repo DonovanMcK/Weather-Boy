@@ -555,6 +555,12 @@ function testVerticality(ctx) {
   }
   ok(dealt === 0, 'melee does not connect through the upper floor');
 
+  // indoor rooms are roofed with REAL collision (matches the visible ceiling):
+  // a body can't occupy the ceiling, but the floor below stays clear
+  var gc = roomCenter(G, 'G');   // Auto Garage (indoor; WALL_H=4, ceiling ~3.9)
+  ok(G.map.bodyBlocked(gc.x, gc.z, 3.5), 'indoor room has a solid ceiling (roof collision present)');
+  ok(!G.map.bodyBlocked(gc.x, gc.z, 0), 'the floor below stays walkable');
+
   // upper floor is FULLY functional: a perk sits up on the catwalk and is only
   // buyable from the catwalk (height-gated), not from the ground below
   P.damage = function () {};
