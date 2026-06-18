@@ -365,6 +365,7 @@ async function runQuick(mapId) {
     testBosses(ctx);
     testBossCharge(ctx);
     testShield(ctx);
+    testDamageDirection(ctx);
     testSoulBox(ctx);
     testShieldBuild(ctx);
     testNoWonderBuild(ctx);
@@ -907,6 +908,21 @@ function testSoulBox(ctx) {
   ok(ee.souls === 0, 'far-away kills do not feed the chest');
 }
 
+/* directional damage indicator: taking a hit records the attacker's bearing in
+   the player's own frame (0 = ahead, +pi/2 = right, +-pi = behind) and pings the
+   HUD arc */
+function testDamageDirection(ctx) {
+  var G = ctx.G, P = G.player;
+  ok(typeof G.hud.damageFrom === 'function', 'HUD has a directional damage indicator');
+  ok(typeof P.hitBearing === 'function', 'player computes attacker bearing');
+  P.pos.set(0, 0, 0); P.yaw = 0;   // facing -z (forward)
+  function near(a, b) { var d = Math.atan2(Math.sin(a - b), Math.cos(a - b)); return Math.abs(d) < 0.2; }
+  ok(near(P.hitBearing(0, -5), 0), 'hit from ahead points the indicator up');
+  ok(near(P.hitBearing(0, 5), Math.PI), 'hit from behind points the indicator down');
+  ok(near(P.hitBearing(5, 0), Math.PI / 2), 'hit from the right points the indicator right');
+  ok(near(P.hitBearing(-5, 0), -Math.PI / 2), 'hit from the left points the indicator left');
+}
+
 /* buildable shield: blocks melee from behind, ignores hits from the front,
    and shatters after absorbing its capacity */
 function testShield(ctx) {
@@ -929,6 +945,7 @@ function testShield(ctx) {
    player has toggled boss rounds off */
 function testBosses(ctx) {
   var G = ctx.G, step = ctx.step;
+  var realDamage = G.player.damage;
   G.player.damage = function () {};
   G.settings.bossRounds = true;
   G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
@@ -946,6 +963,7 @@ function testBosses(ctx) {
   step(160);
   ok(!G.zombies.bossAlive(), 'no elite when boss rounds are toggled off');
   G.settings.bossRounds = true;
+  G.player.damage = realDamage;   // restore so later tests see the real damage path
 }
 
 /* the Panzersoldat is a real threat: from mid-range it telegraphs and charges,
@@ -957,6 +975,7 @@ function testBossCharge(ctx) {
   step(20);
   var c = roomCenter(G, 'S'); ctx.moveTo(c); G.player.yaw = 0; G.player.downed = false; G.player.invuln = 0;
   var hits = 0, knock = 0;
+  var realDamage = G.player.damage, realKnock = G.player.knockback;
   G.player.damage = function () { hits++; };
   G.player.knockback = function () { knock++; };
   var b = G.zombies.spawnBoss();
@@ -978,6 +997,7 @@ function testBossCharge(ctx) {
   // tidy up so the elite never roams into later tests
   G.zombies.list.slice().forEach(function (z) { if (z.isBoss) G.zombies.damageZombie(z, 1e9, { boom: true, silent: true }); });
   step(20);
+  G.player.damage = realDamage; G.player.knockback = realKnock;   // restore (don't leak stubs)
   ctx.moveTo(roomCenter(G, 'S')); G.player.hp = G.CFG.PLAYER_HP; G.player.downed = false;
 }
 

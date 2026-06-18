@@ -28,6 +28,7 @@
     H.cross = el('hud-cross');
     H.vig = el('hud-vignette');
     H.flash = el('hud-flash');
+    H.dmg = el('hud-dmg');
     H.pu = el('hud-powerups');
     H.downedEl = el('hud-downed');
     H.health = el('hud-health');
@@ -159,6 +160,18 @@
 
   H.setVignette = function (level) {
     H.vig.style.opacity = Math.max(0, Math.min(0.92, level * 1.1));
+  };
+
+  // directional damage indicator: rad is the attacker's bearing relative to
+  // where the player faces (0 = dead ahead). Points the red arc that way, fades.
+  H.damageFrom = function (rad) {
+    if (!H.dmg) return;
+    H.dmg.style.transition = 'none';
+    H.dmg.style.transform = 'rotate(' + rad + 'rad)';
+    H.dmg.style.opacity = 0.85;
+    void H.dmg.offsetWidth;                 // restart the fade
+    H.dmg.style.transition = 'opacity 0.55s ease-out';
+    H.dmg.style.opacity = 0;
   };
 
   H.flashWhite = function () {

@@ -373,7 +373,7 @@
         if (G.player.shieldBlocks && G.player.shieldBlocks(z.mesh.position.x, z.mesh.position.z)) {
           G.audio.zombieAttack();
         } else {
-          G.player.damage(Math.round(CFG.zombieMeleeDamage(Z.round) * 1.8));
+          G.player.damage(Math.round(CFG.zombieMeleeDamage(Z.round) * 1.8), z.mesh.position.x, z.mesh.position.z);
           if (G.player.knockback) G.player.knockback(z.chargeDir.x, z.chargeDir.z, 2.6);
           G.audio.zombieAttack();
         }
@@ -899,7 +899,7 @@
               } else {
                 G.player.damage(z.isBoss ? Math.round(CFG.zombieMeleeDamage(Z.round) * 1.5)
                                 : z.isDog ? Math.round(CFG.zombieMeleeDamage(Z.round) * 0.8)
-                                : CFG.zombieMeleeDamage(Z.round));
+                                : CFG.zombieMeleeDamage(Z.round), z.mesh.position.x, z.mesh.position.z);
                 G.audio.zombieAttack();
               }
             }

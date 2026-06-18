@@ -103,12 +103,22 @@
     return true;
   };
 
-  P.damage = function (dmg) {
+  // attacker bearing in the player's own frame: 0 = dead ahead (screen top),
+  // +pi/2 = the player's right, +-pi = directly behind. Drives the HUD arc.
+  P.hitBearing = function (fromX, fromZ) {
+    var ddx = fromX - P.pos.x, ddz = fromZ - P.pos.z;
+    var sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
+    return Math.atan2(ddx * cy - ddz * sy, -ddx * sy - ddz * cy);
+  };
+
+  P.damage = function (dmg, fromX, fromZ) {
     if (P.downed || P.invuln > 0 || G.state !== 'playing') return;
     P.hp -= dmg;
     P.regenTimer = 0;
     G.audio.hurt();
     P.shake(0.4);
+    // directional hit indicator: point the HUD arc toward the attacker
+    if (fromX != null && G.hud.damageFrom) G.hud.damageFrom(P.hitBearing(fromX, fromZ));
     // Widow's Wine: getting hit bursts a web that damages + slows the swarm
     // around you (short cooldown so it's a panic button, not a constant aura)
     if (P.hasPerk('widows') && P._widowCd <= 0) {
