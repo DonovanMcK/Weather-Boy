@@ -218,14 +218,23 @@
       });
     }
 
-    // --- mini easter egg: activate 3 hidden relics, then fill the soul chest
+    // --- mini easter egg: activate 3 hidden relics, then fill the soul chest.
+    // 3 distinct spots are chosen from 9 authored wall-adjacent locations,
+    // deterministically per match; the other 6 are never instantiated.
     I.ee = { relics: [], activated: 0, box: null, boxMesh: null, glow: null,
              souls: 0, need: 30, done: false };
-    (CFG.EE_RELICS || []).forEach(function (cell) {
-      var wc = CFG.cellToWorld(cell[0], cell[1]);
-      var pos = new THREE.Vector3(wc.x, 0, wc.z);
-      var mesh = G.Props.create('relic_pedestal', { position: pos, rotationY: faceCenter(pos) });
-      var relic = { pos: pos, mesh: mesh, active: false };
+    var relicSpots = (CFG.RELIC_SPOTS || []).slice();
+    var relicSeed = G.PU.hashStr((CFG.cur.id || '') + ':relics');
+    var chosenRelics = [];
+    for (var rPick = 0; rPick < 3 && relicSpots.length; rPick++) {
+      var idx = (relicSeed + rPick * 7919) % relicSpots.length;
+      chosenRelics.push(relicSpots.splice(idx, 1)[0]);
+    }
+    chosenRelics.forEach(function (loc) {
+      var m = wallMount(loc.cell, loc.face, 0.26, loc.y);   // pedestal flush to wall
+      var pos = m.pos;
+      var mesh = G.Props.create('relic_pedestal', { position: pos, rotationY: m.yaw });
+      var relic = { pos: pos, mesh: mesh, active: false, cell: loc.cell };
       I.ee.relics.push(relic);
       add({
         pos: pos, r: 1.8,

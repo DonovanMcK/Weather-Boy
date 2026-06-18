@@ -861,9 +861,19 @@ function testNoWonderBuild(ctx) {
 /* soul-box mini easter egg: activate all relics to wake the chest, then kills
    nearby fill it and reward a free perk */
 function testSoulBox(ctx) {
-  var G = ctx.G;
+  var G = ctx.G, CFG = G.CFG;
   var ee = G.interact.ee;
-  ok(ee && ee.relics.length === 3, 'three relics placed for the mini easter egg');
+  // 9 authored relic spots; exactly 3 distinct instantiated this match
+  ok(CFG.RELIC_SPOTS && CFG.RELIC_SPOTS.length === 9, 'nine authored relic spots exist');
+  ok(ee && ee.relics.length === 3, 'exactly three relics active this match');
+  var rcells = ee.relics.map(function (r) { return r.cell.join(','); });
+  ok(rcells[0] !== rcells[1] && rcells[1] !== rcells[2] && rcells[0] !== rcells[2], 'the three relics use distinct authored spots');
+  // every chosen spot is one of the 9 authored locations, clear of door approaches
+  var authored = {}; CFG.RELIC_SPOTS.forEach(function (s) { authored[s.cell.join(',')] = 1; });
+  ok(rcells.every(function (c) { return authored[c]; }), 'active relics come only from the authored pool');
+  ok(ee.relics.every(function (r) {
+    return Object.keys(G.map.doors).every(function (id) { return r.pos.distanceTo(G.map.doors[id].pos) > 2.2; });
+  }), 'no active relic blocks a door approach');
   // kills before the chest is awake do nothing
   ee.box = null; ee.done = false; ee.souls = 0;
   G.interact.onKill(new THREE.Vector3(0, 0, 0));

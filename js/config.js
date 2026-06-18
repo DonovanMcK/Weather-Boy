@@ -88,7 +88,8 @@
     PAP: { cell: [6, 10], off: [0, 0] },
     POWER: { cell: [8, 10], off: [0, 0] },
     PLAYER_SPAWN: { cell: [6, 6], off: [0, 0.5] },
-    EE_RELICS: [[2, 4], [10, 4], [9, 9]],
+    // 9 authored wall-adjacent relic spots; 3 distinct are chosen per match
+    RELIC_SPOTS: [{ cell: [5, 0], face: 'N' }, { cell: [0, 4], face: 'W' }, { cell: [5, 4], face: 'N' }, { cell: [10, 4], face: 'N' }, { cell: [4, 9], face: 'N' }, { cell: [6, 0], face: 'N' }, { cell: [2, 4], face: 'N' }, { cell: [7, 4], face: 'N' }, { cell: [12, 4], face: 'E' }],
     EE_SOULBOX: [6, 5],
     // authored shield-part spawns — 3 wall-adjacent maintenance spots per part
     // each shield component lives in its OWN room (3 authored wall spots each);
@@ -201,7 +202,7 @@
     PAP: { cell: [9, 7], off: [0, 0] },
     POWER: { cell: [10, 2], off: [0, 0] },
     PLAYER_SPAWN: { cell: [7, 12], off: [0, 0.5] },
-    EE_RELICS: [[1, 6], [14, 6], [6, 1]],
+    RELIC_SPOTS: [{ cell: [0, 0], face: 'W' }, { cell: [3, 0], face: 'N' }, { cell: [15, 0], face: 'E' }, { cell: [4, 5], face: 'N' }, { cell: [0, 7], face: 'W' }, { cell: [15, 7], face: 'E' }, { cell: [5, 11], face: 'N' }, { cell: [0, 2], face: 'W' }, { cell: [6, 0], face: 'N' }],
     EE_SOULBOX: [8, 8],
     // frame=Auto Garage, plate=Teleporter-C Courtyard, glass=Animal Testing.
     SHIELD_PARTS: {
@@ -312,7 +313,7 @@
     PAP: { cell: [8, 6], off: [0, 0] },
     POWER: { cell: [12, 1], off: [0, 0] },
     PLAYER_SPAWN: { cell: [7, 11], off: [0, 0.5] },
-    EE_RELICS: [[1, 9], [12, 9], [6, 2]],
+    RELIC_SPOTS: [{ cell: [0, 0], face: 'W' }, { cell: [6, 0], face: 'N' }, { cell: [11, 0], face: 'N' }, { cell: [1, 5], face: 'N' }, { cell: [5, 5], face: 'N' }, { cell: [11, 5], face: 'N' }, { cell: [5, 11], face: 'N' }, { cell: [1, 0], face: 'W' }, { cell: [8, 0], face: 'N' }],
     EE_SOULBOX: [7, 7],
     // frame=Radar Dome, plate=Laboratory, glass=Storage. Bench in the Generator.
     SHIELD_PARTS: {
@@ -333,7 +334,7 @@
     CFG.cur = m;
     ['GRID', 'ROOMS', 'DOORS', 'WINDOWS', 'RISERS', 'PERK_MACHINES', 'WALLBUYS',
      'BOX_SPOTS', 'TELEPORTERS', 'MAINFRAME', 'PAP', 'POWER', 'PLAYER_SPAWN',
-     'EE_RELICS', 'EE_SOULBOX', 'SHIELD_PARTS', 'SHIELD_BENCH']
+     'RELIC_SPOTS', 'EE_SOULBOX', 'SHIELD_PARTS', 'SHIELD_BENCH']
       .forEach(function (k) { CFG[k] = m[k]; });
     CFG._cx = m.GRID[0].length / 2 - 0.5;
     CFG._cz = m.GRID.length / 2 - 0.5;
