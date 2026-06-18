@@ -416,7 +416,8 @@ function testWallAlignment(ctx, mapId) {
     var cells = G.map.parsed.rooms[rid].cells, minc = 99, maxc = -99, minr = 99, maxr = -99;
     cells.forEach(function (cr) { if (cr[0] < minc) minc = cr[0]; if (cr[0] > maxc) maxc = cr[0]; if (cr[1] < minr) minr = cr[1]; if (cr[1] > maxr) maxr = cr[1]; });
     var a = G.CFG.cellToWorld(minc, minr), b = G.CFG.cellToWorld(maxc, maxr);
-    return { x0: a.x - 2 + 0.35, x1: b.x + 2 - 0.35, z0: a.z - 2 + 0.35, z1: b.z + 2 - 0.35 };
+    // REAL inner wall surfaces (wall is WALL_T=0.35 thick, centred on the cell edge)
+    return { x0: a.x - 2 + 0.175, x1: b.x + 2 - 0.175, z0: a.z - 2 + 0.175, z1: b.z + 2 - 0.175 };
   }
   function backGap(mesh, hd) {
     var yaw = mesh.rotation.y, p = mesh.position;

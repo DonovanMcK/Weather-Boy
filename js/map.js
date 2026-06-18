@@ -851,12 +851,14 @@
       baseY = baseY || 0;
       var rid = map.roomAt(pos.x, pos.z);
       if (!rid || !P.rooms[rid]) return { x: pos.x, z: pos.z, yaw: 0 };
-      var bb = roomInner(rid), gap = halfDepth + 0.03;
+      // roomInner's faces are inset by a full WALL_T; the REAL inner wall
+      // surface is WALL_T/2 closer, so add it back or the prop floats ~0.18m.
+      var bb = roomInner(rid), gap = halfDepth + 0.03, WT2 = WALL_T / 2;
       var cands = [
-        { x: bb.x0 + gap, z: pos.z, d: pos.x - bb.x0, yaw: WALL_YAW.W, f: 'W' },
-        { x: bb.x1 - gap, z: pos.z, d: bb.x1 - pos.x, yaw: WALL_YAW.E, f: 'E' },
-        { x: pos.x, z: bb.z0 + gap, d: pos.z - bb.z0, yaw: WALL_YAW.N, f: 'N' },
-        { x: pos.x, z: bb.z1 - gap, d: bb.z1 - pos.z, yaw: WALL_YAW.S, f: 'S' }
+        { x: bb.x0 - WT2 + gap, z: pos.z, d: pos.x - bb.x0, yaw: WALL_YAW.W, f: 'W' },
+        { x: bb.x1 + WT2 - gap, z: pos.z, d: bb.x1 - pos.x, yaw: WALL_YAW.E, f: 'E' },
+        { x: pos.x, z: bb.z0 - WT2 + gap, d: pos.z - bb.z0, yaw: WALL_YAW.N, f: 'N' },
+        { x: pos.x, z: bb.z1 + WT2 - gap, d: bb.z1 - pos.z, yaw: WALL_YAW.S, f: 'S' }
       ].sort(function (a, b) { return a.d - b.d; });
       function standClear(cx, cz, f) {
         var io = INWARD[f], sx = cx + io[0] * 0.95, sz = cz + io[1] * 0.95;
