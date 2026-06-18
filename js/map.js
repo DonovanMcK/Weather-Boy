@@ -1311,7 +1311,7 @@
       // staircase: a SMOOTH walkable ramp (one continuous slope, no per-step
       // bumps for the player and one clean nav level per cell so the horde
       // streams up it). The visible treads sit just under the ramp so it still
-      // reads as a staircase. Side rails keep bodies on it.
+      // reads as a staircase. No railings (per design).
       var st = s.stairs;
       if (st) {
         var n = st.steps, run = (st.zBase - st.zTop) / n, sw = st.x2 - st.x1, scx = (st.x1 + st.x2) / 2;
@@ -1327,16 +1327,6 @@
           addBox(sw, 0.14, run + 0.05, scx, noseH + 0.07, zN - run / 2, deckMat);   // tread (visual)
           addBox(sw, H / n + 0.04, 0.06, scx, noseH + (H / n) / 2, zN, deckMat);     // riser (visual)
         }
-        // slim VISUAL handrails up the slope (no collider — they must not trap
-        // the horde at the foot of the stairs where it peels off to circle round)
-        [st.x1 + 0.08, st.x2 - 0.08].forEach(function (rx) {
-          for (var sg = 0; sg < 6; sg++) {
-            var zc = st.zTop + (st.zBase - st.zTop) * (sg + 0.5) / 6;
-            var hc = H * (1 - (sg + 0.5) / 6);
-            addBox(0.07, 0.07, (st.zBase - st.zTop) / 6, rx, hc + 0.95, zc, railMat);     // top rail
-            addBox(0.06, 1.0, 0.06, rx, hc + 0.5, zc, railMat);                            // post
-          }
-        });
       }
       map.stages.push({
         deckCenter: new THREE.Vector3(dcx, H, dcz), deckTop: H,
@@ -1352,15 +1342,7 @@
       var w = b.x2 - b.x1, d = b.z2 - b.z1;
       addBox(w, 0.22, d, cx, H - 0.11, cz, deckMat);                 // walkway slab
       map.addSurface({ x1: b.x1, x2: b.x2, z1: b.z1, z2: b.z2, y: H, bridge: true });
-      // waist rails on both long sides (block falling off, clear underneath)
-      [b.z1 + 0.06, b.z2 - 0.06].forEach(function (rz) {
-        addBox(w, 1.0, 0.12, cx, H + 0.5, rz, railMat);
-        map.addCollider(b.x1, rz - 0.06, b.x2, rz + 0.06, H, H + 1.0);
-      });
-      // slim decorative end posts (no collider — never block the passage below)
-      [b.x1 + 0.2, b.x2 - 0.2].forEach(function (px) {
-        addBox(0.16, H, 0.16, px, H / 2, cz, railMat);
-      });
+      // (no railings — open edges by design)
       map.bridges = (map.bridges || []);
       map.bridges.push({ center: new THREE.Vector3(cx, H, cz), top: H });
     }
