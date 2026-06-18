@@ -168,6 +168,11 @@ function openAllDoors(ctx) {
      'all doors opened');
   ok(Object.keys(G.map.parsed.rooms).every(function (r) { return G.map.reachableRooms[r]; }),
      'all rooms reachable');
+  // no stray pillar/prop collider stands in a doorway (threshold is clear)
+  var clear = Object.keys(G.map.doors).every(function (id) {
+    return !G.map.bodyBlocked(G.map.doors[id].pos.x, G.map.doors[id].pos.z, 0.2);
+  });
+  ok(clear, 'no prop or pillar blocks an open doorway');
 }
 
 function unlockPap(ctx) {

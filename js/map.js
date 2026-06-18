@@ -1154,9 +1154,14 @@
         });
       }
 
-      // corner support pillars
+      // corner support pillars — skip any that would land in/near a doorway
+      // (they'd block the threshold and read as a pillar in front of the door)
       [[bb.x0 + 0.42, bb.z0 + 0.42], [bb.x1 - 0.42, bb.z0 + 0.42],
        [bb.x0 + 0.42, bb.z1 - 0.42], [bb.x1 - 0.42, bb.z1 - 0.42]].forEach(function (c) {
+        var nearDoor = Object.keys(map.doors).some(function (id) {
+          return Math.hypot(map.doors[id].pos.x - c[0], map.doors[id].pos.z - c[1]) < 2.2;
+        });
+        if (nearDoor) return;
         var ph = isOut ? WALL_H + 0.4 : WALL_H;
         addBox(0.46, ph, 0.46, c[0], ph / 2, c[1], dConc, { collide: true });
       });
