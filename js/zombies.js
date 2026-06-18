@@ -861,16 +861,21 @@
           // horizontal distance only (a vaulting/airborne zombie shouldn't
           // count as "reaching" you)
           var dist = Math.hypot(z.mesh.position.x - tpos.x, z.mesh.position.z - tpos.z);
-          var sameLevel = Math.abs(z.mesh.position.y - tpos.y) < MELEE_VERT;
+          var dyT = Math.abs(z.mesh.position.y - tpos.y);
+          var sameLevel = dyT < MELEE_VERT;
+          // a tighter gate for beelining: a body part-way down a ramp is within
+          // 1.7m of a ground target but must keep following the nav slope, not
+          // cut straight toward the player and stall against the incline
+          var sameFloor = dyT < 0.7;
           if (!Z.lure && dist < MELEE_START && sameLevel && !G.player.downed && z.attackCd <= 0) {
             z.state = 'attack'; z.t = 0; z.hasHit = false;
           } else if (Z.lure && dist < 1.2) {
             // crowd around the monkey
           } else {
             moving = true;
-            // close and on the same level: beeline. Otherwise descend the
-            // multi-layer nav gradient (it routes up/down stairs across floors).
-            if (dist < 4 && sameLevel) moveToward(z, tpos, dt);
+            // close and truly on the same floor: beeline. Otherwise descend the
+            // multi-layer nav gradient (it routes up/down ramps across floors).
+            if (dist < 4 && sameFloor) moveToward(z, tpos, dt);
             else {
               var np = navTarget(z);
               moveToward(z, np || tpos, dt);

@@ -502,10 +502,15 @@ function testVerticality(ctx) {
   ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyC', 'Space'].forEach(ctx.keyup);
   G.player.damage = function () {};
 
-  // player climbs the staircase onto the upper floor (yaw 0 = up the steps)
+  // player climbs the staircase onto the upper floor (yaw 0 = up the ramp) and
+  // the ascent is SMOOTH — a continuous slope, not discrete step-jumps
   P.pos.set(S.stairBase.x, 0, S.stairBase.z + 1.0); P.vel.set(0, 0, 0); P.yaw = 0;
-  win.dispatch('keydown', { code: 'KeyW' }); step(220); ctx.keyup('KeyW');
+  win.dispatch('keydown', { code: 'KeyW' });
+  var prevY = P.pos.y, maxJump = 0;
+  for (var sc = 0; sc < 220; sc++) { step(1); maxJump = Math.max(maxJump, Math.abs(P.pos.y - prevY)); prevY = P.pos.y; }
+  ctx.keyup('KeyW');
   ok(P.pos.y > 3.0, 'player climbs to the upper floor (y=' + P.pos.y.toFixed(2) + ')');
+  ok(maxJump < 0.18, 'stair ascent is a smooth ramp, not bumpy steps (max ' + maxJump.toFixed(2) + 'm/frame)');
   P.yaw = Math.PI; win.dispatch('keydown', { code: 'KeyW' }); step(260); ctx.keyup('KeyW');
   ok(P.pos.y < 0.5, 'walking off the upper floor drops you to the ground');
 

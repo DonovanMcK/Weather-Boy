@@ -1253,17 +1253,35 @@
           if (!st0) rail(s.x1, s.z2 - 0.12, s.x2, s.z2);
         }
       }
-      // staircase: nested boxes descending south, each tread a flat surface
+      // staircase: a SMOOTH walkable ramp (one continuous slope, no per-step
+      // bumps for the player and one clean nav level per cell so the horde
+      // streams up it). The visible treads sit just under the ramp so it still
+      // reads as a staircase. Side rails keep bodies on it.
       var st = s.stairs;
       if (st) {
         var n = st.steps, run = (st.zBase - st.zTop) / n, sw = st.x2 - st.x1, scx = (st.x1 + st.x2) / 2;
+        map.addSurface({ x1: st.x1, x2: st.x2, z1: st.zTop, z2: st.zBase,
+                         ramp: true, axis: 'z', c1: st.zTop, c2: st.zBase, h1: H, h2: 0 });
         for (var i = 1; i <= n; i++) {
-          var top = H * (n + 1 - i) / (n + 1);
-          var z2 = st.zTop + i * run;
-          addBox(sw, top, z2 - st.zTop, scx, top / 2, (st.zTop + z2) / 2, deckMat);
-          map.addCollider(st.x1, st.zTop, st.x2, z2, 0, top);
-          map.addSurface({ x1: st.x1, x2: st.x2, z1: st.zTop + (i - 1) * run, z2: z2, y: top });
+          var zA = st.zTop + (i - 1) * run, zN = st.zTop + i * run;  // tread z-span (north..south)
+          var noseH = H * (n - i) / n;            // ramp height at the south (nose) edge
+          // SOLID fill beneath the ramp, capped at the nose height so it never
+          // pokes through the walking surface — this removes the phantom floor
+          // nodes under the ramp that made the horde stall trying to path beneath
+          if (noseH > 0.05) map.addCollider(st.x1, zA, st.x2, zN, 0, noseH);
+          addBox(sw, 0.14, run + 0.05, scx, noseH + 0.07, zN - run / 2, deckMat);   // tread (visual)
+          addBox(sw, H / n + 0.04, 0.06, scx, noseH + (H / n) / 2, zN, deckMat);     // riser (visual)
         }
+        // slim VISUAL handrails up the slope (no collider — they must not trap
+        // the horde at the foot of the stairs where it peels off to circle round)
+        [st.x1 + 0.08, st.x2 - 0.08].forEach(function (rx) {
+          for (var sg = 0; sg < 6; sg++) {
+            var zc = st.zTop + (st.zBase - st.zTop) * (sg + 0.5) / 6;
+            var hc = H * (1 - (sg + 0.5) / 6);
+            addBox(0.07, 0.07, (st.zBase - st.zTop) / 6, rx, hc + 0.95, zc, railMat);     // top rail
+            addBox(0.06, 1.0, 0.06, rx, hc + 0.5, zc, railMat);                            // post
+          }
+        });
       }
       map.stages.push({
         deckCenter: new THREE.Vector3(dcx, H, dcz), deckTop: H,
