@@ -364,6 +364,7 @@ async function runQuick(mapId) {
     testTerminal(ctx);
     testBosses(ctx);
     testBossCharge(ctx);
+    testKnockbackWall(ctx);
     testShield(ctx);
     testDamageDirection(ctx);
     testSoulBox(ctx);
@@ -1035,6 +1036,44 @@ function testBossCharge(ctx) {
   step(20);
   G.player.damage = realDamage; G.player.knockback = realKnock;   // restore (don't leak stubs)
   ctx.moveTo(roomCenter(G, 'S')); G.player.hp = G.CFG.PLAYER_HP; G.player.downed = false;
+}
+
+/* a hard knockback (boss charge, blast) is sub-stepped so it can never leap
+   the player across a thin wall in a single shove — the reported tunnelling */
+function testKnockbackWall(ctx) {
+  var G = ctx.G;
+  var P = G.player;
+  var c = roomCenter(G, 'S');
+  // nearest full-height, thin (wall, not block) active collider to spawn
+  var wall = null, best = 1e9;
+  G.map.colliders.forEach(function (col) {
+    if (!col.on) return;
+    if (col.y2 - col.y1 < 2) return;                          // full-height only
+    var w = col.x2 - col.x1, d = col.z2 - col.z1;
+    if (Math.min(w, d) > 0.6) return;                         // thin (a wall)
+    var cx = (col.x1 + col.x2) / 2, cz = (col.z1 + col.z2) / 2;
+    var dist = Math.hypot(cx - c.x, cz - c.z);
+    if (dist < best) { best = dist; wall = col; }
+  });
+  if (!wall) { ok(true, 'no wall collider to test knockback (skipped)'); return; }
+  G.player.downed = false; G.player.invuln = 0;
+  var thinX = (wall.x2 - wall.x1) < (wall.z2 - wall.z1);
+  if (thinX) {
+    P.pos.set(wall.x1 - 0.45, 0, (wall.z1 + wall.z2) / 2);
+    P.vel.set(0, 0, 0);
+    P.knockback(1, 0, 8);                                     // 8m shove into a ~0.35m wall
+    ok(P.pos.x <= wall.x1 + 0.05,
+       'knockback stops at the wall, no tunnel (x ' + P.pos.x.toFixed(2) +
+       ' <= ' + wall.x1.toFixed(2) + ')');
+  } else {
+    P.pos.set((wall.x1 + wall.x2) / 2, 0, wall.z1 - 0.45);
+    P.vel.set(0, 0, 0);
+    P.knockback(0, 1, 8);
+    ok(P.pos.z <= wall.z1 + 0.05,
+       'knockback stops at the wall, no tunnel (z ' + P.pos.z.toFixed(2) +
+       ' <= ' + wall.z1.toFixed(2) + ')');
+  }
+  ctx.moveTo(roomCenter(G, 'S')); P.vel.set(0, 0, 0);
 }
 
 /* settings terminal: opens/pauses, exposes the run-tuning settings, and can

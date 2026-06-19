@@ -133,9 +133,15 @@
   P.knockback = function (dx, dz, dist) {
     if (P.downed || G.state !== 'playing') return;
     var len = Math.hypot(dx, dz) || 1;
-    P.pos.x += dx / len * (dist || 2.4);
-    P.pos.z += dz / len * (dist || 2.4);
-    collide();
+    var ux = dx / len, uz = dz / len, total = dist || 2.4;
+    // sub-step the shove so it can't leap across a thin wall in one go
+    // (each step is well under WALL_T, so collide() always catches the wall)
+    var steps = Math.max(1, Math.ceil(total / 0.2));
+    for (var s = 0; s < steps; s++) {
+      P.pos.x += ux * (total / steps);
+      P.pos.z += uz * (total / steps);
+      collide();
+    }
     P.shake(0.8);
   };
 
@@ -402,8 +408,17 @@
     if (!P.onGround) P.vel.y -= MV.gravity * dt;
     var fallV = P.vel.y;
 
-    P.pos.x += P.vel.x * dt;
-    P.pos.z += P.vel.z * dt;
+    // integrate horizontal motion in sub-steps capped under the wall
+    // thickness, colliding each step — fast falls / hops off a top row or
+    // the stairs can no longer punch through a wall in a single frame
+    var mdx = P.vel.x * dt, mdz = P.vel.z * dt;
+    var mdist = Math.hypot(mdx, mdz);
+    var msteps = mdist > 0.2 ? Math.ceil(mdist / 0.2) : 1;
+    for (var ms = 0; ms < msteps; ms++) {
+      P.pos.x += mdx / msteps;
+      P.pos.z += mdz / msteps;
+      if (ms < msteps - 1) collide();
+    }
     P.pos.y += P.vel.y * dt;
 
     // ground/support: rest on the highest walkable surface under the feet

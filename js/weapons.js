@@ -884,11 +884,12 @@
     G.hud.setAmmo();
   };
 
-  function pointBlocked(x, z, r) {
+  function pointBlocked(x, y, z, r) {
     var cols = G.map.colliders;
     for (var i = 0; i < cols.length; i++) {
       var c = cols[i];
       if (!c.on) continue;
+      if (y < c.y1 - 0.1 || y > c.y2 + 0.1) continue;   // only collide at the projectile's height
       if (x > c.x1 - r && x < c.x2 + r && z > c.z1 - r && z < c.z2 + r) return c;
     }
     return null;
@@ -929,7 +930,7 @@
       var nx = p.mesh.position.x + p.vel.x * dt;
       var ny = p.mesh.position.y + p.vel.y * dt;
       var nz = p.mesh.position.z + p.vel.z * dt;
-      var hitWall = pointBlocked(nx, nz, 0.1);
+      var hitWall = pointBlocked(nx, ny, nz, 0.1);
       var hitFloor = ny <= 0.1;
       var detonate = false;
 
