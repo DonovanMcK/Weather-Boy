@@ -5,9 +5,11 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
+    "shots": "node tools/shots.js",
     "test": "node tests/validate-map.js && node tests/smoke.js"
   },
   "devDependencies": {
-    "three": "0.160.0"
+    "three": "0.160.0",
+    "puppeteer": "^25.2.0"
   }
 }

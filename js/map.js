@@ -1328,23 +1328,32 @@
       // training centre. Deterministic, clear of doors/windows/interactables.
       if (isOut) {
         var yardProps = {
-          nacht: ['wrecked_car', 'sandbag_wall', 'barrel_cluster', 'crate_stack', 'concrete_barrier'],
-          derriese: ['cargo_container', 'machinery_unit', 'barrel_cluster', 'concrete_barrier'],
-          wetterjunge: ['cargo_container', 'crate_stack', 'razor_fence', 'supply_pallet']
+          nacht: ['wrecked_car', 'sandbag_wall', 'barrel_cluster', 'crate_stack', 'concrete_barrier', 'cargo_container'],
+          derriese: ['cargo_container', 'machinery_unit', 'barrel_cluster', 'concrete_barrier', 'crate_stack'],
+          wetterjunge: ['cargo_container', 'crate_stack', 'razor_fence', 'supply_pallet', 'barrel_cluster']
         }[CFG.cur.id] || [];
+        // solid landmark props hugging the perimeter walls — iterate ALL clear
+        // edges so the themed list reliably lands, but keep it to the wall line
+        // so the open training centre stays clear
         var oedges = wallEdges(room).filter(function (e) { return !e.door && !e.win; });
         var placed = 0;
         for (var oi = 0; oi < oedges.length && placed < yardProps.length; oi++) {
           var oe = oedges[(oi * 3 + 1) % oedges.length];
-          var type = yardProps[placed];
-          if (placeAgainstWall(type, oe, rid)) placed++;
+          if (placeAgainstWall(yardProps[placed], oe, rid)) placed++;
         }
-        // soft decorative snow banks for the arctic yard (no collider, walkable)
-        if (CFG.cur.id === 'wetterjunge') {
-          [[bb.x0 + 1.8, bb.z0 + 1.8], [bb.x1 - 1.8, bb.z1 - 1.8]].forEach(function (d) {
-            var dp = new THREE.Vector3(d[0], 0, d[1]);
-            if (clearOf(dp, 1.5)) { G.Props.create('snow_drift', { position: dp, seed: (G.PU.hashStr(rid + ':drift:' + d[0]) || 1) }); occupy(dp); }
-          });
+        // low WALKABLE debris scattered across the field (no collider) — fills the
+        // open yard so it reads as a real, lived-in place without touching the
+        // training lanes. Deterministic.
+        var scatter = { nacht: ['debris_pile', 'debris_pile', 'sandbag_stack'],
+                        derriese: ['debris_pile', 'debris_pile', 'pallet'],
+                        wetterjunge: ['snow_drift', 'debris_pile', 'snow_drift'] }[CFG.cur.id] || ['debris_pile'];
+        var srng = G.PU.seeded(G.PU.hashStr('scatter:' + rid));
+        var sw2 = Math.max(0.5, (bb.x1 - bb.x0) - 3.2), sd2 = Math.max(0.5, (bb.z1 - bb.z0) - 3.2);
+        for (var si = 0; si < 8; si++) {
+          var ssp = new THREE.Vector3(bb.x0 + 1.6 + srng() * sw2, 0, bb.z0 + 1.6 + srng() * sd2);
+          if (!clearOf(ssp, 2.2)) continue;
+          G.Props.create(scatter[(srng() * scatter.length) | 0], { position: ssp, rotationY: srng() * 6.28, seed: (G.PU.hashStr(rid + ':sc:' + si) || 1) });
+          occupy(ssp);   // reserved so machines avoid it, but no collider (walkable)
         }
         // a perimeter work floodlight for mood (emissive head; no extra light
         // source, so the light budget stays steady)
