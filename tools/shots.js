@@ -40,6 +40,12 @@ function deriveViewpointsSrc() {
     var sc = (sroom && P.rooms[sroom]) ? P.rooms[sroom].center : sp;
     vps.push({ name: 'spawn', pos: [sp.x, sp.y + 1.6, sp.z], look: [sc.x, sp.y + 1.45, sc.z], fov: 75 });
 
+    // OVERVIEW — a steep angled top-down of the WHOLE map with ceilings hidden,
+    // to read layout, room shapes, prop distribution and doorways at a glance
+    var g0 = CFG.cellToWorld(0, 0), g1 = CFG.cellToWorld(P.cols - 1, P.rows - 1);
+    var gcx = (g0.x + g1.x) / 2, gcz = (g0.z + g1.z) / 2, gdiag = Math.hypot(g1.x - g0.x, g1.z - g0.z);
+    vps.push({ name: 'overview', pos: [gcx, gdiag * 0.92, gcz + gdiag * 0.34], look: [gcx, 0, gcz], fov: 60, hideCeil: true });
+
     var outdoor = CFG.cur.OUTDOOR || [];
     Object.keys(P.rooms).forEach(function (rid) {
       var bb = bounds(P.rooms[rid]);
@@ -85,6 +91,17 @@ function deriveViewpointsSrc() {
       if (okP && (!okM || Math.hypot(cP[0], cP[2]) <= Math.hypot(cM[0], cM[2]))) pos = cP; else pos = cM;
       vps.push({ name: 'stairs-' + (i + 1), pos: pos, look: [deck.x, deck.y + 0.4, deck.z], fov: 78 });
     });
+    // DOORWAYS — eye level a few metres to one side of each threshold, looking
+    // straight through it, so anything crowding/blocking a door is obvious
+    Object.keys(G.map.doors).forEach(function (did) {
+      var dp = G.map.doors[did].pos, cell = CFG.worldToCell(dp.x, dp.z);
+      function room(dc, dr) { var c = G.map.cellAt(dc, dr); return c && c.type === 'room'; }
+      // passage axis = the axis whose opposite neighbours are rooms
+      var ax = (room(cell.col, cell.row - 1) || room(cell.col, cell.row + 1)) ? 0 : 1;
+      var az = ax ? 0 : 1;
+      vps.push({ name: 'door-' + did, pos: [dp.x - ax * 4.0, 1.7, dp.z - az * 4.0],
+                 look: [dp.x + ax * 3, 1.55, dp.z + az * 3], fov: 78 });
+    });
     return vps;
   };
 }
@@ -101,6 +118,16 @@ function shoot() {
     Array.prototype.forEach.call(document.body.children, function (el) {
       if (el.id !== 'game') el.style.display = 'none';
     });
+    // ceilings/roofs occlude a top-down overview — toggle them off for those shots
+    if (!window.__roofs) {
+      window.__roofs = [];
+      G.scene.traverse(function (o) {
+        if (!o.isMesh || !o.position) return;
+        var ceilPlane = o.geometry && o.geometry.type === 'PlaneGeometry' && o.material && o.material.side === THREE.DoubleSide && o.position.y > 3.5;
+        if (ceilPlane || o.position.y > 4.5) window.__roofs.push(o);
+      });
+    }
+    window.__roofs.forEach(function (o) { o.visible = !v.hideCeil; });
     G.renderer.render(G.scene, G.camera);
   };
 }
@@ -152,6 +179,16 @@ function shoot() {
       await page.evaluate(shoot);
       await page.evaluate(function (m) { G.startGame(m); }, mapId);
       await page.waitForFunction('G.state === "playing" || G.state === "paused"');
+      // open every door (and hide the debris panel) so thresholds read clean and
+      // any asset crowding a doorway is visible
+      await page.evaluate(function () {
+        Object.keys(G.map.doors).forEach(function (id) {
+          G.map.openDoor(id);
+          var d = G.map.doors[id];
+          if (d.mesh) d.mesh.visible = false;
+          if (d.sprite) { G.scene.remove(d.sprite); d.sprite = null; }
+        });
+      });
       var views = await page.evaluate('window.__viewpoints()');
       var canvas = await page.$('#game');
       for (var vi = 0; vi < views.length; vi++) {

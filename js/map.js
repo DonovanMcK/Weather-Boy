@@ -914,6 +914,14 @@
         if (map.bodyBlocked(sx, sz, baseY + 0.2)) return false;     // not inside a wall/prop
         if (!Object.keys(map.doors).every(function (id) {
           return Math.hypot(map.doors[id].pos.x - cx, map.doors[id].pos.z - cz) > 2.2; })) return false;
+        // don't let the machine stare straight down a doorway — even when it's
+        // clear of the door it reads as blocking the threshold. Reject a wall
+        // with a door roughly AHEAD (within 6m, narrow cone) of the facing.
+        if (!Object.keys(map.doors).every(function (id) {
+          var dp = map.doors[id].pos, dx = dp.x - cx, dz = dp.z - cz;
+          var fwd = dx * io[0] + dz * io[1], side = Math.abs(dx * io[1] - dz * io[0]);
+          return !(fwd > 0 && fwd < 6 && side < 1.7);
+        })) return false;
         if (!map.windows.every(function (w) {
           return Math.hypot(w.inside.x - cx, w.inside.z - cz) > 1.4; })) return false;
         return true;
@@ -1395,18 +1403,30 @@
           derriese: ['wood_crate', 'oil_drum', 'pallet', 'machinery_unit', 'crate_stack', 'debris_pile'],
           wetterjunge: ['wood_crate', 'gas_cylinder', 'field_radio', 'crate_stack', 'supply_pallet', 'debris_pile']
         }[CFG.cur.id] || ['wood_crate', 'debris_pile'];
-        var corners = [[bb.x0 + 0.85, bb.z0 + 0.85], [bb.x1 - 0.85, bb.z0 + 0.85],
-                       [bb.x0 + 0.85, bb.z1 - 0.85], [bb.x1 - 0.85, bb.z1 - 0.85]];
-        var start = (clr() * 4) | 0;
-        for (var ci2 = 0; ci2 < 4; ci2++) {
-          var cc = corners[(ci2 + start) % 4], cp = new THREE.Vector3(cc[0], 0, cc[1]);
-          if (!clearOf(cp, 1.4)) continue;
+        var smalls = ['debris_pile', 'wood_crate', 'ammo_crate', 'field_radio'];
+        // corners PLUS mid-wall spots so big rooms get dressed along their length
+        // (corner-only clusters leave large rooms looking bare)
+        var corners = [[bb.x0 + 0.9, bb.z0 + 0.9], [bb.x1 - 0.9, bb.z0 + 0.9],
+                       [bb.x0 + 0.9, bb.z1 - 0.9], [bb.x1 - 0.9, bb.z1 - 0.9],
+                       [bb.cx, bb.z0 + 0.9], [bb.cx, bb.z1 - 0.9],
+                       [bb.x0 + 0.9, bb.cz], [bb.x1 - 0.9, bb.cz]];
+        // scale cluster count with floor area (~1 per 8 cells), capped
+        var want = Math.max(2, Math.min(6, Math.round(room.cells.length / 8) + 1));
+        var start = (clr() * corners.length) | 0, placedC = 0;
+        // LAYERED corner clusters in 2-3 corners (not just one) — a primary
+        // filler with a supporting piece and debris stepped inward along each
+        // wall, so rooms read as lived-in with depth, not bare boxes
+        for (var ci2 = 0; ci2 < corners.length && placedC < want; ci2++) {
+          var cc = corners[(ci2 + start) % corners.length], cp = new THREE.Vector3(cc[0], 0, cc[1]);
+          if (!clearOf(cp, 1.5)) continue;
+          var inX = cc[0] < bb.cx ? 1 : -1, inZ = cc[1] < bb.cz ? 1 : -1;
           var prim = fillers[(clr() * fillers.length) | 0];
-          G.Props.create(prim, { position: cp, rotationY: clr() * 6.28, seed: (G.PU.hashStr(rid + prim) || 1) });
-          var o2 = clr() < 0.5 ? [0.75, 0] : [0, 0.75];
-          G.Props.create('debris_pile', { position: new THREE.Vector3(cc[0] + o2[0], 0, cc[1] + o2[1]), seed: (G.PU.hashStr(rid) >>> 3) || 2 });
-          occupy(cp);
-          break;
+          G.Props.create(prim, { position: cp, rotationY: clr() * 6.28, seed: (G.PU.hashStr(rid + prim + ci2) || 1) });
+          G.Props.create(smalls[(clr() * smalls.length) | 0],
+            { position: new THREE.Vector3(cc[0] + inX * 0.85, 0, cc[1]), rotationY: clr() * 6.28, seed: (G.PU.hashStr(rid + 's' + ci2) || 2) });
+          G.Props.create('debris_pile',
+            { position: new THREE.Vector3(cc[0], 0, cc[1] + inZ * 0.85), seed: (G.PU.hashStr(rid + 'd' + ci2) || 3) });
+          occupy(cp); placedC++;
         }
       }
     });
@@ -1791,6 +1811,37 @@
 
         // overhead caged work-light (indoor rooms only)
         if (!isOut) cagedLight(bb.cx, bb.cz, WALL_H - 0.5);
+
+        // OVERHEAD SERVICES — pipe runs + drop conduits across the ceiling. Fills
+        // the empty upper volume so a room reads with vertical depth instead of as
+        // a flat box. Indoor only, decorative (no colliders), deterministic.
+        if (!isOut) {
+          var org = G.PU.seeded(G.PU.hashStr('oh:' + rid));
+          var along = bb.w >= bb.d, runL = (along ? bb.w : bb.d) - 0.5;
+          var pmat = [dPipe, dRust, dBeam][(org() * 3) | 0];
+          var nP = 1 + (org() < 0.55 ? 1 : 0);
+          for (var ph = 0; ph < nP; ph++) {
+            var frac = nP === 1 ? (0.28 + org() * 0.18) : 0.26 + ph * 0.46;
+            var pr = 0.07 + org() * 0.04, py = WALL_H - 0.34 - ph * 0.12;
+            var axisPos = along ? (bb.z0 + bb.d * frac) : (bb.x0 + bb.w * frac);
+            var pipe = new THREE.Mesh(new THREE.CylinderGeometry(pr, pr, runL, 8), pmat);
+            if (along) { pipe.rotation.z = Math.PI / 2; pipe.position.set(bb.cx, py, axisPos); }
+            else { pipe.rotation.x = Math.PI / 2; pipe.position.set(axisPos, py, bb.cz); }
+            G.scene.add(pipe);
+            for (var st = 0.18; st < 0.85; st += 0.32) {     // drop straps to the ceiling
+              var sx = along ? (bb.x0 + bb.w * st) : axisPos;
+              var sz = along ? axisPos : (bb.z0 + bb.d * st);
+              addBox(0.035, 0.32, 0.035, sx, WALL_H - 0.18, sz, dDark);
+            }
+          }
+          // a low-hanging conduit bundle + a junction box, tucked off the centre
+          if (org() < 0.7) {
+            var hx = bb.x0 + 0.9 + org() * Math.max(0.2, bb.w - 1.8);
+            var hz = bb.z0 + 0.9 + org() * Math.max(0.2, bb.d - 1.8);
+            addBox(0.05, 0.7 + org() * 0.5, 0.05, hx, WALL_H - 0.65, hz, dDark);
+            addBox(0.22, 0.26, 0.14, hx, WALL_H - 0.95 - org() * 0.4, hz, dBeam);
+          }
+        }
 
         // themed flourishes
         if (theme === 'wetterjunge') {

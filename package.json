@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "shots": "node tools/shots.js",
+    "audit": "node tools/map-audit.js",
     "test": "node tests/validate-map.js && node tests/smoke.js"
   },
   "devDependencies": {
