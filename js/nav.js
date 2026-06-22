@@ -85,8 +85,28 @@
         for (var ci = 0; ci < cand.length; ci++) {
           var m = cand[ci];
           if (Math.abs(m.y - n.y) > STEP) continue;
-          var mx = (n.x + m.x) / 2, mz = (n.z + m.z) / 2, hy2 = Math.max(n.y, m.y);
-          if (map.bodyBlocked(mx, mz, hy2)) continue;
+          // sample the whole span, not just the midpoint: a body must clear the
+          // wall AT BODY HEIGHT all along the edge. This rejects "side-mount"
+          // edges that hop from a floor node onto the MIDDLE of a ramp — the
+          // under-ramp fill is body-tall right at the ramp's edge, so those get
+          // cut, and the horde can only board a staircase at its low front end.
+          var hy2 = Math.max(n.y, m.y), blocked = false;
+          // walk the span in small steps. The edge is only valid if (a) nothing
+          // blocks the body at head height anywhere along it AND (b) the walkable
+          // SURFACE never jumps by more than a body can climb between samples.
+          // (b) is what funnels the horde up stairs properly: a floor node trying
+          // to hop onto the MIDDLE of a ramp crosses the ramp's ~1m vertical side
+          // — an unclimbable cliff — so that edge is cut and the only way onto the
+          // flight is its low front. Real ramp/step edges rise gently and survive.
+          var CLIMB = 0.65, prevSurf = n.y;
+          for (var t = 0.25; t <= 1.001; t += 0.25) {
+            var sx = n.x + (m.x - n.x) * t, sz = n.z + (m.z - n.z) * t;
+            if (map.bodyBlocked(sx, sz, hy2)) { blocked = true; break; }
+            var surf = (t > 0.999) ? m.y : map.supportAt(sx, sz, hy2 + CLIMB, CLIMB);
+            if (Math.abs(surf - prevSurf) > CLIMB) { blocked = true; break; }
+            prevSurf = surf;
+          }
+          if (blocked) continue;
           n.edges.push({ to: m, cost: Math.hypot(n.x - m.x, n.z - m.z) + Math.abs(n.y - m.y) * 1.6 });
         }
       }
@@ -140,14 +160,35 @@
     N.field = true;
   };
 
+  // is the straight run between two points walkable? (nothing at head height,
+  // and the surface never steps up/down by more than a body can manage). Used so
+  // the steering look-ahead can't cut a corner THROUGH an obstacle — e.g. beeline
+  // into the side of a ramp on the way to a node further up it.
+  function segWalkable(map, x0, z0, y0, x1, z1, y1) {
+    var d = Math.hypot(x1 - x0, z1 - z0);
+    var steps = Math.max(2, Math.ceil(d / 0.4));
+    var hy = Math.max(y0, y1), prev = y0, CLIMB = 0.65;
+    for (var i = 1; i <= steps; i++) {
+      var t = i / steps, sx = x0 + (x1 - x0) * t, sz = z0 + (z1 - z0) * t;
+      if (map.bodyBlocked(sx, sz, hy)) return false;
+      var surf = (i === steps) ? y1 : map.supportAt(sx, sz, hy + CLIMB, CLIMB);
+      if (Math.abs(surf - prev) > CLIMB) return false;
+      prev = surf;
+    }
+    return true;
+  }
+
   // a committed steering target for a body at (x,z,y): descend the distance
   // gradient several hops (~3m) and return that node. Looking ahead — rather
   // than to the single steepest neighbour — stops zombies sliding along
-  // equal-distance contours and makes them commit to stairs/ramps.
+  // equal-distance contours and makes them commit to stairs/ramps. The look-ahead
+  // only advances while the body has a clear straight run to it, so when the path
+  // bends around a wall or up a staircase the target stays at the corner (the
+  // foot of the stairs) instead of leaping past it through the obstacle.
   N.nextPoint = function (x, z, y) {
     var here = N.nearest(x, z, y);
     if (!here || here.dist === Infinity) return null;
-    var cur = here, acc = 0, hops = 0;
+    var cur = here, acc = 0, hops = 0, lastGood = here, map = G.map;
     while (hops < 5 && acc < 3.0) {
       var best = null, bd = cur.dist;
       for (var e = 0; e < cur.edges.length; e++) {
@@ -157,7 +198,9 @@
       if (!best) break;
       acc += Math.hypot(best.x - cur.x, best.z - cur.z);
       cur = best; hops++;
+      if (segWalkable(map, x, z, y, cur.x, cur.z, cur.y)) lastGood = cur;
+      else break;     // would cut the corner through an obstacle — stop here
     }
-    return cur;     // === here only if already at the target
+    return lastGood;     // === here only if already at the target
   };
 })();

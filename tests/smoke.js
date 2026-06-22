@@ -376,7 +376,7 @@ async function runQuick(mapId) {
     testNoRange(ctx);
     testDetail(ctx);
   }
-  if (mapId === 'derriese') { testVerticality(ctx); testMainframeCatwalk(ctx); }
+  if (mapId === 'derriese') { testVerticality(ctx); testMainframeCatwalk(ctx); testStairFunnel(ctx); }
   testWallAlignment(ctx, mapId);
 }
 
@@ -400,6 +400,37 @@ function testStairHeadroom(ctx) {
      'player climbs the full staircase to the upper floor (reached y=' +
      maxY.toFixed(2) + ' of ' + stg.deckTop.toFixed(2) + ')');
   ctx.moveTo(roomCenter(G, 'S'));
+}
+
+/* the horde must FUNNEL to the foot of a staircase and climb it — not jam
+   against the sides. Spawn a ring of zombies around (and beside) the stair base
+   with the player up top; most should reach the deck. Guards the nav fix that
+   cuts "side-mount" edges onto the middle of a ramp and stops the steering
+   look-ahead cutting the corner through the ramp's side. */
+function testStairFunnel(ctx) {
+  var G = ctx.G, Z = G.zombies, P = G.player;
+  var stg = (G.map.stages || []).filter(function (s) { return s.stairBase; })[0];
+  if (!stg) { ok(true, 'no staircase to test funnelling (skipped)'); return; }
+  ctx.moveTo({ x: stg.deckCenter.x, z: stg.deckCenter.z, y: stg.deckTop }); P.pos.y = stg.deckTop;
+  Z.mode = 'break'; Z.breakTimer = 999; Z.toSpawn = 0;
+  Z.list.slice().forEach(function (z) { if (!z.dead) Z.damageZombie(z, 1e9, { boom: true }); });
+  ctx.step(30);
+  var base = stg.stairBase, spawned = [];
+  for (var a = 0; a < 12; a++) {
+    var ang = a / 12 * Math.PI * 2, x = base.x + Math.cos(ang) * 5.5, z = base.z + Math.sin(ang) * 5.5;
+    if (!G.map.roomAt(x, z)) continue;
+    spawned.push(Z.spawnAt(new THREE.Vector3(x, 0, z)));
+  }
+  var maxY = spawned.map(function () { return 0; });
+  for (var f = 0; f < 60 * 26; f++) {
+    ctx.step(1);
+    spawned.forEach(function (z, k) { if (!z.dead && z.mesh.position.y > maxY[k]) maxY[k] = z.mesh.position.y; });
+  }
+  var reached = maxY.filter(function (y) { return y > stg.deckTop - 0.5; }).length;
+  ok(reached >= Math.ceil(spawned.length * 0.6),
+     'horde funnels up the stairs (' + reached + '/' + spawned.length + ' reached the deck)');
+  Z.list.slice().forEach(function (z) { if (!z.dead) Z.damageZombie(z, 1e9, { boom: true }); });
+  ctx.step(20);
 }
 
 /* Der Riese Mainframe lives on the widened rear catwalk: an upper-layer focal
