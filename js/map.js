@@ -791,6 +791,26 @@
       if (s.stairs) reserveRect(s.stairs.x1, s.stairs.zTop, s.stairs.x2, s.stairs.zBase);
     });
 
+    // stairwell footprints: where a staircase climbs to an upper floor, the room
+    // ceiling has to lift to clear the climbing player's head — otherwise they
+    // headbutt the roof near the top of the stairs and get wedged/shoved. Each
+    // rect carries the raised ceiling height for the cells it covers.
+    var stairRects = [];
+    stageSpecs.forEach(function (s) {
+      if (!s.stairs) return;
+      var st = s.stairs;
+      stairRects.push({ x1: Math.min(st.x1, st.x2), x2: Math.max(st.x1, st.x2),
+                        z1: Math.min(st.zTop, st.zBase), z2: Math.max(st.zTop, st.zBase),
+                        roofY: Math.max(WALL_H, s.h + 2.0) });
+    });
+    function stairwellAt(x, z) {
+      for (var i = 0; i < stairRects.length; i++) {
+        var r = stairRects[i];
+        if (x >= r.x1 - 0.1 && x <= r.x2 + 0.1 && z >= r.z1 - 0.1 && z <= r.z2 + 0.1) return r;
+      }
+      return null;
+    }
+
     // --- push interactables against the nearest clear wall so they never block
     //     the middle of a room (zombies need the open centre to train through)
     function roomInner(rid) {
@@ -1199,15 +1219,18 @@
         // from above, nothing standing on the roof)
         room.cells.forEach(function (cr) {
           var wc = CFG.cellToWorld(cr[0], cr[1]);
+          // a stairwell cell lifts its ceiling to give the climber headroom
+          var well = stairwellAt(wc.x, wc.z);
+          var cy = well ? well.roofY : WALL_H;
           var cl = new THREE.Mesh(floorGeo, dCeil);
-          cl.rotation.x = Math.PI / 2; cl.position.set(wc.x, WALL_H - 0.02, wc.z);
+          cl.rotation.x = Math.PI / 2; cl.position.set(wc.x, cy - 0.02, wc.z);
           G.scene.add(cl);
           // solid ceiling — but NOT under a stacked floor (loft/deck), whose own
           // floor is the ceiling and where the player legitimately stands above
           var underDeck = stageSpecs.some(function (sp) {
             return wc.x >= sp.x1 - 0.1 && wc.x <= sp.x2 + 0.1 && wc.z >= sp.z1 - 0.1 && wc.z <= sp.z2 + 0.1;
           });
-          if (!underDeck) map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2, WALL_H - 0.12, WALL_H + 0.6);
+          if (!underDeck) map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2, cy - 0.12, cy + 0.6);
         });
         var along = bb.w >= bb.d;
         var span = along ? bb.d : bb.w, n = Math.max(1, Math.round(span / 4));

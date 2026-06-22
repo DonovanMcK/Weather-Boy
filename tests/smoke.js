@@ -380,6 +380,28 @@ async function runQuick(mapId) {
   testWallAlignment(ctx, mapId);
 }
 
+/* climbing an indoor staircase to an upper floor must not headbutt the room
+   ceiling — the stairwell ceiling lifts to clear the player at the top */
+function testStairHeadroom(ctx) {
+  var G = ctx.G;
+  var stg = (G.map.stages || []).filter(function (s) { return s.stairBase; })[0];
+  if (!stg) { ok(true, 'no staircase to test headroom (skipped)'); return; }
+  var P = G.player;
+  P.pos.set(stg.stairBase.x, 0, stg.stairBase.z + 1);
+  P.vel.set(0, 0, 0);
+  // walk straight up the ramp axis (keep the stair's x, head toward the deck's z)
+  // — aiming at the deck CENTRE would drift the climber off the side of the ramp
+  P.yaw = Math.atan2(-(stg.stairBase.x - P.pos.x), -(stg.deckCenter.z - P.pos.z));
+  G.keys.KeyW = true;
+  var maxY = 0;
+  for (var f = 0; f < 160; f++) { ctx.step(1); if (P.pos.y > maxY) maxY = P.pos.y; }
+  G.keys.KeyW = false;
+  ok(maxY > stg.deckTop - 0.25,
+     'player climbs the full staircase to the upper floor (reached y=' +
+     maxY.toFixed(2) + ' of ' + stg.deckTop.toFixed(2) + ')');
+  ctx.moveTo(roomCenter(G, 'S'));
+}
+
 /* Der Riese Mainframe lives on the widened rear catwalk: an upper-layer focal
    machine, with the courtyard floor still walkable beneath and zombies able to
    path up to a player using it */
@@ -1321,6 +1343,7 @@ async function runFull(mapId) {
   var G = ctx.G, step = ctx.step, pressF = ctx.pressF, moveTo = ctx.moveTo;
   bootChecks(ctx, mapId);
   testContactMelee(ctx);            // run with real damage before we stub it
+  testStairHeadroom(ctx);           // climb the loft stairs before the horde fills in
   var origDamage = G.player.damage;
   G.player.damage = function () {};
   step(60 * 25);
