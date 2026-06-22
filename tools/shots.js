@@ -65,16 +65,25 @@ function deriveViewpointsSrc() {
       }
     });
     // STAIRCASES — a side 3/4 of the flight (perpendicular to the stair axis) so
-    // the steps and the funnel read
+    // the steps and the funnel read; pick whichever perpendicular side sits in an
+    // actual room (not buried in a perimeter wall)
     (G.map.stages || []).forEach(function (s, i) {
       if (!s.stairBase) return;
       var base = s.stairBase, deck = s.deckCenter;
       var dx = deck.x - base.x, dz = deck.z - base.z, L = Math.hypot(dx, dz) || 1;
       var ux = dx / L, uz = dz / L, px = -uz, pz = ux;     // unit + perpendicular
       var mx = (base.x + deck.x) / 2, mz = (base.z + deck.z) / 2, my = (base.y + deck.y) / 2;
-      vps.push({ name: 'stairs-' + (i + 1),
-                 pos: [mx + px * 5.5 - ux * 1.0, my + 2.6, mz + pz * 5.5 - uz * 1.0],
-                 look: [mx, my + 0.2, mz], fov: 74 });
+      // eye level on whichever perpendicular side keeps the camera in open room
+      // and FURTHEST from the perimeter (maps are centred on the origin, so the
+      // side closer to (0,0) is the interior one) — avoids burying the cam in a
+      // wall or the upper structure. Backed off the foot, looking up the flight.
+      var off = 4.5;
+      function camFor(sg) { return [mx + sg * px * off - ux * 2.0, 1.9, mz + sg * pz * off - uz * 2.0]; }
+      var cP = camFor(1), cM = camFor(-1);
+      var okP = G.map.roomAt(cP[0], cP[2]), okM = G.map.roomAt(cM[0], cM[2]);
+      var pos;
+      if (okP && (!okM || Math.hypot(cP[0], cP[2]) <= Math.hypot(cM[0], cM[2]))) pos = cP; else pos = cM;
+      vps.push({ name: 'stairs-' + (i + 1), pos: pos, look: [deck.x, deck.y + 0.4, deck.z], fov: 78 });
     });
     return vps;
   };

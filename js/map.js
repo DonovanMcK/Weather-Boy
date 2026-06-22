@@ -1082,7 +1082,7 @@
         }
       }
       var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8),
-        new THREE.MeshLambertMaterial({ color: 0x222018, emissive: new THREE.Color(0xffe9b0), emissiveIntensity: 0.35 }));
+        new THREE.MeshLambertMaterial({ color: 0x222018, emissive: new THREE.Color(palC('lampTint', 0xffe9b0)), emissiveIntensity: 0.35 }));
       bulb.position.y = -0.04; fixture.add(bulb);
       fixture.position.set(x, WALL_H - 0.55, z);
       G.scene.add(fixture);
@@ -1095,7 +1095,10 @@
 
     Object.keys(P.rooms).forEach(function (roomId) {
       var cells = P.rooms[roomId].cells;
-      var color = new THREE.Color(CFG.ROOMS[roomId].light).lerp(new THREE.Color(0xffe9c0), 0.5).getHex();
+      // pull every room's lamp toward this map's tint so the whole map shares one
+      // light temperature (warm bunker / cool factory / cold arctic) instead of
+      // some rooms glowing warm and others cold
+      var color = new THREE.Color(CFG.ROOMS[roomId].light).lerp(new THREE.Color(palC('lampTint', 0xffe9c0)), 0.62).getHex();
       function avg(list) {
         var cx = 0, cz = 0;
         list.forEach(function (cr) { var w = CFG.cellToWorld(cr[0], cr[1]); cx += w.x; cz += w.z; });
@@ -1103,13 +1106,24 @@
       }
       var all = avg(cells);
       P.rooms[roomId].center = new THREE.Vector3(all.x, 0, all.z);
-      if (cells.length > 6) {
-        addLamp(avg(cells.slice(0, Math.floor(cells.length / 2))).x,
-                avg(cells.slice(0, Math.floor(cells.length / 2))).z, color);
-        addLamp(avg(cells.slice(Math.floor(cells.length / 2))).x,
-                avg(cells.slice(Math.floor(cells.length / 2))).z, color);
-      } else {
-        addLamp(all.x, all.z, color);
+      // scale lamp count with floor area so big rooms aren't left with a dark,
+      // under-lit ceiling/void — roughly one lamp per ~6 cells (1..4)
+      var nL = Math.max(1, Math.min(4, Math.round(cells.length / 6)));
+      // sort cells along the room's longer axis, then split into nL contiguous
+      // groups and light each group's centre — spreads the lamps evenly
+      var w0 = 1e9, w1 = -1e9, d0 = 1e9, d1 = -1e9;
+      cells.forEach(function (cr) { var p = CFG.cellToWorld(cr[0], cr[1]);
+        if (p.x < w0) w0 = p.x; if (p.x > w1) w1 = p.x; if (p.z < d0) d0 = p.z; if (p.z > d1) d1 = p.z; });
+      var alongX = (w1 - w0) >= (d1 - d0);
+      var sorted = cells.slice().sort(function (a, b) {
+        var pa = CFG.cellToWorld(a[0], a[1]), pb = CFG.cellToWorld(b[0], b[1]);
+        return alongX ? pa.x - pb.x : pa.z - pb.z;
+      });
+      for (var li = 0; li < nL; li++) {
+        var grp = sorted.slice(Math.floor(li * cells.length / nL), Math.floor((li + 1) * cells.length / nL));
+        if (!grp.length) continue;
+        var g = avg(grp);
+        addLamp(g.x, g.z, color);
       }
     });
 
@@ -1263,18 +1277,20 @@
         // from above, nothing standing on the roof)
         room.cells.forEach(function (cr) {
           var wc = CFG.cellToWorld(cr[0], cr[1]);
+          // under a stacked floor (loft/deck) the deck IS the ceiling and the
+          // player stands up there — skip both the ceiling tile AND collider so we
+          // don't slice a phantom plane through the loft interior
+          var underDeck = stageSpecs.some(function (sp) {
+            return wc.x >= sp.x1 - 0.1 && wc.x <= sp.x2 + 0.1 && wc.z >= sp.z1 - 0.1 && wc.z <= sp.z2 + 0.1;
+          });
+          if (underDeck) return;
           // a stairwell cell lifts its ceiling to give the climber headroom
           var well = stairwellAt(wc.x, wc.z);
           var cy = well ? well.roofY : WALL_H;
           var cl = new THREE.Mesh(floorGeo, dCeil);
           cl.rotation.x = Math.PI / 2; cl.position.set(wc.x, cy - 0.02, wc.z);
           G.scene.add(cl);
-          // solid ceiling — but NOT under a stacked floor (loft/deck), whose own
-          // floor is the ceiling and where the player legitimately stands above
-          var underDeck = stageSpecs.some(function (sp) {
-            return wc.x >= sp.x1 - 0.1 && wc.x <= sp.x2 + 0.1 && wc.z >= sp.z1 - 0.1 && wc.z <= sp.z2 + 0.1;
-          });
-          if (!underDeck) map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2, cy - 0.12, cy + 0.6);
+          map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2, cy - 0.12, cy + 0.6);
         });
         var along = bb.w >= bb.d;
         var span = along ? bb.d : bb.w, n = Math.max(1, Math.round(span / 4));
@@ -1435,6 +1451,19 @@
         // mezzanine / upper floor: a THIN slab so the ground beneath stays a
         // fully walkable room — a real stacked floor, not a solid block
         map.addCollider(s.x1, s.z1, s.x2, s.z2, H - 0.25, H + 0.05);
+        // light the space BENEATH the deck — without this the under-mezzanine
+        // area (a real walkable room) is pitch black and reads as a void. One
+        // fixture below the slab, dimmer than a room lamp, on the power circuit.
+        var ux = (Math.abs(s.x2 - s.x1) >= Math.abs(s.z2 - s.z1));
+        var nU = Math.max(1, Math.round((ux ? dw : dd) / 6));
+        for (var ui = 0; ui < nU; ui++) {
+          var t = nU === 1 ? 0.5 : ui / (nU - 1);
+          var ulx = ux ? (s.x1 + 1.2 + t * (dw - 2.4)) : dcx;
+          var ulz = ux ? dcz : (s.z1 + 1.2 + t * (dd - 2.4));
+          var ul = new THREE.PointLight(palC('lampTint', 0xffe9c0), 0.5, 12, 1);
+          ul.position.set(ulx, H - 0.7, ulz);
+          G.scene.add(ul); G.map.roomLights.push(ul);
+        }
       } else {
         addBox(dw, H, 0.2, dcx, H / 2, s.z2 - 0.1, deckMat);     // solid front fascia
         map.addCollider(s.x1, s.z1, s.x2, s.z2, 0, H);           // solid catwalk block
@@ -1476,6 +1505,11 @@
           if (st0 && st0.x2 < s.x2 - 0.2) rail(st0.x2, s.z2 - 0.12, s.x2, s.z2);
           if (!st0) rail(s.x1, s.z2 - 0.12, s.x2, s.z2);
         }
+        // ROOF the enclosed upper room — without this the loft was open to the
+        // night sky (a black void above the room below). Solid slab + collider so
+        // nothing drops in from above and the player can't hop out the top.
+        addBox(s.x2 - s.x1, 0.22, s.z2 - s.z1, (s.x1 + s.x2) / 2, H + rh, (s.z1 + s.z2) / 2, deckMat);
+        map.addCollider(s.x1, s.z1, s.x2, s.z2, H + rh - 0.12, H + rh + 0.5);
       }
       // staircase: a SMOOTH walkable ramp (one continuous slope, no per-step
       // bumps for the player and one clean nav level per cell so the horde
