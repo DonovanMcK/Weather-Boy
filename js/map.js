@@ -1193,6 +1193,39 @@
       var prop = G.Props.create(heroTypeFor(name), { addToScene: false, seed: (G.PU.hashStr(name) || 1) });
       g.add(prop);
     }
+    function dropHero(name, px, pz, yaw) {
+      var g = new THREE.Group();
+      g.position.set(px, 0, pz);
+      g.rotation.y = yaw;
+      G.scene.add(g);
+      buildHero(name, g);
+      map.addCollider(px - 1.0, pz - 1.0, px + 1.0, pz + 1.0);
+      occupied.push({ x: px, z: pz });
+    }
+    // set a prop flush along a wall edge with its long axis PARALLEL to the wall
+    // (so it hugs the perimeter), offset in by its perpendicular half-depth, with
+    // a matching collider. Returns true if it found a clear spot.
+    function placeAgainstWall(type, e, rid) {
+      var probe = G.Props.create(type, { addToScene: false });
+      var cb = probe && probe.userData && probe.userData.colliderBox;
+      if (probe && probe.parent) probe.parent.remove(probe);
+      var hw = cb ? cb.hw : 0.5, hd = cb ? cb.hd : 0.5;
+      var longZ = hd >= hw, wallAlongZ = e.o[0] !== 0;   // E/W wall runs along Z
+      // rotate so the prop's long axis lies along the wall
+      var yaw = (wallAlongZ === longZ) ? 0 : Math.PI / 2;
+      var perp = Math.min(hw, hd) + 0.2;                  // clearance off the wall face
+      var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
+      var px = wc.x + e.o[0] * (CELL / 2 - perp);
+      var pz = wc.z + e.o[1] * (CELL / 2 - perp);
+      var p = new THREE.Vector3(px, 0, pz);
+      if (!clearOf(p, Math.max(hw, hd) + 0.5)) return false;
+      // face into the room, plus the alignment rotation
+      var faceYaw = Math.atan2(-e.o[0], -e.o[1]) + yaw;
+      G.Props.create(type, { position: p, rotationY: faceYaw, seed: (G.PU.hashStr(rid + type) || 1) });
+      if (cb) propCollider(px, pz, hw, hd, cb.y1, cb.y2, faceYaw);
+      occupy(p);
+      return true;
+    }
     function placeHero(room, name) {
       var es = wallEdges(room).filter(function (e) { return !e.door && !e.win; });
       for (var i = 0; i < es.length; i++) {
@@ -1200,13 +1233,19 @@
         var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
         var px = wc.x + e.o[0] * 1.15, pz = wc.z + e.o[1] * 1.15;
         if (!clearOf(new THREE.Vector3(px, 0, pz), 1.5)) continue;
-        var g = new THREE.Group();
-        g.position.set(px, 0, pz);
-        g.rotation.y = Math.atan2(-e.o[0], -e.o[1]);
-        G.scene.add(g);
-        buildHero(name, g);
-        map.addCollider(px - 1.0, pz - 1.0, px + 1.0, pz + 1.0);
-        occupied.push({ x: px, z: pz });
+        dropHero(name, px, pz, Math.atan2(-e.o[0], -e.o[1]));
+        return;
+      }
+      // fallback: every wall edge was crowded — tuck the hero into the clearest
+      // corner so a room is never left without its centrepiece
+      var bb = roomBBox(room), cands = [
+        [bb.x0 + 1.2, bb.z0 + 1.2], [bb.x1 - 1.2, bb.z0 + 1.2],
+        [bb.x0 + 1.2, bb.z1 - 1.2], [bb.x1 - 1.2, bb.z1 - 1.2]
+      ];
+      for (var ci = 0; ci < cands.length; ci++) {
+        var cp = new THREE.Vector3(cands[ci][0], 0, cands[ci][1]);
+        if (!clearOf(cp, 1.4)) continue;
+        dropHero(name, cp.x, cp.z, Math.atan2(bb.cx - cp.x, bb.cz - cp.z));
         return;
       }
     }
@@ -1247,11 +1286,13 @@
             Math.min(bb.x1 - 0.11, Math.max(bb.x0 + 0.11, bb.x0 + f * bb.w)), WALL_H - 0.32, bb.cz, dBeam);
         }
       } else {
-        // outdoor: broken parapet chunks on perimeter wall tops
+        // outdoor: broken parapet chunks on perimeter wall tops (deterministic
+        // heights so the silhouette is the same, intentional shape every load)
         edges.forEach(function (e, idx) {
           if (idx % 2 || e.door) return;
           var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
-          addBox(e.o[0] ? 0.5 : 1.4, 0.4 + Math.random() * 0.6, e.o[0] ? 1.4 : 0.5,
+          var ph = 0.4 + G.PU.seeded(G.PU.hashStr('para:' + rid + ':' + e.cr[0] + ':' + e.cr[1] + e.dir))() * 0.6;
+          addBox(e.o[0] ? 0.5 : 1.4, ph, e.o[0] ? 1.4 : 0.5,
             wc.x + e.o[0] * (CELL / 2 - 0.18), WALL_H + 0.1, wc.z + e.o[1] * (CELL / 2 - 0.18), dConc);
         });
       }
@@ -1268,9 +1309,11 @@
         addBox(0.46, ph, 0.46, c[0], ph / 2, c[1], dConc, { collide: true });
       });
 
-      // wall ribs / pilasters (skip doors + windows)
+      // wall ribs / pilasters on a regular rhythm (skip doors + windows) — a
+      // deterministic every-other-bay cadence reads as deliberate structure
+      // instead of the old random scatter that looked different each load
       edges.forEach(function (e) {
-        if (e.door || e.win || Math.random() > 0.4) return;
+        if (e.door || e.win || (e.cr[0] + e.cr[1]) % 2 !== 0) return;
         var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
         var alongX = (e.dir === 'N' || e.dir === 'S');
         addBox(alongX ? 0.5 : 0.16, WALL_H - 0.5, alongX ? 0.16 : 0.5,
@@ -1280,6 +1323,31 @@
       // a themed hero structure
       placeHero(room, room.id && CFG.ROOMS[room.id] ? CFG.ROOMS[room.id].name : '');
 
+      // outdoor yards: themed landmarks set along the perimeter walls, long axis
+      // run PARALLEL to the wall so they hug the edge and never block the open
+      // training centre. Deterministic, clear of doors/windows/interactables.
+      if (isOut) {
+        var yardProps = {
+          nacht: ['wrecked_car', 'sandbag_wall', 'barrel_cluster', 'crate_stack', 'concrete_barrier'],
+          derriese: ['cargo_container', 'machinery_unit', 'barrel_cluster', 'concrete_barrier'],
+          wetterjunge: ['cargo_container', 'crate_stack', 'razor_fence', 'supply_pallet']
+        }[CFG.cur.id] || [];
+        var oedges = wallEdges(room).filter(function (e) { return !e.door && !e.win; });
+        var placed = 0;
+        for (var oi = 0; oi < oedges.length && placed < yardProps.length; oi++) {
+          var oe = oedges[(oi * 3 + 1) % oedges.length];
+          var type = yardProps[placed];
+          if (placeAgainstWall(type, oe, rid)) placed++;
+        }
+        // soft decorative snow banks for the arctic yard (no collider, walkable)
+        if (CFG.cur.id === 'wetterjunge') {
+          [[bb.x0 + 1.8, bb.z0 + 1.8], [bb.x1 - 1.8, bb.z1 - 1.8]].forEach(function (d) {
+            var dp = new THREE.Vector3(d[0], 0, d[1]);
+            if (clearOf(dp, 1.5)) { G.Props.create('snow_drift', { position: dp, seed: (G.PU.hashStr(rid + ':drift:' + d[0]) || 1) }); occupy(dp); }
+          });
+        }
+      }
+
       // one authored corner cluster per indoor room (replaces uniform debris
       // litter): a themed primary filler + a small supporting piece, tucked into
       // a dead corner out of the circling lane. Deterministic per map load, no
@@ -1287,9 +1355,9 @@
       if (!isOut) {
         var clr = G.PU.seeded(G.PU.hashStr('clutter:' + rid));
         var fillers = {
-          nacht: ['ammo_crate', 'sandbag_stack', 'wood_crate', 'debris_pile'],
-          derriese: ['wood_crate', 'oil_drum', 'pallet', 'debris_pile'],
-          wetterjunge: ['wood_crate', 'gas_cylinder', 'field_radio', 'debris_pile']
+          nacht: ['ammo_crate', 'sandbag_stack', 'wood_crate', 'crate_stack', 'barrel_cluster', 'debris_pile'],
+          derriese: ['wood_crate', 'oil_drum', 'pallet', 'machinery_unit', 'crate_stack', 'debris_pile'],
+          wetterjunge: ['wood_crate', 'gas_cylinder', 'field_radio', 'crate_stack', 'supply_pallet', 'debris_pile']
         }[CFG.cur.id] || ['wood_crate', 'debris_pile'];
         var corners = [[bb.x0 + 0.85, bb.z0 + 0.85], [bb.x1 - 0.85, bb.z0 + 0.85],
                        [bb.x0 + 0.85, bb.z1 - 0.85], [bb.x1 - 0.85, bb.z1 - 0.85]];
