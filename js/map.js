@@ -472,12 +472,17 @@
       wall: wallTexture(), floor: floorTexture(), wood: woodTexture(),
       metal: metalTexture(), blob: blobTexture()
     };
+    // per-map surface palette (falls back to a neutral default) — gives each
+    // map one coherent material identity instead of every map sharing the same
+    // tan concrete and grey steel.
+    var pal = CFG.cur.palette || {};
+    function palC(key, def) { return pal[key] != null ? pal[key] : def; }
     G.mats = {
-      wallA: new THREE.MeshLambertMaterial({ map: G.tex.wall, color: 0xb9b5aa }),
-      wallB: new THREE.MeshLambertMaterial({ map: G.tex.wall, color: 0xa8a49a }),
-      wood: new THREE.MeshLambertMaterial({ map: G.tex.wood, color: 0xc9b496 }),
-      plank: new THREE.MeshLambertMaterial({ map: G.tex.wood, color: 0xdbc8a8 }),
-      metal: new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x8e949c })
+      wallA: new THREE.MeshLambertMaterial({ map: G.tex.wall, color: palC('wallA', 0xb9b5aa) }),
+      wallB: new THREE.MeshLambertMaterial({ map: G.tex.wall, color: palC('wallB', 0xa8a49a) }),
+      wood: new THREE.MeshLambertMaterial({ map: G.tex.wood, color: palC('wood', 0xc9b496) }),
+      plank: new THREE.MeshLambertMaterial({ map: G.tex.wood, color: palC('plank', 0xdbc8a8) }),
+      metal: new THREE.MeshLambertMaterial({ map: G.tex.metal, color: palC('metal', 0x8e949c) })
     };
     // rebuild the shared prop material cache against this map's fresh textures
     if (G.MAT && G.MAT.reset) G.MAT.reset();
@@ -1129,12 +1134,12 @@
     var outdoor = CFG.cur.OUTDOOR || [];
     // ceilings render from BOTH sides so you can't see down through a roof from
     // the catwalk/above (single-sided planes were invisible from the top)
-    var dCeil = new THREE.MeshLambertMaterial({ map: G.tex.wall, color: 0x55504a, side: THREE.DoubleSide });
-    var dBeam = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x55585e });
-    var dRust = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x86603c });
+    var dCeil = new THREE.MeshLambertMaterial({ map: G.tex.wall, color: palC('ceil', 0x55504a), side: THREE.DoubleSide });
+    var dBeam = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: palC('beam', 0x55585e) });
+    var dRust = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: palC('rust', 0x86603c) });
     var dDark = new THREE.MeshLambertMaterial({ color: 0x2a2c30 });
     var dPipe = new THREE.MeshLambertMaterial({ color: 0x6b7077 });
-    var dConc = new THREE.MeshLambertMaterial({ map: G.tex.wall, color: 0x8a857c });
+    var dConc = new THREE.MeshLambertMaterial({ map: G.tex.wall, color: palC('conc', 0x8a857c) });
     function pbox(parent, w, h, d, x, y, z, m, rx) {
       var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
       b.position.set(x, y, z); if (rx) b.rotation.x = rx;
@@ -1332,7 +1337,7 @@
     }
 
     /* --------------------------------------------------- raised catwalks */
-    var deckMat = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x6b6f78 });
+    var deckMat = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: palC('deck', 0x6b6f78) });
     var railMat = G.mats.metal;
     function buildStage(s) {
       var H = s.h, dcx = (s.x1 + s.x2) / 2, dcz = (s.z1 + s.z2) / 2;

@@ -24,6 +24,12 @@
     papRule: 'power',          // Pack-a-Punch unlocks when the power goes on
     atmos: { sky: 0x14110c, fog: 0x16130d, density: 0.02,
              amb: 0x4a4030, ambI: 0.55, hemiSky: 0xc2a274, hemiGround: 0x2a2016 },
+    // surface palette — warm, decayed bombed-out bunker (amber/sepia concrete,
+    // weathered timber, rusted iron). Shared by every wall/floor/prop so the
+    // map reads as one place.
+    palette: { wallA: 0xb8ab97, wallB: 0xa89b86, wood: 0xc6ad84, plank: 0xd8c098,
+               metal: 0x938b80, beam: 0x5a5048, rust: 0x8a5f34, conc: 0x9a8f7e,
+               deck: 0x726a5e, ceil: 0x564e44, accent: 0xd98a2a },
     OUTDOOR: ['Y'],            // open-air rooms (no ceiling, show sky)
     GRID: [
       '...YYYYYYY...', // Y = Crash Site (outdoor, debris field)
@@ -117,6 +123,11 @@
     papRule: 'teleporters',
     atmos: { sky: 0x12140f, fog: 0x15170f, density: 0.016,
              amb: 0x3e4642, ambI: 0.5, hemiSky: 0x90a096, hemiGround: 0x252e28 },
+    // surface palette — cold industrial factory (blued steel, grey concrete,
+    // oxidised green-grey machinery).
+    palette: { wallA: 0xa7adac, wallB: 0x979d9c, wood: 0xb4a384, plank: 0xc6b596,
+               metal: 0x848d92, beam: 0x4e565a, rust: 0x7d6238, conc: 0x8b908a,
+               deck: 0x646b70, ceil: 0x4c524e, accent: 0x4fd6c0 },
     OUTDOOR: ['C'],
     GRID: [
       'TT.GGGGGGGGGG.PP', // T=W Catwalk  G=Garage(Tele C)  P=E Catwalk
@@ -228,6 +239,11 @@
     papRule: 'teleporters',
     atmos: { sky: 0x10131f, fog: 0x121726, density: 0.014,
              amb: 0x3c4660, ambI: 0.5, hemiSky: 0x8298c8, hemiGround: 0x202838 },
+    // surface palette — frozen arctic research station (cold blue-grey concrete,
+    // frosted steel, ice-cyan accents).
+    palette: { wallA: 0xb0b6c0, wallB: 0xa0a6b2, wood: 0xb0a48f, plank: 0xc2b6a0,
+               metal: 0x8a9098, beam: 0x515861, rust: 0x6f6a5e, conc: 0x95999f,
+               deck: 0x666c74, ceil: 0x4e535b, accent: 0x5fcfe6 },
     OUTDOOR: ['C'],
     GRID: [
       'AAAA.DDDDD.BBBB', // A=Generator  D=Radar Dome  B=Comms Tower

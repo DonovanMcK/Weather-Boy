@@ -643,9 +643,15 @@ function testVerticality(ctx) {
   var gc = roomCenter(G, 'G');   // Auto Garage (indoor; WALL_H=4, ceiling ~3.9)
   ok(G.map.bodyBlocked(gc.x, gc.z, 3.5), 'indoor room has a solid ceiling (roof collision present)');
   ok(!G.map.bodyBlocked(gc.x, gc.z, 0), 'the floor below stays walkable');
-  // ceilings render from above too (not see-through from the catwalk)
+  // ceilings render from above too (not see-through from the catwalk): the
+  // ceiling tile carries the wall texture on a double-sided material, tinted to
+  // this map's palette ceiling colour.
+  var ceilHex = (G.CFG.cur.palette && G.CFG.cur.palette.ceil) || 0x55504a;
   var aCeil = null;
-  G.scene.traverse(function (o) { if (!aCeil && o.material && o.material.side === THREE.DoubleSide && o.material.color && o.material.color.getHex() === 0x55504a) aCeil = o; });
+  G.scene.traverse(function (o) {
+    if (!aCeil && o.material && o.material.side === THREE.DoubleSide &&
+        o.material.map === G.tex.wall && o.material.color && o.material.color.getHex() === ceilHex) aCeil = o;
+  });
   ok(!!aCeil, 'ceiling tiles are double-sided (not see-through from above)');
   // doorways are roofed (no open slot above a threshold that touches an indoor room)
   var roofedDoor = Object.keys(G.map.doors).some(function (id) {
