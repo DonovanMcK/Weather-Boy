@@ -22,7 +22,8 @@
     sub: 'Where it all began — a bombed-out bunker. Wonder weapon: Thundergun.',
     wonder: 'thunder',
     papRule: 'power',          // Pack-a-Punch unlocks when the power goes on
-    atmos: { sky: 0x14110c, fog: 0x16130d, density: 0.02 },
+    atmos: { sky: 0x14110c, fog: 0x16130d, density: 0.02,
+             amb: 0x4a4030, ambI: 0.55, hemiSky: 0xc2a274, hemiGround: 0x2a2016 },
     OUTDOOR: ['Y'],            // open-air rooms (no ceiling, show sky)
     GRID: [
       '...YYYYYYY...', // Y = Crash Site (outdoor, debris field)
@@ -114,7 +115,8 @@
     sub: "The giant's factory — link all three teleporters at the mainframe. Wonder weapon: Wunderwaffe DG-2.",
     wonder: 'wunderwaffe',
     papRule: 'teleporters',
-    atmos: { sky: 0x12140f, fog: 0x15170f, density: 0.016 },
+    atmos: { sky: 0x12140f, fog: 0x15170f, density: 0.016,
+             amb: 0x3e4642, ambI: 0.5, hemiSky: 0x90a096, hemiGround: 0x252e28 },
     OUTDOOR: ['C'],
     GRID: [
       'TT.GGGGGGGGGG.PP', // T=W Catwalk  G=Garage(Tele C)  P=E Catwalk
@@ -224,7 +226,8 @@
     sub: 'Storm research station — custom map. Wonder weapon: the Wettermacher.',
     wonder: 'stormcaller',
     papRule: 'teleporters',
-    atmos: { sky: 0x10131f, fog: 0x121726, density: 0.014 },
+    atmos: { sky: 0x10131f, fog: 0x121726, density: 0.014,
+             amb: 0x3c4660, ambI: 0.5, hemiSky: 0x8298c8, hemiGround: 0x202838 },
     OUTDOOR: ['C'],
     GRID: [
       'AAAA.DDDDD.BBBB', // A=Generator  D=Radar Dome  B=Comms Tower

@@ -487,8 +487,16 @@
     G.scene.background = new THREE.Color(atmos.sky);
     G.scene.fog.color.setHex(atmos.fog);
     G.scene.fog.density = 0;   // no distance fog (player preference) — clear air
+    // per-map mood: tint the global fill so each map reads distinctly —
+    // warm decay (Nacht), cold steel (Der Riese), frozen blue (Wetterjunge).
+    // Falls back to the neutral defaults if a map omits the tint fields.
     G.hemi.intensity = 0.65;
-    if (G.amb) G.amb.intensity = 0.5;
+    if (atmos.hemiSky != null) G.hemi.color.setHex(atmos.hemiSky);
+    if (atmos.hemiGround != null) G.hemi.groundColor.setHex(atmos.hemiGround);
+    if (G.amb) {
+      G.amb.intensity = atmos.ambI != null ? atmos.ambI : 0.5;
+      if (atmos.amb != null) G.amb.color.setHex(atmos.amb);
+    }
 
     map.risers = (CFG.RISERS || []).map(function (cr) {
       var wc = CFG.cellToWorld(cr[0], cr[1]);
@@ -1291,6 +1299,12 @@
         dcl.rotation.x = Math.PI / 2; dcl.position.set(dwc.x, WALL_H - 0.02, dwc.z);
         G.scene.add(dcl);
         map.addCollider(dwc.x - CELL / 2, dwc.z - CELL / 2, dwc.x + CELL / 2, dwc.z + CELL / 2, WALL_H - 0.12, WALL_H + 0.6);
+        // lintel joist across the threshold so the roofed doorway reads as a
+        // framed passage (decorative — matches the room cross-beams)
+        var nDoor = map.cellAt(dc, dr - 1), sDoor = map.cellAt(dc, dr + 1);
+        var passNS = (nDoor && nDoor.type === 'room') || (sDoor && sDoor.type === 'room');
+        if (passNS) addBox(CELL, 0.2, 0.26, dwc.x, WALL_H - 0.34, dwc.z, dBeam);
+        else addBox(0.26, 0.2, CELL, dwc.x, WALL_H - 0.34, dwc.z, dBeam);
       }
     }
 
