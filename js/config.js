@@ -796,7 +796,7 @@
      normal firearms the overwhelming majority regardless of how many weapons
      live in each bucket, and makes special/wonder weapons genuinely rare.
      Death Machine stays a power-up (never boxed).                          */
-  CFG.RARITY_TARGET = { common: 0.50, uncommon: 0.30, rare: 0.14, special: 0.05, wonder: 0.012 };
+  CFG.RARITY_TARGET = { common: 0.50, uncommon: 0.30, rare: 0.14, special: 0.05, wonder: 0.025 };
   CFG.WONDER_MIN_ROUND = 5;              // wonder weapons can't roll before round 5
   CFG.POST_SPECIAL_SPECIAL_MULT = 0.30;  // dampen special right after a special/wonder
   CFG.POST_SPECIAL_WONDER_MULT = 0.0;    // never two wonders/specials back-to-back at full odds
