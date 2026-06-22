@@ -1346,6 +1346,17 @@
             if (clearOf(dp, 1.5)) { G.Props.create('snow_drift', { position: dp, seed: (G.PU.hashStr(rid + ':drift:' + d[0]) || 1) }); occupy(dp); }
           });
         }
+        // a perimeter work floodlight for mood (emissive head; no extra light
+        // source, so the light budget stays steady)
+        var flc = [[bb.x0 + 1.5, bb.z0 + 1.5], [bb.x1 - 1.5, bb.z1 - 1.5], [bb.x1 - 1.5, bb.z0 + 1.5]];
+        for (var fi = 0; fi < flc.length; fi++) {
+          var fp = new THREE.Vector3(flc[fi][0], 0, flc[fi][1]);
+          if (!clearOf(fp, 1.4)) continue;
+          G.Props.create('floodlight', { position: fp, rotationY: Math.atan2(bb.cx - fp.x, bb.cz - fp.z), seed: (G.PU.hashStr(rid + ':flood') || 1) });
+          map.addCollider(fp.x - 0.35, fp.z - 0.35, fp.x + 0.35, fp.z + 0.35, 0, 0.5);
+          occupy(fp);
+          break;
+        }
       }
 
       // one authored corner cluster per indoor room (replaces uniform debris
