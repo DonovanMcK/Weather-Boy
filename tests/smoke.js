@@ -365,6 +365,7 @@ async function runQuick(mapId) {
     testBosses(ctx);
     testBossCharge(ctx);
     testKnockbackWall(ctx);
+    testMeleeLOS(ctx);
     testShield(ctx);
     testDamageDirection(ctx);
     testSoulBox(ctx);
@@ -1074,6 +1075,53 @@ function testKnockbackWall(ctx) {
        ' <= ' + wall.z1.toFixed(2) + ')');
   }
   ctx.moveTo(roomCenter(G, 'S')); P.vel.set(0, 0, 0);
+}
+
+/* a zombie pinned against the far side of a wall can't claw the player
+   through it — melee/charge now require line of sight */
+function testMeleeLOS(ctx) {
+  var G = ctx.G;
+  G.zombies.mode = 'break'; G.zombies.breakTimer = 999; G.zombies.toSpawn = 0;
+  G.zombies.list.slice().forEach(function (zz) { if (!zz.dead) G.zombies.damageZombie(zz, 1e9, { boom: true }); });
+  ctx.step(40);
+
+  var c = roomCenter(G, 'S');
+  var wall = null, best = 1e9;
+  G.map.colliders.forEach(function (col) {
+    if (!col.on || col.y2 - col.y1 < 2) return;                 // full-height only
+    if (Math.min(col.x2 - col.x1, col.z2 - col.z1) > 0.6) return; // thin (a wall)
+    var cx = (col.x1 + col.x2) / 2, cz = (col.z1 + col.z2) / 2;
+    var d = Math.hypot(cx - c.x, cz - c.z);
+    if (d < best) { best = d; wall = col; }
+  });
+  if (!wall) { ok(true, 'no wall to test melee LOS (skipped)'); return; }
+
+  var thinX = (wall.x2 - wall.x1) < (wall.z2 - wall.z1);
+  var wx = (wall.x1 + wall.x2) / 2, wz = (wall.z1 + wall.z2) / 2;
+  var hits = 0, real = G.player.damage;
+  G.player.damage = function () { hits++; };
+  G.player.downed = false; G.player.invuln = 0;
+
+  // player one side, zombie hugging the other — within reach, wall between
+  var zside = thinX ? new THREE.Vector3(wx + 0.5, 0, wz) : new THREE.Vector3(wx, 0, wz + 0.5);
+  ctx.moveTo(thinX ? { x: wx - 0.5, z: wz } : { x: wx, z: wz - 0.5 });
+  var zb = G.zombies.spawnAt(zside); zb.speed = 0;
+  for (var i = 0; i < 80; i++) ctx.step(1);
+  ok(hits === 0, 'zombie cannot claw the player through the wall (' + hits + ' hits)');
+  if (!zb.dead) G.zombies.damageZombie(zb, 1e9, { boom: true });
+  ctx.step(40);
+
+  // control: same side, clear sightline — the swing connects
+  hits = 0;
+  var open = thinX ? new THREE.Vector3(wx - 1.0, 0, wz) : new THREE.Vector3(wx, 0, wz - 1.0);
+  var z2 = G.zombies.spawnAt(open); z2.speed = 0;
+  for (var j = 0; j < 80; j++) ctx.step(1);
+  ok(hits > 0, 'zombie on the open side still lands its swing (' + hits + ' hits)');
+  if (!z2.dead) G.zombies.damageZombie(z2, 1e9, { boom: true });
+  ctx.step(40);
+
+  G.player.damage = real;
+  ctx.moveTo(roomCenter(G, 'S'));
 }
 
 /* settings terminal: opens/pauses, exposes the run-tuning settings, and can

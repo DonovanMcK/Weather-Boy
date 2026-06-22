@@ -368,7 +368,8 @@
       collideZombie(z);
       z.mesh.rotation.y = Math.atan2(z.chargeDir.x, z.chargeDir.z) + Math.PI;
       var moved = Math.hypot(z.mesh.position.x - bx, z.mesh.position.z - bz);
-      if (!z.chargeHit && dist < 2.4) {
+      if (!z.chargeHit && dist < 2.4 &&
+          !G.map.losBlocked(z.mesh.position.x, z.mesh.position.z, G.player.pos.x, G.player.pos.z, z.mesh.position.y)) {
         z.chargeHit = true;
         if (G.player.shieldBlocks && G.player.shieldBlocks(z.mesh.position.x, z.mesh.position.z)) {
           G.audio.zombieAttack();
@@ -867,7 +868,8 @@
           // 1.7m of a ground target but must keep following the nav slope, not
           // cut straight toward the player and stall against the incline
           var sameFloor = dyT < 0.7;
-          if (!Z.lure && dist < MELEE_START && sameLevel && !G.player.downed && z.attackCd <= 0) {
+          if (!Z.lure && dist < MELEE_START && sameLevel && !G.player.downed && z.attackCd <= 0 &&
+              !G.map.losBlocked(z.mesh.position.x, z.mesh.position.z, tpos.x, tpos.z, z.mesh.position.y)) {
             z.state = 'attack'; z.t = 0; z.hasHit = false;
           } else if (Z.lure && dist < 1.2) {
             // crowd around the monkey
@@ -892,7 +894,9 @@
             var hd = Math.hypot(z.mesh.position.x - G.player.pos.x,
                                 z.mesh.position.z - G.player.pos.z);
             var hv = Math.abs(z.mesh.position.y - G.player.pos.y);
-            if (hd < MELEE_HIT && hv < MELEE_VERT && !G.player.downed) {
+            var walled = G.map.losBlocked(z.mesh.position.x, z.mesh.position.z,
+                                          G.player.pos.x, G.player.pos.z, z.mesh.position.y);
+            if (hd < MELEE_HIT && hv < MELEE_VERT && !walled && !G.player.downed) {
               // the carried shield eats hits that land on your back
               if (G.player.shieldBlocks && G.player.shieldBlocks(z.mesh.position.x, z.mesh.position.z)) {
                 G.audio.zombieAttack();

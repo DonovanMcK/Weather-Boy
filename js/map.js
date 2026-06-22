@@ -332,6 +332,20 @@
       return false;
     },
 
+    // is the straight line between two ground points cut by a solid wall at
+    // body height? sampled finer than the thinnest wall (0.35m) so a zombie or
+    // boss can never claw / charge the player through a wall it's pinned against
+    losBlocked: function (ax, az, bx, bz, h) {
+      var dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz);
+      if (len < 1e-4) return false;
+      var steps = Math.max(2, Math.ceil(len / 0.12));
+      for (var i = 1; i < steps; i++) {
+        var t = i / steps;
+        if (this.bodyBlocked(ax + dx * t, az + dz * t, h)) return true;
+      }
+      return false;
+    },
+
     roomAt: function (x, z) {
       var cr = CFG.worldToCell(x, z);
       var cell = this.cellAt(cr.col, cr.row);
