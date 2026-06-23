@@ -850,27 +850,34 @@
       stageSpecs.push(loft);
     }
     if (CFG.cur.id === 'kurhaus') {
-      // FLOOR 1 connectors — both built via buildStage so they inherit the
-      // stairwell-headroom lift (see the CONSTRAINT note at buildStage) and are
-      // already positioned to wire to Floor 2 / Floor B when those are stacked.
+      // ===================================================================
+      // KURHAUS STAIR STANDING RULE (locked in after the _t3 stacked proof)
+      // -------------------------------------------------------------------
+      // EVERY Kurhaus staircase — Grand, Service, and any added on Floor B or
+      // Floor 2 later — MUST be: (1) built via buildStage (for the automatic
+      // stairwell-headroom lift, see the CONSTRAINT note at buildStage); (2)
+      // graded ~0.5 (about an 8m run for a 4m rise, i.e. zBase-zTop >= 8 over
+      // h=WALL_H); and (3) given an opening as WIDE as the full flight. A steeper
+      // ~0.67 flight (6m run) or a flight squeezed through a 1-cell doorway makes
+      // the nav edges fragile — the under-flight fill cuts mid-ramp edges and the
+      // flanking walls block the climb, so the horde stalls partway up. The _t3
+      // proof only went 6/6 once the flight was regraded to ~0.5 and widened.
+      // ===================================================================
       //
-      // GRAND STAIRCASE — off the Ballroom (NE corner), an UP flight to an open
-      // mezzanine landing at +4 (= WALL_H = the future Floor 2 floor level). A
-      // thin deck so the Ballroom stays fully walkable beneath; no walls/roof so
-      // the landing reads open to the floor above. stairwellAt lifts the ceiling
-      // over the flight for headroom; the under-deck ceiling skip leaves the
-      // landing itself open above.
+      // GRAND STAIRCASE — Ballroom (NE) up to the Floor 2 east gallery at +4.
+      // Lands within Floor 2's footprint (cols 13-18) so it connects to the
+      // gallery floor. Regraded to ~0.5 (8m run / steps 10).
       var grand = { x1: xW(17) - CELL / 2, x2: xW(18) + CELL / 2,
                     z1: zW(6) - CELL / 2, z2: zW(7) + CELL / 2, h: WALL_H, thin: true };
-      grand.stairs = { x1: grand.x1, x2: grand.x2, zTop: grand.z2, zBase: zW(9), steps: 8 };
-      // SERVICE STAIRCASE — off the Foyer (SW corner), a DOWN flight through the
-      // omitted ground slab (config FLOOR_OMIT) to a landing at -4 (= the future
-      // Floor B / Underbath level). Descending, so it has no headroom problem.
+      grand.stairs = { x1: grand.x1, x2: grand.x2, zTop: grand.z2, zBase: zW(9) + CELL / 2, steps: 10 };
+      // SERVICE STAIRCASE — Foyer (SW) DOWN through the omitted ground slab
+      // (config FLOOR_OMIT) to Floor B at -4 (now a real plate, no open pit).
+      // Already ~0.5 (8m run).
       var service = { x1: xW(0) - CELL / 2, x2: xW(1) + CELL / 2,
                       z1: zW(9) - CELL / 2, z2: zW(10) + CELL / 2,
                       h: 0, baseH: -WALL_H, descend: true };
       service.stairs = { x1: service.x1, x2: service.x2,
-                         zTop: zW(9) - CELL / 2, zBase: zW(10) + CELL / 2, steps: 8 };
+                         zTop: zW(9) - CELL / 2, zBase: zW(10) + CELL / 2, steps: 10 };
       stageSpecs.push(grand, service);
     }
     // reserve the deck and stair footprints (separately, so we don't over-claim
@@ -1399,7 +1406,16 @@
           var cl = new THREE.Mesh(floorGeo, dCeil);
           cl.rotation.x = Math.PI / 2; cl.position.set(wc.x, cy - 0.02, wc.z);
           G.scene.add(cl);
-          map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2, cy - 0.12, cy + 0.6);
+          // ceiling collider. STACKING RULE (proved in _t3): when a real floor
+          // sits ABOVE this one, the ceiling must seal from BELOW the inter-floor
+          // boundary and NOT poke up into the floor above (the default +0.6
+          // overhang would collide with a body standing on the upper floor). Cap
+          // it to [cy-1, cy] there — a single collider, no redundant upper slab.
+          // A lifted stairwell ceiling keeps its overhang (it sits above the
+          // upper floor, clearing the climb). Top/only floor: overhang as before.
+          var capped = map.floorAbove(rfy) && !well;
+          map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2,
+                          capped ? cy - 1.0 : cy - 0.12, capped ? cy : cy + 0.6);
         });
         var along = bb.w >= bb.d;
         var span = along ? bb.d : bb.w, n = Math.max(1, Math.round(span / 4));
@@ -1707,6 +1723,65 @@
       });
     }
     stageSpecs.forEach(buildStage);
+
+    // ---- STACKED FLOORS (B3) — build every non-primary floor at its own floorY,
+    // sharing the same x,z footprint. A compact grey-box builder: floor slabs +
+    // finite-band walls + capped/opened ceilings. The primary floor is already
+    // built by the main path above; the inter-floor seam is sealed by the LOWER
+    // floor's ceiling collider (capped to [cy-1, cy] when a floor sits above —
+    // a single collider, no redundant second slab). Stairs (buildStage) connect
+    // the floors; the Atrium shaft stays open (Floor 1 OPEN_CEIL + Floor 2 grid
+    // void) so the down-view runs top to bottom.
+    function buildExtraFloor(f) {
+      var fp = CFG.parseGrid(f.GRID), fy = f.floorY || 0;
+      var omit = {}; (f.FLOOR_OMIT || []).forEach(function (c) { omit[c[0] + ',' + c[1]] = 1; });
+      var openC = f.OPEN_CEIL || [], outd = f.OUTDOOR || [];
+      var aboveCap = map.floorAbove(fy);          // a real floor sits above this one
+      var anyMat = floorMats[Object.keys(floorMats)[0]];
+      for (var r = 0; r < fp.rows; r++) {
+        for (var c = 0; c < fp.cols; c++) {
+          var cell = fp.cells[r][c];
+          if (cell.type !== 'room') continue;
+          var wc = CFG.cellToWorld(c, r);
+          // floor slab + walkable surface (unless this cell's slab is cut away)
+          if (!omit[c + ',' + r]) {
+            var fl = new THREE.Mesh(floorGeo, floorMats[cell.room] || anyMat);
+            fl.rotation.x = -Math.PI / 2; fl.position.set(wc.x, fy, wc.z); G.scene.add(fl);
+            map.addSurface({ x1: wc.x - CELL / 2, x2: wc.x + CELL / 2, z1: wc.z - CELL / 2, z2: wc.z + CELL / 2, y: fy, floor: true });
+          }
+          // perimeter / party walls — finite band [fy, fy+WALL_H] so stacked
+          // floors tile edge to edge (E/S only on shared room boundaries, so a
+          // wall isn't built twice)
+          ['N', 'S', 'E', 'W'].forEach(function (dir) {
+            var o = OFF[dir], row2 = fp.cells[r + o[1]], n = (row2 && row2[c + o[0]]) || { type: 'void' };
+            if (!(n.type === 'void' || (n.type === 'room' && n.room !== cell.room && (dir === 'E' || dir === 'S')))) return;
+            var cx = wc.x + o[0] * CELL / 2, cz = wc.z + o[1] * CELL / 2, alongX = (dir === 'N' || dir === 'S');
+            var m = (c + r) % 2 ? G.mats.wallA : G.mats.wallB;
+            if (alongX) addBox(CELL + WALL_T, WALL_H, WALL_T, cx, fy + WALL_H / 2, cz, m);
+            else addBox(WALL_T, WALL_H, CELL + WALL_T, cx, fy + WALL_H / 2, cz, m);
+            map.addCollider(cx - (alongX ? CELL / 2 : WALL_T / 2), cz - (alongX ? WALL_T / 2 : CELL / 2),
+                            cx + (alongX ? CELL / 2 : WALL_T / 2), cz + (alongX ? WALL_T / 2 : CELL / 2), fy, fy + WALL_H);
+          });
+          // a DESCEND staircase punches DOWN through this floor's ceiling (the
+          // stairwell opening between it and the floor above) — skip the ceiling
+          // there or the seam seal blocks the climber's head on the way up
+          var underDescend = stageSpecs.some(function (sp) {
+            return sp.descend && wc.x >= sp.x1 - 0.1 && wc.x <= sp.x2 + 0.1 && wc.z >= sp.z1 - 0.1 && wc.z <= sp.z2 + 0.1;
+          });
+          // ceiling — skipped for an open shaft / outdoor / under a descend
+          // stairwell; capped just below the boundary when a floor sits above
+          // (the seam seal), overhang otherwise
+          if (!underDescend && openC.indexOf(cell.room) < 0 && outd.indexOf(cell.room) < 0) {
+            var cy = fy + WALL_H;
+            var cl = new THREE.Mesh(floorGeo, dCeil); cl.rotation.x = Math.PI / 2;
+            cl.position.set(wc.x, cy - 0.02, wc.z); G.scene.add(cl);
+            map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2,
+                            aboveCap ? cy - 1.0 : cy - 0.12, aboveCap ? cy : cy + 0.6);
+          }
+        }
+      }
+    }
+    (CFG.cur._floors || []).forEach(function (f) { if (f !== CFG.cur._primary) buildExtraFloor(f); });
 
     // elevated railway: walkable on top, open underneath (you pass beneath it).
     // Its surface is flagged bridge:true so ground nav ignores it.

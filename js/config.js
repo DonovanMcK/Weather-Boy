@@ -371,32 +371,8 @@
     palette: { wallA: 0xb8a06a, wallB: 0xa8905c, wood: 0x6e4a2e, plank: 0x855a36,
                metal: 0x9a8a5a, beam: 0x5a4a32, rust: 0x7a5a3a, conc: 0x9c9080,
                deck: 0x7a6a4a, ceil: 0x6a5d44, accent: 0xc9a24b, lampTint: 0xffd9a0 },
-    OUTDOOR: ['Y'],            // the Courtyard is the open-air yard
-    OPEN_CEIL: ['A'],          // the Atrium is open to the (future) floors above
-    GRID: [
-      '...YYYYYYYYYYYYY...', // Courtyard (outdoor yard) — north training oval
-      '...YYYYYYYYYYYYY...',
-      '...YYYYYYYYYYYYY...',
-      '...YYYYYYYYYYYYY...',
-      '...YYYYYYYYYYYYY...',
-      '...1.....2.....3...', // 1: Court->Foyer  2: Court->Atrium  3: Court->Ballroom
-      'SSSSS.AAAAAAA.BBBBB', // S=Foyer(spawn)  A=Atrium(open shaft)  B=Ballroom
-      'SSSSS4AAAAAAA5BBBBB', // 4: Foyer->Atrium   5: Atrium->Ballroom
-      'SSSSS.AAAAAAA.BBBBB',
-      'SSSSS.AAAAAAA.BBBBB',
-      'SSSSS.AAAAAAA.BBBBB',
-      '...6.....7.....8...', // 6: Foyer->Colonnade  7: Atrium->Colonnade  8: Ballroom->Colonnade
-      '...OOOOOOOOOOOOO...', // O=Colonnade (arched south promenade)
-      '...OOOOOOOOOOOOO...',
-      '...OOOOOOOOOOOOO...'
-    ],
-    ROOMS: {
-      S: { name: 'Grand Foyer', floor: 0x4a3826, light: 0xe0b070, floorY: 0 },
-      O: { name: 'Colonnade',   floor: 0x46382a, light: 0xd8a868, floorY: 0 },
-      A: { name: 'Atrium',      floor: 0x3c4a40, light: 0xbfd4cc, floorY: 0 },
-      B: { name: 'Ballroom',    floor: 0x4a1f24, light: 0xe0a850, floorY: 0 },
-      Y: { name: 'Courtyard',   floor: 0x33402e, light: 0x9fb0bc, floorY: 0 }
-    },
+    // map-level placements live on the ground floor (Floor 1) — kept here so the
+    // legacy single-grid build path drives them unchanged
     DOORS: {
       1: { cost: 750,  name: 'Courtyard' },
       2: { cost: 1000, name: 'Atrium' },
@@ -407,20 +383,6 @@
       7: { cost: 1000, name: 'Colonnade' },
       8: { cost: 1250, name: 'Colonnade' }
     },
-    WINDOWS: [
-      { cell: [0, 6],  dir: 'W' },   // Foyer (3 boarded windows)
-      { cell: [0, 7],  dir: 'W' },
-      { cell: [0, 8],  dir: 'W' },
-      { cell: [14, 6], dir: 'N' },   // Ballroom (clear of the Grand Staircase, NE corner)
-      { cell: [18, 10], dir: 'E' },
-      { cell: [5, 0],  dir: 'N' },   // Courtyard (outdoor)
-      { cell: [9, 0],  dir: 'N' },
-      { cell: [13, 0], dir: 'N' },
-      { cell: [5, 14], dir: 'S' },   // Colonnade
-      { cell: [9, 14], dir: 'S' },
-      { cell: [13, 14], dir: 'S' }
-    ],
-    RISERS: [[7, 2], [11, 2]],
     PERK_MACHINES: [
       { perk: 'revive', cell: [1, 6],  off: [-1.0, 0] },   // Quick Revive in the Foyer
       { perk: 'jugg',   cell: [14, 9], off: [-1.0, 0] },   // Juggernog in the Ballroom
@@ -448,9 +410,90 @@
     EE_SOULBOX: null,
     SHIELD_PARTS: {},
     SHIELD_BENCH: null,
-    // cells whose ground-floor slab is omitted so the Service Staircase can
-    // descend through it to Floor B (see the kurhaus stageSpecs in map.js)
-    FLOOR_OMIT: [[0, 9], [1, 9], [0, 10], [1, 10]]
+    // ---- TRUE STACKED FLOORS — all three share the same x,z footprint (20x15
+    // grid). Floor B (-4) sits directly under Floor 1 (0); Floor 2 (+4) directly
+    // over it, ringing the Atrium shaft. Floor 1 is the primary (drives the
+    // legacy build + placements); B/2 are grey-box plates built by buildExtraFloor.
+    FLOORS: [
+      { id: 'B', floorY: -4,    // THE UNDERBATH — sealed plate under Floor 1
+        ROOMS: { U: { name: 'Underbath', floor: 0x2e3a40, light: 0xe0843a } },
+        OUTDOOR: [], OPEN_CEIL: [], FLOOR_OMIT: [],
+        WINDOWS: [{ cell: [0, 8], dir: 'W' }, { cell: [19, 8], dir: 'E' }],
+        GRID: [
+          '....................',
+          '....................',
+          '....................',
+          '....................',
+          '....................',
+          '....................',
+          'UUUUUUUUUUUUUUUUUUUU',
+          'UUUUUUUUUUUUUUUUUUUU',
+          'UUUUUUUUUUUUUUUUUUUU',
+          'UUUUUUUUUUUUUUUUUUUU',
+          'UUUUUUUUUUUUUUUUUUUU',
+          'UUUUUUUUUUUUUUUUUUUU',
+          'UUUUUUUUUUUUUUUUUUUU',
+          'UUUUUUUUUUUUUUUUUUUU',
+          'UUUUUUUUUUUUUUUUUUUU'
+        ] },
+      { id: '1', floorY: 0, primary: true,   // THE GRAND HALLS — spawn + hub
+        ROOMS: {
+          S: { name: 'Grand Foyer', floor: 0x4a3826, light: 0xe0b070 },
+          O: { name: 'Colonnade',   floor: 0x46382a, light: 0xd8a868 },
+          A: { name: 'Atrium',      floor: 0x3c4a40, light: 0xbfd4cc },
+          B: { name: 'Ballroom',    floor: 0x4a1f24, light: 0xe0a850 },
+          Y: { name: 'Courtyard',   floor: 0x33402e, light: 0x9fb0bc }
+        },
+        OUTDOOR: ['Y'], OPEN_CEIL: ['A'],   // Atrium is the open vertical shaft
+        // Foyer SW slab omitted so the Service Staircase descends to Floor B
+        FLOOR_OMIT: [[0, 9], [1, 9], [0, 10], [1, 10]],
+        WINDOWS: [
+          { cell: [0, 6],  dir: 'W' }, { cell: [0, 7], dir: 'W' }, { cell: [0, 8], dir: 'W' },
+          { cell: [14, 6], dir: 'N' }, { cell: [19, 8], dir: 'E' },
+          { cell: [5, 0],  dir: 'N' }, { cell: [9, 0], dir: 'N' }, { cell: [14, 0], dir: 'N' },
+          { cell: [5, 14], dir: 'S' }, { cell: [9, 14], dir: 'S' }, { cell: [14, 14], dir: 'S' }
+        ],
+        RISERS: [[7, 2], [11, 2]],
+        GRID: [
+          '...YYYYYYYYYYYYYY...', // Courtyard (outdoor) — north training oval
+          '...YYYYYYYYYYYYYY...',
+          '...YYYYYYYYYYYYYY...',
+          '...YYYYYYYYYYYYYY...',
+          '...YYYYYYYYYYYYYY...',
+          '...1.....2.....3....', // 1:Court-Foyer 2:Court-Atrium 3:Court-Ballroom
+          'SSSSS.AAAAAAA.BBBBBB', // S=Foyer(spawn) A=Atrium(shaft) B=Ballroom(widened)
+          'SSSSS4AAAAAAA5BBBBBB', // 4:Foyer-Atrium 5:Atrium-Ballroom
+          'SSSSS.AAAAAAA.BBBBBB',
+          'SSSSS.AAAAAAA.BBBBBB',
+          'SSSSS.AAAAAAA.BBBBBB',
+          '...6.....7.....8....', // 6:Foyer-Colonnade 7:Atrium-Colonnade 8:Ballroom-Colonnade
+          '...OOOOOOOOOOOOOO...', // O=Colonnade (south promenade)
+          '...OOOOOOOOOOOOOO...',
+          '...OOOOOOOOOOOOOO...'
+        ] },
+      { id: '2', floorY: 4,    // THE ANNEX — gallery ring around the Atrium shaft
+        ROOMS: { G: { name: 'Upper Galleries', floor: 0x33424a, light: 0x8fd0e0 } },
+        OUTDOOR: [], OPEN_CEIL: [], FLOOR_OMIT: [],
+        WINDOWS: [{ cell: [9, 5], dir: 'N' }, { cell: [9, 13], dir: 'S' }, { cell: [2, 8], dir: 'W' }],
+        // shaft void (cols6-12, rows6-10) lines up exactly with the Atrium below
+        GRID: [
+          '....................',
+          '....................',
+          '....................',
+          '....................',
+          '....................',
+          '..GGGGGGGGGGGGGGGG..', // north gallery (over the shaft)
+          '..GGGG.......GGGGGG.', // shaft open cols6-12
+          '..GGGG.......GGGGGG.',
+          '..GGGG.......GGGGGG.',
+          '..GGGG.......GGGGGG.',
+          '..GGGG.......GGGGGG.',
+          '..GGGGGGGGGGGGGGGG..', // south gallery
+          '..GGGGGGGGGGGGGGGG..',
+          '..GGGGGGGGGGGGGGGG..',
+          '....................'
+        ] }
+    ]
   };
 
   CFG.MAP_IDS = ['nacht', 'derriese', 'wetterjunge', 'kurhaus'];
@@ -461,12 +504,42 @@
     var m = CFG.MAPS[id];
     if (!m) throw new Error('unknown map ' + id);
     CFG.cur = m;
-    ['GRID', 'ROOMS', 'DOORS', 'WINDOWS', 'RISERS', 'PERK_MACHINES', 'WALLBUYS',
-     'BOX_SPOTS', 'TELEPORTERS', 'MAINFRAME', 'PAP', 'POWER', 'PLAYER_SPAWN',
-     'RELIC_SPOTS', 'EE_SOULBOX', 'SHIELD_PARTS', 'SHIELD_BENCH']
+    // Resolve the floor list. A stacked map declares FLOORS (each its own grid at
+    // a floorY, sharing the x,z footprint); a legacy flat map is wrapped as a
+    // single ground floor so its build path is byte-identical to before.
+    var floors = m.FLOORS || [{ id: '1', floorY: 0, primary: true, GRID: m.GRID, ROOMS: m.ROOMS,
+      OUTDOOR: m.OUTDOOR, OPEN_CEIL: m.OPEN_CEIL, FLOOR_OMIT: m.FLOOR_OMIT, WINDOWS: m.WINDOWS, RISERS: m.RISERS }];
+    var primary = floors.filter(function (f) { return f.primary; })[0] ||
+                  floors.filter(function (f) { return (f.floorY || 0) === 0; })[0] || floors[0];
+    m._floors = floors; m._primary = primary;
+    // merge every floor's rooms into one lookup (globally-unique letters), each
+    // tagged with its floorY so floorYOf / floorAbove / floor materials resolve it
+    var rooms = {};
+    floors.forEach(function (f) {
+      Object.keys(f.ROOMS || {}).forEach(function (rid) {
+        var src = f.ROOMS[rid], r = {};
+        Object.keys(src).forEach(function (k) { r[k] = src[k]; });
+        if (r.floorY === undefined) r.floorY = f.floorY || 0;
+        r._floorId = f.id;
+        rooms[rid] = r;
+      });
+    });
+    // the primary floor drives the legacy single-grid build (floor slabs, walls,
+    // ceilings, doors, machines, props); extra floors are built by buildExtraFloor
+    CFG.GRID = primary.GRID;
+    CFG.ROOMS = rooms;
+    CFG.WINDOWS = primary.WINDOWS || m.WINDOWS || [];
+    CFG.RISERS = primary.RISERS || m.RISERS || [];
+    ['DOORS', 'PERK_MACHINES', 'WALLBUYS', 'BOX_SPOTS', 'TELEPORTERS', 'MAINFRAME',
+     'PAP', 'POWER', 'PLAYER_SPAWN', 'RELIC_SPOTS', 'EE_SOULBOX', 'SHIELD_PARTS', 'SHIELD_BENCH']
       .forEach(function (k) { CFG[k] = m[k]; });
-    CFG._cx = m.GRID[0].length / 2 - 0.5;
-    CFG._cz = m.GRID.length / 2 - 0.5;
+    // the main build reads CFG.cur.OUTDOOR / OPEN_CEIL / FLOOR_OMIT — point them at
+    // the primary floor (a no-op for a wrapped legacy map)
+    m.OUTDOOR = primary.OUTDOOR || m.OUTDOOR || [];
+    m.OPEN_CEIL = primary.OPEN_CEIL || m.OPEN_CEIL || [];
+    m.FLOOR_OMIT = primary.FLOOR_OMIT || m.FLOOR_OMIT || [];
+    CFG._cx = primary.GRID[0].length / 2 - 0.5;
+    CFG._cz = primary.GRID.length / 2 - 0.5;
     return m;
   };
 
