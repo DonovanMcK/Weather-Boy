@@ -46,12 +46,12 @@
     // ---- nodes: for every fine sample, one node per distinct walkable height
     for (var wx = x0 + NR / 2; wx <= x1; wx += NR) {
       for (var wz = z0 + NR / 2; wz <= z1; wz += NR) {
-        var cr = CFG.worldToCell(wx, wz);
-        var cell = map.cellAt(cr.col, cr.row);
-        var groundOk = !!cell && (cell.type === 'room' || cell.type === 'door');
+        // every walkable height at this sample comes straight from the surfaces
+        // (each floor now contributes an explicit floor surface at its own
+        // floorY, plus any decks/ramps). No hardcoded ground at 0 — that was the
+        // phantom-node bug for floorY != 0.
         var levels = map.surfaceLevelsAt(wx, wz);
         var heights = [];
-        if (groundOk) heights.push(0);
         for (var li = 0; li < levels.length; li++) {
           var dup = false;
           for (var hj = 0; hj < heights.length; hj++) if (Math.abs(heights[hj] - levels[li]) < 0.06) dup = true;
@@ -59,10 +59,7 @@
         }
         for (var hi = 0; hi < heights.length; hi++) {
           var hy = heights[hi];
-          // there must be a real surface to stand on, and headroom for the body
-          var supported = (hy === 0 && groundOk);
-          for (var si = 0; si < levels.length && !supported; si++) if (Math.abs(levels[si] - hy) < 0.06) supported = true;
-          if (!supported) continue;
+          // headroom for the body (every hy is already a real surface)
           if (map.bodyBlocked(wx, wz, hy)) continue;
           var node = {
             id: N.nodes.length, x: wx, z: wz, y: hy,

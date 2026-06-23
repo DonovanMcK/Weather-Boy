@@ -278,9 +278,12 @@
       return (rid && R && R[rid] && R[rid].floorY) || 0;
     },
 
-    // highest walkable height at (x,z) that a body with feet at feetY can stand
-    // on, given a vertical "climb" tolerance. The base ground plane (0) always
-    // qualifies; surfaces above feet+climb are ignored (you're walking under).
+    // highest walkable surface at (x,z) a body with feet at feetY can stand on,
+    // within a vertical "climb" tolerance. There is NO implicit ground plane:
+    // each floor (and deck/ramp) is an explicit surface, so this returns the
+    // correct floor for the body's current Y — including a sub-level below 0.
+    // Surfaces above feetY+climb are ignored (you're underneath them). With no
+    // surface beneath, returns the void baseline (off-map / fell through).
     supportAt: function (x, z, feetY, climb, ignoreBridge) {
       // ground baseline: 0 for flat maps (unchanged), but a deep void sentinel
       // once a map has sub-zero floors, so a body on a lower floor isn't snapped
