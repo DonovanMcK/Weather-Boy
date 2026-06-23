@@ -270,11 +270,22 @@
     // a walkable surface: a flat top (y) or a linear ramp along one axis.
     addSurface: function (s) { this.surfaces.push(s); return s; },
 
+    // ---- Y-as-first-class: a region/room's floor height (single source of
+    // truth). Defaults to 0, so every existing flat map is unchanged. Stacked
+    // floors (Kurhaus) set ROOMS[rid].floorY (e.g. -4 / 0 / +4).
+    floorYOf: function (rid) {
+      var R = G.CFG.ROOMS;
+      return (rid && R && R[rid] && R[rid].floorY) || 0;
+    },
+
     // highest walkable height at (x,z) that a body with feet at feetY can stand
     // on, given a vertical "climb" tolerance. The base ground plane (0) always
     // qualifies; surfaces above feet+climb are ignored (you're walking under).
     supportAt: function (x, z, feetY, climb, ignoreBridge) {
-      var best = 0, ss = this.surfaces, i, s, h;
+      // ground baseline: 0 for flat maps (unchanged), but a deep void sentinel
+      // once a map has sub-zero floors, so a body on a lower floor isn't snapped
+      // up to a phantom Y=0 plane. Floors are explicit surfaces below.
+      var best = this.minFloorY < 0 ? this.minFloorY - 50 : 0, ss = this.surfaces, i, s, h;
       for (i = 0; i < ss.length; i++) {
         s = ss[i];
         // bridges (e.g. a catwalk over a doorway) are walkable for bodies but
@@ -576,16 +587,39 @@
     });
     var doorFloorMat = new THREE.MeshLambertMaterial({ map: G.tex.floor, color: 0x7d7a72 });
 
+    // a door cell sits at the floor height of whichever room it touches (so a
+    // threshold lines up with its floor); flat maps -> always 0
+    function doorFloorY(c, r) {
+      var fs = [[0, -1], [0, 1], [1, 0], [-1, 0]];
+      for (var i = 0; i < fs.length; i++) {
+        var n = map.cellAt(c + fs[i][0], r + fs[i][1]);
+        if (n && n.type === 'room') return map.floorYOf(n.room);
+      }
+      return 0;
+    }
+    // lowest floor in the map (drives the supportAt void baseline). 0 for every
+    // existing flat map; negative once a sub-level (Underbath) is added.
+    map.minFloorY = 0;
+    Object.keys(CFG.ROOMS || {}).forEach(function (rid) {
+      var fy = map.floorYOf(rid); if (fy < map.minFloorY) map.minFloorY = fy;
+    });
+
     var floorGeo = new THREE.PlaneGeometry(CELL, CELL);
     for (var r = 0; r < P.rows; r++) {
       for (var c = 0; c < P.cols; c++) {
         var cell = P.cells[r][c];
         if (cell.type === 'void') continue;
         var wc = CFG.cellToWorld(c, r);
+        // a door inherits the floor height of an adjacent room so thresholds line
+        // up with whichever floor they connect
+        var fy = cell.type === 'door' ? doorFloorY(c, r) : map.floorYOf(cell.room);
         var f = new THREE.Mesh(floorGeo, cell.type === 'door' ? doorFloorMat : floorMats[cell.room]);
         f.rotation.x = -Math.PI / 2;
-        f.position.set(wc.x, 0, wc.z);
+        f.position.set(wc.x, fy, wc.z);
         G.scene.add(f);
+        // explicit walkable floor SURFACE so supportAt/nav resolve the correct
+        // floor per Y (replaces the old implicit infinite ground plane at 0)
+        map.addSurface({ x1: wc.x - CELL / 2, x2: wc.x + CELL / 2, z1: wc.z - CELL / 2, z2: wc.z + CELL / 2, y: fy, floor: true });
 
         ['N', 'S', 'E', 'W'].forEach(function (dir) {
           var o = OFF[dir];
