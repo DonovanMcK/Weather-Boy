@@ -383,11 +383,19 @@
       7: { cost: 1000, name: 'Colonnade' },
       8: { cost: 1250, name: 'Colonnade' }
     },
+    // 8 perks across the three floors (per the design doc). y lifts a machine onto
+    // its floor (Floor B -4 / Floor 2 +4); all gated behind power except Quick
+    // Revive, and the Core perk is reserved behind the easter egg (ee:true).
     PERK_MACHINES: [
-      { perk: 'revive', cell: [1, 6],  off: [-1.0, 0] },   // Quick Revive in the Foyer
-      { perk: 'jugg',   cell: [14, 9], off: [-1.0, 0] },   // Juggernog in the Ballroom
-      { perk: 'stamin', cell: [4, 2],  off: [-1.0, 0] },   // Stamin-Up in the Courtyard
-      { perk: 'speed',  cell: [12, 13], off: [0, 1.0] }    // Speed Cola in the Colonnade
+      { perk: 'revive',   cell: [1, 7],   off: [-1.0, 0] },             // F1 Grand Foyer
+      { perk: 'stamin',   cell: [4, 2],   off: [-1.0, 0] },             // F1 Courtyard
+      { perk: 'jugg',     cell: [15, 9],  off: [0, 0] },                // F1 Ballroom
+      { perk: 'dtap',     cell: [16, 6],  off: [0, 0], y: 4 },          // F2 Tesla Hall
+      { perk: 'mule',     cell: [12, 14], off: [0, 0], y: 4 },         // F2 Solarium
+      { perk: 'speed',    cell: [16, 8],  off: [0, 0], y: -4 },         // FB Cold Plunge
+      { perk: 'deadshot', cell: [2, 8],   off: [0, 0], y: -4 },         // FB Cistern
+      { perk: 'widows',   cell: [9, 13],  off: [0, 0], y: -4, ee: true }, // FB Core (EE-reserved)
+      { perk: 'wonderfizz', cell: [11, 13], off: [0, 1.0] }              // Der Wunderfizz — F1 Colonnade (random-perk vendor)
     ],
     WALLBUYS: [
       { gun: 'olympia', cell: [4, 10], off: [0, 1.6],  face: 'S' },   // Foyer starter wall weapon
@@ -404,7 +412,7 @@
     TELEPORTERS: [],
     MAINFRAME: null,
     PAP: { cell: [16, 8], off: [0, 0] },     // temporary — moves to the Core (Floor B) once built
-    POWER: { cell: [9, 13], off: [0, 0] },
+    POWER: { cell: [9, 2], off: [0, 0], y: -4 },   // the Furnace, Floor B
     PLAYER_SPAWN: { cell: [3, 8], off: [0, 0.4] },
     RELIC_SPOTS: [],
     EE_SOULBOX: null,
@@ -574,13 +582,14 @@
     widows: { name: "Widow's Wine", cost: 4000, color: 0x8a2be2, icon: 'WW' },
     phd:    { name: 'PhD Slider',   cost: 2000, color: 0xcc6a1f, icon: 'PhD' },
     cherry: { name: 'Electric Cherry', cost: 2000, color: 0x33ddff, icon: 'EC' },
+    deadshot: { name: 'Deadshot Daiquiri', cost: 1500, color: 0xb98a3a, icon: 'DS' },
     // Der Wunderfizz: a mystery-box-style perk vendor (not an ownable perk)
     wonderfizz: { name: 'Der Wunderfizz', cost: 1500, color: 0xc59b3a, icon: '?', vendor: true }
   };
   CFG.MAX_PERKS = 4;
   CFG.WONDERFIZZ_COST = 1500;
   // perks the Wunderfizz can roll (everything ownable; vendor entries excluded)
-  CFG.FIZZ_POOL = ['revive', 'jugg', 'speed', 'dtap', 'stamin', 'mule', 'widows', 'phd', 'cherry'];
+  CFG.FIZZ_POOL = ['revive', 'jugg', 'speed', 'dtap', 'stamin', 'mule', 'widows', 'phd', 'cherry', 'deadshot'];
   CFG.QR_MAX_BUYS = 3;
 
   /* -------------------------------------------------------------- weapons */

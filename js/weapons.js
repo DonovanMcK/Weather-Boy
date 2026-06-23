@@ -692,12 +692,13 @@
     // ADS tightens spread, sprinting loosens it; simple-aim gets a flat bonus
     var spreadMult = (1 - 0.7 * G.player.ads) * (1 + 0.5 * G.player.sprintAmt);
     if (G.settings && G.settings.aimMode === 'simple') spreadMult *= 0.55;
+    if (G.player.hasPerk('deadshot')) spreadMult *= 0.5;   // Deadshot Daiquiri: steadier aim
     // penetration: high-power rounds punch through a line of zombies (each
     // pierced kill is scored normally). PaP'd guns pierce one extra.
     var pierce = ({ rifle: 2, lmg: 3, sniper: 5, minigun: 2 }[s.cls] || 1) + (gun.papped ? 1 : 0);
     var pellets = s.pellets || 1;
     for (var i = 0; i < pellets; i++) {
-      shootRay(s.spread * spreadMult, s.dmg, s.head, s.range, false, pierce);
+      shootRay(s.spread * spreadMult, s.dmg, s.head * (G.player.hasPerk('deadshot') ? 1.5 : 1), s.range, false, pierce);
     }
   }
 

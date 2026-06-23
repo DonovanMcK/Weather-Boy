@@ -92,6 +92,8 @@
         pos: pm.pos, r: 2.2,
         prompt: function () {
           if (G.player.hasPerk(pm.perk)) return null;
+          // the Core perk is sealed until the easter egg awakens the Core
+          if (pm.ee && !map.coreUnlocked) return def.name + ' — sealed (awaken the Core)';
           if (pm.perk === 'revive' && G.player.qrBuys >= CFG.QR_MAX_BUYS) return null;
           if (!map.power && pm.perk !== 'revive') return def.name + ' — needs power';
           if (G.player.perks.length >= (G.settings.perkLimit || CFG.MAX_PERKS)) return 'Perk limit reached';
@@ -99,6 +101,7 @@
         },
         use: function () {
           if (G.player.hasPerk(pm.perk)) return;
+          if (pm.ee && !map.coreUnlocked) { G.audio.deny(); return; }
           if (!map.power && pm.perk !== 'revive') { G.audio.deny(); return; }
           if (G.player.perks.length >= (G.settings.perkLimit || CFG.MAX_PERKS)) { G.audio.deny(); return; }
           if (pm.perk === 'revive' && G.player.qrBuys >= CFG.QR_MAX_BUYS) { G.audio.deny(); return; }

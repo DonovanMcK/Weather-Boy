@@ -931,8 +931,8 @@
 
     // --- push interactables against the nearest clear wall so they never block
     //     the middle of a room (zombies need the open centre to train through)
-    function roomInner(rid) {
-      var cells = P.rooms[rid].cells, minc = 99, maxc = -99, minr = 99, maxr = -99;
+    function roomInner(rid, fp) {
+      var cells = (fp || P).rooms[rid].cells, minc = 99, maxc = -99, minr = 99, maxr = -99;
       cells.forEach(function (cr) {
         if (cr[0] < minc) minc = cr[0]; if (cr[0] > maxc) maxc = cr[0];
         if (cr[1] < minr) minr = cr[1]; if (cr[1] > maxr) maxr = cr[1];
@@ -1009,11 +1009,12 @@
     var INWARD = { W: [1, 0], E: [-1, 0], N: [0, 1], S: [0, -1] };
     function wallFlush(pos, halfDepth, baseY) {
       baseY = baseY || 0;
-      var rid = map.roomAt(pos.x, pos.z);
-      if (!rid || !P.rooms[rid]) return { x: pos.x, z: pos.z, yaw: 0 };
+      var fp = map.parsedAtY(baseY);             // resolve the floor this prop sits on
+      var rid = map.roomAt(pos.x, pos.z, baseY);
+      if (!rid || !fp.rooms[rid]) return { x: pos.x, z: pos.z, yaw: 0 };
       // roomInner's faces are inset by a full WALL_T; the REAL inner wall
       // surface is WALL_T/2 closer, so add it back or the prop floats ~0.18m.
-      var bb = roomInner(rid), gap = halfDepth + 0.03, WT2 = WALL_T / 2;
+      var bb = roomInner(rid, fp), gap = halfDepth + 0.03, WT2 = WALL_T / 2;
       var cands = [
         { x: bb.x0 - WT2 + gap, z: pos.z, d: pos.x - bb.x0, yaw: WALL_YAW.W, f: 'W' },
         { x: bb.x1 + WT2 - gap, z: pos.z, d: bb.x1 - pos.x, yaw: WALL_YAW.E, f: 'E' },
@@ -1022,7 +1023,7 @@
       ].sort(function (a, b) { return a.d - b.d; });
       function standClear(cx, cz, f) {
         var io = INWARD[f], sx = cx + io[0] * 0.95, sz = cz + io[1] * 0.95;
-        var cr = CFG.worldToCell(sx, sz), cell = map.cellAt(cr.col, cr.row);
+        var cr = CFG.worldToCell(sx, sz), cell = map.cellAt(cr.col, cr.row, baseY);
         if (!cell || cell.type !== 'room') return false;            // stand spot in the room
         if (map.bodyBlocked(sx, sz, baseY + 0.2)) return false;     // not inside a wall/prop
         if (!Object.keys(map.doors).every(function (id) {
@@ -1067,7 +1068,7 @@
       var fwd = { x: Math.sin(fl.yaw), z: Math.cos(fl.yaw) };
       var stand = new THREE.Vector3(fl.x + fwd.x * 0.95, by, fl.z + fwd.z * 0.95);
       map.perkMachines.push({ perk: pm.perk, pos: stand, mesh: root, light: light,
-        setPowered: root.userData.setPowered });
+        ee: !!pm.ee, setPowered: root.userData.setPowered });
     });
 
     // wall buys — chalk drawn flush on the inner wall face (was floating in the
@@ -1165,12 +1166,13 @@
       }
     };
 
-    // power switch
+    // power switch (may sit on any floor — e.g. Kurhaus's is the Furnace on Floor B)
     var pw = place(CFG.POWER);
-    var pwfl = wallFlush(pw, 0.12);
+    var pwY = pw.y || 0;
+    var pwfl = wallFlush(pw, 0.12, pwY);
     pw.x = pwfl.x; pw.z = pwfl.z;
     occupy(pw);
-    var pwRoot = G.Props.create('power_switch', { position: new THREE.Vector3(pw.x, 0, pw.z), rotationY: pwfl.yaw });
+    var pwRoot = G.Props.create('power_switch', { position: new THREE.Vector3(pw.x, pwY, pw.z), rotationY: pwfl.yaw });
     propSolids(pwRoot);
     map.powerSwitch = { pos: pw, mesh: pwRoot, setPowered: pwRoot.userData.setPowered };
     occupy(place(CFG.PLAYER_SPAWN));

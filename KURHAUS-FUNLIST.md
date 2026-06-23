@@ -21,6 +21,18 @@ decision before anyone touches it.
 
 ---
 
+## TIER 1.5 — Floor 2 Courtyard balcony (yes, but not now)
+
+A second-story terrace overhanging the outdoor Courtyard — a vantage over the
+garden from the Annex. **Bounded ~⅓ session**, a contained add (not a B3-sized
+job): extend the Floor 2 grid north over the Courtyard + tag the balcony-edge
+**exterior** void as railing-not-wall (the flood-fill currently only rails the
+interior shaft) + a stair via the standing rule + a verify pass (sightline,
+outdoor lighting, fall-block). **Build during/just before the dressing pass,
+after the gameplay layer lands.**
+
+---
+
 ## TIER 2 — nice-to-have / pure flavor (build only on a light session, never required)
 
 - **Spa-zombie cosmetics:** swim caps, inner tubes, bathrobes, towel turbans,
