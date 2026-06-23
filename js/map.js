@@ -184,7 +184,9 @@
     mesh.position.set(x, y, z);
     G.scene.add(mesh);
     if (opts.collide) {
-      mesh.userData.collider = G.map.addCollider(x - w / 2, z - d / 2, x + w / 2, z + d / 2);
+      // opts.cy1/cy2 give an explicit collider Y-band (per-floor walls); default
+      // [0,99] keeps every existing call (flat maps) unchanged
+      mesh.userData.collider = G.map.addCollider(x - w / 2, z - d / 2, x + w / 2, z + d / 2, opts.cy1, opts.cy2);
     }
     if (opts.solid) G.map.solidMeshes.push(mesh);
     return mesh;
@@ -276,6 +278,17 @@
     floorYOf: function (rid) {
       var R = G.CFG.ROOMS;
       return (rid && R && R[rid] && R[rid].floorY) || 0;
+    },
+    // is there another floor exactly one storey (WALL_H) above this one? Walls on
+    // a floor with a floor above are capped to [floorY, floorY+WALL_H] so the
+    // bands tile edge-to-edge; the top/only floor keeps tall walls so jumpers
+    // can't clip out. Flat maps -> always false -> walls stay [0,99].
+    floorAbove: function (fy) {
+      var R = G.CFG.ROOMS, ks = R ? Object.keys(R) : [];
+      for (var i = 0; i < ks.length; i++) {
+        if (Math.abs((R[ks[i]].floorY || 0) - (fy + WALL_H)) < 0.5) return true;
+      }
+      return false;
     },
 
     // highest walkable surface at (x,z) a body with feet at feetY can stand on,
@@ -546,37 +559,44 @@
       // course break up the flat wall (flush, no collider). Proud of the wall so
       // only the room-facing side reads.
       var baseMat = G.MAT.get('concreteDark'), trimMat = G.MAT.get('darkIron');
+      // this wall belongs to its cell's floor: lift its geometry to floorY and
+      // give the collider a finite per-floor band [floorY, floorY+WALL_H] when a
+      // floor sits above (so bands tile edge-to-edge), else a tall band so a
+      // jumper on the top/only floor can't clip out. Flat maps -> fy 0, tall -> [0,99].
+      var fcell = map.cellAt(col, row) || {};
+      var fy = fcell.type === 'door' ? doorFloorY(col, row) : map.floorYOf(fcell.room);
+      var wallTop = fy + (map.floorAbove(fy) ? WALL_H : 99);
       function band(y, h, depth, mm) {
-        if (alongX) addBox(CELL + WALL_T, h, WALL_T + depth, cx, y, cz, mm);
-        else addBox(WALL_T + depth, h, CELL + WALL_T, cx, y, cz, mm);
+        if (alongX) addBox(CELL + WALL_T, h, WALL_T + depth, cx, fy + y, cz, mm);
+        else addBox(WALL_T + depth, h, CELL + WALL_T, cx, fy + y, cz, mm);
       }
       if (!isWindow) {
-        if (alongX) addBox(CELL + WALL_T, WALL_H, WALL_T, cx, WALL_H / 2, cz, m, { collide: true, solid: true });
-        else addBox(WALL_T, WALL_H, CELL + WALL_T, cx, WALL_H / 2, cz, m, { collide: true, solid: true });
+        if (alongX) addBox(CELL + WALL_T, WALL_H, WALL_T, cx, fy + WALL_H / 2, cz, m, { collide: true, solid: true, cy1: fy, cy2: wallTop });
+        else addBox(WALL_T, WALL_H, CELL + WALL_T, cx, fy + WALL_H / 2, cz, m, { collide: true, solid: true, cy1: fy, cy2: wallTop });
         band(0.22, 0.44, 0.08, baseMat);       // baseboard / lower reinforcement
         band(WALL_H - 0.5, 0.12, 0.05, trimMat); // upper string course
         return null;
       }
       var sillH = 1.0, openTop = 2.6, postW = 0.7;
       if (alongX) {
-        addBox(CELL, sillH, WALL_T, cx, sillH / 2, cz, m, { solid: true });
-        addBox(postW, WALL_H, WALL_T, cx - CELL / 2 + postW / 2, WALL_H / 2, cz, m, { solid: true });
-        addBox(postW, WALL_H, WALL_T, cx + CELL / 2 - postW / 2, WALL_H / 2, cz, m, { solid: true });
-        addBox(CELL, WALL_H - openTop, WALL_T, cx, (WALL_H + openTop) / 2, cz, m, { solid: true });
+        addBox(CELL, sillH, WALL_T, cx, fy + sillH / 2, cz, m, { solid: true });
+        addBox(postW, WALL_H, WALL_T, cx - CELL / 2 + postW / 2, fy + WALL_H / 2, cz, m, { solid: true });
+        addBox(postW, WALL_H, WALL_T, cx + CELL / 2 - postW / 2, fy + WALL_H / 2, cz, m, { solid: true });
+        addBox(CELL, WALL_H - openTop, WALL_T, cx, fy + (WALL_H + openTop) / 2, cz, m, { solid: true });
         // framed opening: header lintel + sill cap
-        addBox(CELL - postW * 1.4, 0.16, WALL_T + 0.12, cx, openTop + 0.02, cz, trimMat);
-        addBox(CELL - postW * 1.4, 0.12, WALL_T + 0.14, cx, sillH - 0.02, cz, trimMat);
+        addBox(CELL - postW * 1.4, 0.16, WALL_T + 0.12, cx, fy + openTop + 0.02, cz, trimMat);
+        addBox(CELL - postW * 1.4, 0.12, WALL_T + 0.14, cx, fy + sillH - 0.02, cz, trimMat);
       } else {
-        addBox(WALL_T, sillH, CELL, cx, sillH / 2, cz, m, { solid: true });
-        addBox(WALL_T, WALL_H, postW, cx, WALL_H / 2, cz - CELL / 2 + postW / 2, m, { solid: true });
-        addBox(WALL_T, WALL_H, postW, cx, WALL_H / 2, cz + CELL / 2 - postW / 2, m, { solid: true });
-        addBox(WALL_T, WALL_H - openTop, CELL, cx, (WALL_H + openTop) / 2, cz, m, { solid: true });
-        addBox(WALL_T + 0.12, 0.16, CELL - postW * 1.4, cx, openTop + 0.02, cz, trimMat);
-        addBox(WALL_T + 0.14, 0.12, CELL - postW * 1.4, cx, sillH - 0.02, cz, trimMat);
+        addBox(WALL_T, sillH, CELL, cx, fy + sillH / 2, cz, m, { solid: true });
+        addBox(WALL_T, WALL_H, postW, cx, fy + WALL_H / 2, cz - CELL / 2 + postW / 2, m, { solid: true });
+        addBox(WALL_T, WALL_H, postW, cx, fy + WALL_H / 2, cz + CELL / 2 - postW / 2, m, { solid: true });
+        addBox(WALL_T, WALL_H - openTop, CELL, cx, fy + (WALL_H + openTop) / 2, cz, m, { solid: true });
+        addBox(WALL_T + 0.12, 0.16, CELL - postW * 1.4, cx, fy + openTop + 0.02, cz, trimMat);
+        addBox(WALL_T + 0.14, 0.12, CELL - postW * 1.4, cx, fy + sillH - 0.02, cz, trimMat);
       }
       band(0.22, 0.44, 0.08, baseMat);          // baseboard wraps the window wall too
       map.addCollider(cx - (alongX ? CELL / 2 : WALL_T / 2), cz - (alongX ? WALL_T / 2 : CELL / 2),
-                      cx + (alongX ? CELL / 2 : WALL_T / 2), cz + (alongX ? WALL_T / 2 : CELL / 2));
+                      cx + (alongX ? CELL / 2 : WALL_T / 2), cz + (alongX ? WALL_T / 2 : CELL / 2), fy, wallTop);
       return { cx: cx, cz: cz, alongX: alongX, dirVec: new THREE.Vector3(o[0], 0, o[1]) };
     }
 

@@ -725,6 +725,10 @@
     if (!freeY) {
       var base = G.map.supportAt
         ? G.map.supportAt(z.mesh.position.x, z.mesh.position.z, z.mesh.position.y, 0.6) : 0;
+      // void fall (off a sunk floor / atrium edge): no floor beneath -> supportAt
+      // returns the deep void baseline. Flag for relocate/respawn rather than
+      // letting the body sink forever.
+      if (base < (G.map.minFloorY || 0) - 8) { z._void = true; return; }
       z.mesh.position.y = base + (z.crawler ? z.crawlOffset : 0);
     }
   }
@@ -790,6 +794,15 @@
       if (z.slowT > 0) z.slowT -= dt;
       var moving = false;
 
+      // void fall: a zombie that walked off a sunk floor / atrium edge has no
+      // floor beneath it — despawn and re-queue it so the round count is kept
+      if (z._void && !z.dead && !z.isBoss) {
+        G.scene.remove(z.mesh);
+        Z.list.splice(i, 1);
+        Z.toSpawn++;
+        Z._shootablesDirty = true;
+        continue;
+      }
       // failsafe: a zombie that hasn't moved for ~15s (and isn't busy at a
       // window or on the player) respawns so rounds can never stall
       z._chk = (z._chk || 0) + dt;

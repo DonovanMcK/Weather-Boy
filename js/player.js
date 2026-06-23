@@ -442,6 +442,19 @@
     } else {
       P.onGround = false;
     }
+    // remember the last solid footing, and recover from a void fall: with no
+    // implicit ground plane, walking off a sunk floor / the open atrium edge
+    // would otherwise drop you forever. Below the void line, snap back to the
+    // last grounded spot (a brief stagger, not a death).
+    if (P.onGround) P.lastGround = { x: P.pos.x, y: P.pos.y, z: P.pos.z };
+    var voidY = (G.map.minFloorY || 0) - 8;
+    if (P.pos.y < voidY) {
+      var lg = P.lastGround || { x: P.pos.x, y: 0, z: P.pos.z };
+      P.pos.set(lg.x, lg.y, lg.z);
+      P.vel.set(0, 0, 0);
+      P.onGround = true;
+      P.shake(0.6);
+    }
     collide();
 
     /* ------------------------------------------------- camera feel */
