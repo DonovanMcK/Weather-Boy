@@ -1124,7 +1124,8 @@
     // dome, or a cold institutional fixture. The bulb keeps a PRIVATE material so
     // the flicker loop can drive its emissiveIntensity without touching the
     // shared prop material cache.
-    function addLamp(x, z, color) {
+    function addLamp(x, z, color, fy) {
+      fy = fy || 0;   // hang the fixture + light at the room's floor height
       var theme = CFG.cur.id, iron = G.MAT.get('darkIron'), housing = G.MAT.get('paintedMetal');
       var fixture = new THREE.Group();
       var rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 6), G.mats.metal);
@@ -1149,10 +1150,10 @@
       var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8),
         new THREE.MeshLambertMaterial({ color: 0x222018, emissive: new THREE.Color(palC('lampTint', 0xffe9b0)), emissiveIntensity: 0.35 }));
       bulb.position.y = -0.04; fixture.add(bulb);
-      fixture.position.set(x, WALL_H - 0.55, z);
+      fixture.position.set(x, fy + WALL_H - 0.55, z);
       G.scene.add(fixture);
       var light = new THREE.PointLight(color, 0.75, 18, 1);
-      light.position.set(x, WALL_H - 0.9, z);
+      light.position.set(x, fy + WALL_H - 0.9, z);
       G.scene.add(light);
       G.map.roomLights.push(light);
       G.map.lamps.push({ light: light, bulb: bulb });
@@ -1169,8 +1170,9 @@
         list.forEach(function (cr) { var w = CFG.cellToWorld(cr[0], cr[1]); cx += w.x; cz += w.z; });
         return { x: cx / list.length, z: cz / list.length };
       }
+      var rfy = map.floorYOf(roomId);              // this room's floor height
       var all = avg(cells);
-      P.rooms[roomId].center = new THREE.Vector3(all.x, 0, all.z);
+      P.rooms[roomId].center = new THREE.Vector3(all.x, rfy, all.z);
       // scale lamp count with floor area so big rooms aren't left with a dark,
       // under-lit ceiling/void — roughly one lamp per ~6 cells (1..4)
       var nL = Math.max(1, Math.min(4, Math.round(cells.length / 6)));
@@ -1188,7 +1190,7 @@
         var grp = sorted.slice(Math.floor(li * cells.length / nL), Math.floor((li + 1) * cells.length / nL));
         if (!grp.length) continue;
         var g = avg(grp);
-        addLamp(g.x, g.z, color);
+        addLamp(g.x, g.z, color, rfy);
       }
     });
 
@@ -1335,6 +1337,7 @@
       var bb = roomBBox(room);
       var isOut = outdoor.indexOf(rid) >= 0;
       var edges = wallEdges(room);
+      var rfy = map.floorYOf(rid);    // this room's floor height (B5 offsets)
 
       if (!isOut) {
         // ceiling tiles + cross beams + a solid ceiling collider so the roof
@@ -1351,7 +1354,7 @@
           if (underDeck) return;
           // a stairwell cell lifts its ceiling to give the climber headroom
           var well = stairwellAt(wc.x, wc.z);
-          var cy = well ? well.roofY : WALL_H;
+          var cy = (well ? well.roofY : WALL_H) + rfy;
           var cl = new THREE.Mesh(floorGeo, dCeil);
           cl.rotation.x = Math.PI / 2; cl.position.set(wc.x, cy - 0.02, wc.z);
           G.scene.add(cl);
