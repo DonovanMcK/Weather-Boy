@@ -67,10 +67,10 @@ function shootSrc() {
       // cut through both (Floor B verified by floorB-topdown + the seam/stair tests)
       { name: 'stack-hero', pos: [cx + span * 0.42, 15, cz - span * 0.42], look: [cx, 1.5, cz + 2],
         fov: 58, cullAboveY: 8.6 },
-      // Floor B straight down (cull everything at/above Floor 1)
-      { name: 'floorB-topdown', pos: [cx, 26, cz], look: [cx, -4, cz], fov: 58, up: [0, 0, -1], cullAboveY: -0.5 },
-      // Floor 2 straight down (cull its ceiling, keep its floor + walls)
-      { name: 'floor2-topdown', pos: [cx, 34, cz], look: [cx, 4, cz], fov: 58, up: [0, 0, -1], cullAboveY: 6.6 },
+      // Floor B straight down (cull everything at/above Floor 1) — frame the full floor
+      { name: 'floorB-topdown', pos: [cx, span * 0.62, cz], look: [cx, -4, cz], fov: 60, up: [0, 0, -1], cullAboveY: -0.5 },
+      // Floor 2 straight down (cull its ceiling, keep its floor + walls) — full floor
+      { name: 'floor2-topdown', pos: [cx, span * 0.62 + 4, cz], look: [cx, 4, cz], fov: 60, up: [0, 0, -1], cullAboveY: 6.6 },
       // Atrium money-shot: straight down the shaft from above Floor 2 to Floor 1
       { name: 'atrium-downview', pos: [cx, 30, cz], look: [cx, 0, cz], fov: 60, up: [0, 0, -1], cullAboveY: 6.6 }
     ];

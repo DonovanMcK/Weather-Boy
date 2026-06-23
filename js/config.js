@@ -415,26 +415,34 @@
     // over it, ringing the Atrium shaft. Floor 1 is the primary (drives the
     // legacy build + placements); B/2 are grey-box plates built by buildExtraFloor.
     FLOORS: [
-      { id: 'B', floorY: -4,    // THE UNDERBATH — sealed plate under Floor 1
-        ROOMS: { U: { name: 'Underbath', floor: 0x2e3a40, light: 0xe0843a } },
+      { id: 'B', floorY: -4,    // THE UNDERBATH — springs & furnace (Floor 1's ring
+        // topology, mirrored below: Furnace N / Cistern W / Hot Springs centre-oval
+        // / Cold Plunge E / Core S). The Service Staircase lands in the Cistern.
+        ROOMS: {
+          F: { name: 'Furnace',        floor: 0x4a2418, light: 0xe8821e },
+          T: { name: 'Cistern Tunnels', floor: 0x232c30, light: 0x6a8a92 },
+          H: { name: 'Hot Springs',    floor: 0x2c3a3a, light: 0xc88a4a },
+          P: { name: 'Cold Plunge',    floor: 0x24424a, light: 0xbfe7f0 },
+          C: { name: 'The Core',       floor: 0x301a3a, light: 0x9cf0c0 }
+        },
         OUTDOOR: [], OPEN_CEIL: [], FLOOR_OMIT: [],
-        WINDOWS: [{ cell: [0, 8], dir: 'W' }, { cell: [19, 8], dir: 'E' }],
+        WINDOWS: [{ cell: [9, 0], dir: 'N' }, { cell: [0, 8], dir: 'W' }, { cell: [19, 8], dir: 'E' }, { cell: [9, 14], dir: 'S' }],
         GRID: [
-          '....................',
-          '....................',
-          '....................',
-          '....................',
-          '....................',
-          '....................',
-          'UUUUUUUUUUUUUUUUUUUU',
-          'UUUUUUUUUUUUUUUUUUUU',
-          'UUUUUUUUUUUUUUUUUUUU',
-          'UUUUUUUUUUUUUUUUUUUU',
-          'UUUUUUUUUUUUUUUUUUUU',
-          'UUUUUUUUUUUUUUUUUUUU',
-          'UUUUUUUUUUUUUUUUUUUU',
-          'UUUUUUUUUUUUUUUUUUUU',
-          'UUUUUUUUUUUUUUUUUUUU'
+          '...FFFFFFFFFFFFFF...', // Furnace (N)
+          '...FFFFFFFFFFFFFF...',
+          '...FFFFFFFFFFFFFF...',
+          '...FFFFFFFFFFFFFF...',
+          '...FFFFFFFFFFFFFF...',
+          '...1.....2.....3....', // 1:Furnace-Cistern 2:Furnace-HotSprings 3:Furnace-ColdPlunge
+          'TTTTT.HHHHHHH.PPPPPP', // T=Cistern(W) H=Hot Springs(oval) P=Cold Plunge(E)
+          'TTTTT4HHHHHHH5PPPPPP', // 4:Cistern-HotSprings 5:HotSprings-ColdPlunge
+          'TTTTT.HHHHHHH.PPPPPP',
+          'TTTTT.HHHHHHH.PPPPPP',
+          'TTTTT.HHHHHHH.PPPPPP',
+          '...6.....7.....8....', // 6:Cistern-Core 7:HotSprings-Core 8:ColdPlunge-Core
+          '...CCCCCCCCCCCCCC...', // C=The Core (S, gated in the gameplay pass)
+          '...CCCCCCCCCCCCCC...',
+          '...CCCCCCCCCCCCCC...'
         ] },
       { id: '1', floorY: 0, primary: true,   // THE GRAND HALLS — spawn + hub
         ROOMS: {
@@ -471,27 +479,34 @@
           '...OOOOOOOOOOOOOO...',
           '...OOOOOOOOOOOOOO...'
         ] },
-      { id: '2', floorY: 4,    // THE ANNEX — gallery ring around the Atrium shaft
-        ROOMS: { G: { name: 'Upper Galleries', floor: 0x33424a, light: 0x8fd0e0 } },
+      { id: '2', floorY: 4,    // THE ANNEX — Upper Galleries ring the Atrium shaft
+        // (G, railed), with Wards (W), Tesla Hall (E), Records (R), Solarium (L).
+        // The shaft void (cols6-12, rows6-10) lines up exactly with the Atrium below.
+        ROOMS: {
+          G: { name: 'Upper Galleries', floor: 0x33424a, light: 0x8fd0e0 },
+          W: { name: 'Treatment Wards', floor: 0x3e4448, light: 0xd7dee0 },
+          E: { name: 'Tesla Hall',      floor: 0x222838, light: 0x3a6ce0 },
+          R: { name: 'Records',         floor: 0x303636, light: 0x9aa6b0 },
+          L: { name: 'Solarium',        floor: 0x3a4030, light: 0xcfe0a8 }
+        },
         OUTDOOR: [], OPEN_CEIL: [], FLOOR_OMIT: [],
-        WINDOWS: [{ cell: [9, 5], dir: 'N' }, { cell: [9, 13], dir: 'S' }, { cell: [2, 8], dir: 'W' }],
-        // shaft void (cols6-12, rows6-10) lines up exactly with the Atrium below
+        WINDOWS: [{ cell: [0, 8], dir: 'W' }, { cell: [18, 6], dir: 'E' }, { cell: [9, 14], dir: 'S' }],
         GRID: [
           '....................',
           '....................',
           '....................',
           '....................',
           '....................',
-          '..GGGGGGGGGGGGGGGG..', // north gallery (over the shaft)
-          '..GGGG.......GGGGGG.', // shaft open cols6-12
-          '..GGGG.......GGGGGG.',
-          '..GGGG.......GGGGGG.',
-          '..GGGG.......GGGGGG.',
-          '..GGGG.......GGGGGG.',
-          '..GGGGGGGGGGGGGGGG..', // south gallery
-          '..GGGGGGGGGGGGGGGG..',
-          '..GGGGGGGGGGGGGGGG..',
-          '....................'
+          'WWWW.GGGGGGGGG.EEEE.', // W=Wards  G=Galleries(ring)  E=Tesla Hall
+          'WWWW.G.......G.EEEE.', // shaft open cols6-12 (ringed by G, railed)
+          'WWWW.G.......G2EEEE.', // 2:Galleries-Tesla
+          'WWWW1G.......G.EEEE.', // 1:Wards-Galleries
+          'WWWW.G.......G...3..', // 3:Tesla-Records
+          'WWWW.G.......G4RRRR.', // 4:Galleries-Records
+          'WWWW.GGGGGGGGG.RRRR.', // G south gallery
+          '.5.......6......7...', // 5:Wards-Solarium 6:Galleries-Solarium 7:Records-Solarium
+          'LLLLLLLLLLLLLLLLLLL.', // L=Solarium (south)
+          'LLLLLLLLLLLLLLLLLLL.'
         ] }
     ]
   };

@@ -24,7 +24,7 @@
 
     // yaw that points a prop's +Z front toward its room centre
     function faceCenter(pos) {
-      var rid = map.roomAt(pos.x, pos.z), rm = rid && map.parsed.rooms[rid], c = rm && rm.center;
+      var rid = map.roomAt(pos.x, pos.z, pos.y), rm = rid && (map.parsedAtY(pos.y).rooms[rid] || map.parsed.rooms[rid]), c = rm && rm.center;
       if (!c) return 0;
       var dx = c.x - pos.x, dz = c.z - pos.z;
       if (Math.hypot(dx, dz) < 0.2) return 0;

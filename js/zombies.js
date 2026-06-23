@@ -208,7 +208,7 @@
     // no reachable window to feed from (otherwise zombies always come from the
     // barriers, never out of the middle of the floor)
     if (pool.length === 0) {
-      var playerRoom = G.map.roomAt(G.player.pos.x, G.player.pos.z);
+      var playerRoom = G.map.roomAt(G.player.pos.x, G.player.pos.z, G.player.pos.y);
       (G.map.risers || []).forEach(function (rs) {
         if (rs.room === playerRoom) pool.push({ riser: rs.pos, weight: 1 });
       });

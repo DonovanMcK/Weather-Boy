@@ -373,17 +373,31 @@
       return false;
     },
 
-    roomAt: function (x, z) {
+    // the floor a body at height y stands on (the highest floor at/below y). With
+    // no y, or before floors are recorded, this resolves to the primary grid —
+    // so every legacy 2D caller behaves exactly as before.
+    floorAtY: function (y) {
+      if (y === undefined || y === null || !this.floors) return null;
+      var best = null;
+      for (var i = 0; i < this.floors.length; i++) {
+        var f = this.floors[i];
+        if (f.floorY <= y + 1.0 && (!best || f.floorY > best.floorY)) best = f;
+      }
+      return best || this.floors[0];
+    },
+    parsedAtY: function (y) { var f = this.floorAtY(y); return f ? f.parsed : this.parsed; },
+    roomAt: function (x, z, y) {
       var cr = CFG.worldToCell(x, z);
-      var cell = this.cellAt(cr.col, cr.row);
+      var cell = this.cellAt(cr.col, cr.row, y);
       if (!cell) return null;
       if (cell.type === 'room') return cell.room;
-      if (cell.type === 'door') return this.parsed.doors[cell.door].rooms[0];
+      if (cell.type === 'door') return this.parsedAtY(y).doors[cell.door].rooms[0];
       return null;
     },
-    cellAt: function (col, row) {
-      if (row < 0 || row >= this.parsed.rows || col < 0 || col >= this.parsed.cols) return null;
-      return this.parsed.cells[row][col];
+    cellAt: function (col, row, y) {
+      var P = this.parsedAtY(y);
+      if (row < 0 || row >= P.rows || col < 0 || col >= P.cols) return null;
+      return P.cells[row][col];
     },
     passable: function (col, row) {
       var cell = this.cellAt(col, row);
@@ -1738,40 +1752,66 @@
       var openC = f.OPEN_CEIL || [], outd = f.OUTDOOR || [];
       var aboveCap = map.floorAbove(fy);          // a real floor sits above this one
       var anyMat = floorMats[Object.keys(floorMats)[0]];
+      // flood-fill the EXTERIOR void from the grid border. Any void NOT reached is
+      // an interior opening (the Atrium shaft a gallery rings) — its edge gets a
+      // waist-high RAILING (real collider, blocks falling, low enough to see the
+      // shaft down-view over) instead of a full wall that would block the sightline.
+      var extVoid = {}, RAIL_H = 1.4, st = [];
+      for (var cc = 0; cc < fp.cols; cc++) { st.push([cc, 0]); st.push([cc, fp.rows - 1]); }
+      for (var rr = 0; rr < fp.rows; rr++) { st.push([0, rr]); st.push([fp.cols - 1, rr]); }
+      while (st.length) {
+        var p = st.pop(), pc = p[0], pr = p[1];
+        if (pc < 0 || pr < 0 || pc >= fp.cols || pr >= fp.rows || extVoid[pc + ',' + pr]) continue;
+        if (fp.cells[pr][pc].type !== 'void') continue;
+        extVoid[pc + ',' + pr] = 1;
+        st.push([pc + 1, pr]); st.push([pc - 1, pr]); st.push([pc, pr + 1]); st.push([pc, pr - 1]);
+      }
       for (var r = 0; r < fp.rows; r++) {
         for (var c = 0; c < fp.cols; c++) {
           var cell = fp.cells[r][c];
-          if (cell.type !== 'room') continue;
-          var wc = CFG.cellToWorld(c, r);
-          // floor slab + walkable surface (unless this cell's slab is cut away)
+          if (cell.type === 'void') continue;
+          var wc = CFG.cellToWorld(c, r), isDoor = cell.type === 'door';
+          // floor slab + walkable surface for ROOM and DOOR cells. Door cells are
+          // open thresholds in this grey-box pass (debris/gating is a gameplay-pass
+          // concern); they read as doorways via a decorative lintel below.
           if (!omit[c + ',' + r]) {
-            var fl = new THREE.Mesh(floorGeo, floorMats[cell.room] || anyMat);
+            var fmat = isDoor ? (floorMats[fp.doors[cell.door].rooms[0]] || anyMat) : (floorMats[cell.room] || anyMat);
+            var fl = new THREE.Mesh(floorGeo, fmat);
             fl.rotation.x = -Math.PI / 2; fl.position.set(wc.x, fy, wc.z); G.scene.add(fl);
             map.addSurface({ x1: wc.x - CELL / 2, x2: wc.x + CELL / 2, z1: wc.z - CELL / 2, z2: wc.z + CELL / 2, y: fy, floor: true });
           }
-          // perimeter / party walls — finite band [fy, fy+WALL_H] so stacked
-          // floors tile edge to edge (E/S only on shared room boundaries, so a
-          // wall isn't built twice)
-          ['N', 'S', 'E', 'W'].forEach(function (dir) {
-            var o = OFF[dir], row2 = fp.cells[r + o[1]], n = (row2 && row2[c + o[0]]) || { type: 'void' };
-            if (!(n.type === 'void' || (n.type === 'room' && n.room !== cell.room && (dir === 'E' || dir === 'S')))) return;
-            var cx = wc.x + o[0] * CELL / 2, cz = wc.z + o[1] * CELL / 2, alongX = (dir === 'N' || dir === 'S');
-            var m = (c + r) % 2 ? G.mats.wallA : G.mats.wallB;
-            if (alongX) addBox(CELL + WALL_T, WALL_H, WALL_T, cx, fy + WALL_H / 2, cz, m);
-            else addBox(WALL_T, WALL_H, CELL + WALL_T, cx, fy + WALL_H / 2, cz, m);
-            map.addCollider(cx - (alongX ? CELL / 2 : WALL_T / 2), cz - (alongX ? WALL_T / 2 : CELL / 2),
-                            cx + (alongX ? CELL / 2 : WALL_T / 2), cz + (alongX ? WALL_T / 2 : CELL / 2), fy, fy + WALL_H);
-          });
-          // a DESCEND staircase punches DOWN through this floor's ceiling (the
-          // stairwell opening between it and the floor above) — skip the ceiling
-          // there or the seam seal blocks the climber's head on the way up
+          if (cell.type === 'room') {
+            // perimeter / party walls — finite band [fy, fy+WALL_H] so stacked
+            // floors tile edge to edge (E/S only on shared room boundaries)
+            ['N', 'S', 'E', 'W'].forEach(function (dir) {
+              var o = OFF[dir], nc = c + o[0], nr = r + o[1], row2 = fp.cells[nr], n = (row2 && row2[nc]) || { type: 'void' };
+              if (!(n.type === 'void' || (n.type === 'room' && n.room !== cell.room && (dir === 'E' || dir === 'S')))) return;
+              // a void neighbour the border flood-fill never reached is the interior
+              // shaft — waist-high railing there, a full wall everywhere else
+              var rail = n.type === 'void' && !extVoid[nc + ',' + nr];
+              var h = rail ? RAIL_H : WALL_H;
+              var cx = wc.x + o[0] * CELL / 2, cz = wc.z + o[1] * CELL / 2, alongX = (dir === 'N' || dir === 'S');
+              var m = rail ? G.mats.metal : ((c + r) % 2 ? G.mats.wallA : G.mats.wallB);
+              if (alongX) addBox(CELL + WALL_T, h, WALL_T, cx, fy + h / 2, cz, m);
+              else addBox(WALL_T, h, CELL + WALL_T, cx, fy + h / 2, cz, m);
+              map.addCollider(cx - (alongX ? CELL / 2 : WALL_T / 2), cz - (alongX ? WALL_T / 2 : CELL / 2),
+                              cx + (alongX ? CELL / 2 : WALL_T / 2), cz + (alongX ? WALL_T / 2 : CELL / 2), fy, fy + h);
+            });
+          } else if (isDoor) {
+            // decorative lintel across the opening (no collider — passable)
+            var alongZdoor = ['N', 'S'].some(function (dir) { var o = OFF[dir], rr2 = fp.cells[r + o[1]]; return rr2 && rr2[c] && rr2[c].type === 'room'; });
+            if (alongZdoor) addBox(0.6, 0.3, CELL, wc.x, fy + WALL_H - 0.25, wc.z, G.MAT.get('darkIron'));
+            else addBox(CELL, 0.3, 0.6, wc.x, fy + WALL_H - 0.25, wc.z, G.MAT.get('darkIron'));
+          }
+          // a DESCEND staircase punches DOWN through this floor's ceiling — skip
+          // the ceiling there or the seam seal blocks the climber's head going up
           var underDescend = stageSpecs.some(function (sp) {
             return sp.descend && wc.x >= sp.x1 - 0.1 && wc.x <= sp.x2 + 0.1 && wc.z >= sp.z1 - 0.1 && wc.z <= sp.z2 + 0.1;
           });
           // ceiling — skipped for an open shaft / outdoor / under a descend
           // stairwell; capped just below the boundary when a floor sits above
-          // (the seam seal), overhang otherwise
-          if (!underDescend && openC.indexOf(cell.room) < 0 && outd.indexOf(cell.room) < 0) {
+          var roomOpen = cell.type === 'room' && (openC.indexOf(cell.room) >= 0 || outd.indexOf(cell.room) >= 0);
+          if (!underDescend && !roomOpen) {
             var cy = fy + WALL_H;
             var cl = new THREE.Mesh(floorGeo, dCeil); cl.rotation.x = Math.PI / 2;
             cl.position.set(wc.x, cy - 0.02, wc.z); G.scene.add(cl);
@@ -1780,8 +1820,36 @@
           }
         }
       }
+      // spawn windows — boarded openings registered for the round director, at fy
+      (f.WINDOWS || []).forEach(function (w) {
+        var wcw = CFG.cellToWorld(w.cell[0], w.cell[1]), o = OFF[w.dir];
+        var cwx = wcw.x + o[0] * CELL / 2, cwz = wcw.z + o[1] * CELL / 2, alongX = (w.dir === 'N' || w.dir === 'S');
+        var cw = fp.cells[w.cell[1]] && fp.cells[w.cell[1]][w.cell[0]];
+        var dirVec = new THREE.Vector3(o[0], 0, o[1]), center = new THREE.Vector3(cwx, fy, cwz);
+        var win = { idx: map.windows.length, room: cw && cw.room, pos: center, dir: dirVec,
+          outside: center.clone().addScaledVector(dirVec, 2.2), inside: center.clone().addScaledVector(dirVec, -1.4),
+          boards: 5, boardMeshes: [] };
+        for (var b = 0; b < 5; b++) win.boardMeshes.push(addBox(alongX ? 2.6 : 0.09, 0.28, alongX ? 0.09 : 2.6, cwx, fy + 1.1 + b * 0.34, cwz, G.mats.plank));
+        win.setBoards = function (n) { n = Math.max(0, Math.min(5, n)); this.boards = n; for (var i = 0; i < 5; i++) this.boardMeshes[i].visible = i < n; };
+        win.tearBoard = function () { if (this.boards <= 0) return false; G.map.flyingPlank(this.boardMeshes[this.boards - 1].position, this.dir.clone().negate()); this.setBoards(this.boards - 1); G.audio.boardTear(); return true; };
+        map.windows.push(win);
+      });
     }
     (CFG.cur._floors || []).forEach(function (f) { if (f !== CFG.cur._primary) buildExtraFloor(f); });
+    // record every floor's parsed grid + floorY so roomAt/cellAt can resolve which
+    // floor a body at height y is on (Y-aware now that B/2 have real rooms)
+    map.floors = (CFG.cur._floors || [{ id: '1', floorY: 0 }]).map(function (f) {
+      var parsed = f === CFG.cur._primary ? P : CFG.parseGrid(f.GRID), fyy = f.floorY || 0;
+      // room centres at this floor's Y (the primary already has them; the rest need
+      // them for interact / spawn weighting)
+      Object.keys(parsed.rooms).forEach(function (rid) {
+        if (parsed.rooms[rid].center) return;
+        var cells = parsed.rooms[rid].cells, sx = 0, sz = 0;
+        cells.forEach(function (cr) { var w = CFG.cellToWorld(cr[0], cr[1]); sx += w.x; sz += w.z; });
+        parsed.rooms[rid].center = new THREE.Vector3(sx / cells.length, fyy, sz / cells.length);
+      });
+      return { id: f.id, floorY: fyy, parsed: parsed };
+    });
 
     // elevated railway: walkable on top, open underneath (you pass beneath it).
     // Its surface is flagged bridge:true so ground nav ignores it.
