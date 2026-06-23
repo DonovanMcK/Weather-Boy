@@ -177,6 +177,7 @@ function shot() {
     out.shotAtoB = shoot({ x: 0, y: 0.9, z: 1.6 }, { x: 0, y: 4.9, z: -7 });
     out.shotBtoA = shoot({ x: 0, y: 4.9, z: -7 }, { x: 0, y: 0.9, z: 1.6 });
 
+
     G.state = 'paused';
     return out;
   });
