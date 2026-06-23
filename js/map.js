@@ -627,6 +627,12 @@
       var fy = map.floorYOf(rid); if (fy < map.minFloorY) map.minFloorY = fy;
     });
 
+    // cells whose ground slab is deliberately cut away (a stairwell descending
+    // to the floor below). Default none — every existing flat map keeps its
+    // full floor. A descending staircase (buildStage descend:true) fills the gap.
+    var floorOmit = {};
+    (CFG.cur.FLOOR_OMIT || []).forEach(function (cr) { floorOmit[cr[0] + ',' + cr[1]] = true; });
+
     var floorGeo = new THREE.PlaneGeometry(CELL, CELL);
     for (var r = 0; r < P.rows; r++) {
       for (var c = 0; c < P.cols; c++) {
@@ -636,13 +642,18 @@
         // a door inherits the floor height of an adjacent room so thresholds line
         // up with whichever floor they connect
         var fy = cell.type === 'door' ? doorFloorY(c, r) : map.floorYOf(cell.room);
-        var f = new THREE.Mesh(floorGeo, cell.type === 'door' ? doorFloorMat : floorMats[cell.room]);
-        f.rotation.x = -Math.PI / 2;
-        f.position.set(wc.x, fy, wc.z);
-        G.scene.add(f);
-        // explicit walkable floor SURFACE so supportAt/nav resolve the correct
-        // floor per Y (replaces the old implicit infinite ground plane at 0)
-        map.addSurface({ x1: wc.x - CELL / 2, x2: wc.x + CELL / 2, z1: wc.z - CELL / 2, z2: wc.z + CELL / 2, y: fy, floor: true });
+        // omitted cells keep their perimeter WALLS (so the stairwell pit can't
+        // open out of the map) but drop the floor slab + surface so a descending
+        // staircase can pass through to the level below
+        if (!(cell.type === 'room' && floorOmit[c + ',' + r])) {
+          var f = new THREE.Mesh(floorGeo, cell.type === 'door' ? doorFloorMat : floorMats[cell.room]);
+          f.rotation.x = -Math.PI / 2;
+          f.position.set(wc.x, fy, wc.z);
+          G.scene.add(f);
+          // explicit walkable floor SURFACE so supportAt/nav resolve the correct
+          // floor per Y (replaces the old implicit infinite ground plane at 0)
+          map.addSurface({ x1: wc.x - CELL / 2, x2: wc.x + CELL / 2, z1: wc.z - CELL / 2, z2: wc.z + CELL / 2, y: fy, floor: true });
+        }
 
         ['N', 'S', 'E', 'W'].forEach(function (dir) {
           var o = OFF[dir];
@@ -837,6 +848,30 @@
                    railN: true, railW: true, railE: true, railS: true };
       loft.stairs = { x1: xW(14) - CELL / 2, x2: xW(14) + CELL / 2, zTop: loft.z2, zBase: zW(8), steps: 8 };
       stageSpecs.push(loft);
+    }
+    if (CFG.cur.id === 'kurhaus') {
+      // FLOOR 1 connectors — both built via buildStage so they inherit the
+      // stairwell-headroom lift (see the CONSTRAINT note at buildStage) and are
+      // already positioned to wire to Floor 2 / Floor B when those are stacked.
+      //
+      // GRAND STAIRCASE — off the Ballroom (NE corner), an UP flight to an open
+      // mezzanine landing at +4 (= WALL_H = the future Floor 2 floor level). A
+      // thin deck so the Ballroom stays fully walkable beneath; no walls/roof so
+      // the landing reads open to the floor above. stairwellAt lifts the ceiling
+      // over the flight for headroom; the under-deck ceiling skip leaves the
+      // landing itself open above.
+      var grand = { x1: xW(17) - CELL / 2, x2: xW(18) + CELL / 2,
+                    z1: zW(6) - CELL / 2, z2: zW(7) + CELL / 2, h: WALL_H, thin: true };
+      grand.stairs = { x1: grand.x1, x2: grand.x2, zTop: grand.z2, zBase: zW(9), steps: 8 };
+      // SERVICE STAIRCASE — off the Foyer (SW corner), a DOWN flight through the
+      // omitted ground slab (config FLOOR_OMIT) to a landing at -4 (= the future
+      // Floor B / Underbath level). Descending, so it has no headroom problem.
+      var service = { x1: xW(0) - CELL / 2, x2: xW(1) + CELL / 2,
+                      z1: zW(9) - CELL / 2, z2: zW(10) + CELL / 2,
+                      h: 0, baseH: -WALL_H, descend: true };
+      service.stairs = { x1: service.x1, x2: service.x2,
+                         zTop: zW(9) - CELL / 2, zBase: zW(10) + CELL / 2, steps: 8 };
+      stageSpecs.push(grand, service);
     }
     // reserve the deck and stair footprints (separately, so we don't over-claim
     // the whole bounding box) — machines steer clear of the structure
@@ -1339,7 +1374,13 @@
       var edges = wallEdges(room);
       var rfy = map.floorYOf(rid);    // this room's floor height (B5 offsets)
 
-      if (!isOut) {
+      // a room flagged OPEN_CEIL (the Atrium's vertical shaft) keeps its walls
+      // but has NO ceiling — it reads open all the way up to the floors above
+      // (or, until they're built, to the sky). Treated like an indoor room in
+      // every other respect (lighting, walls, props).
+      var openCeil = (CFG.cur.OPEN_CEIL || []).indexOf(rid) >= 0;
+
+      if (!isOut && !openCeil) {
         // ceiling tiles + cross beams + a solid ceiling collider so the roof
         // collision matches the visible ceiling (no dropping into a roofed room
         // from above, nothing standing on the roof)
@@ -1369,7 +1410,7 @@
           else addBox(0.22, 0.22, bb.d - 0.1,
             Math.min(bb.x1 - 0.11, Math.max(bb.x0 + 0.11, bb.x0 + f * bb.w)), WALL_H - 0.32, bb.cz, dBeam);
         }
-      } else {
+      } else if (isOut) {
         // outdoor: broken parapet chunks on perimeter wall tops (deterministic
         // heights so the silhouette is the same, intentional shape every load)
         edges.forEach(function (e, idx) {
@@ -1523,7 +1564,56 @@
     /* --------------------------------------------------- raised catwalks */
     var deckMat = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: palC('deck', 0x6b6f78) });
     var railMat = G.mats.metal;
+    // ===================================================================
+    // STAIRWELL-HEADROOM CONSTRAINT — READ BEFORE BUILDING ANY KURHAUS STAIR
+    // -------------------------------------------------------------------
+    // Every Kurhaus staircase MUST be built through buildStage (i.e. declared
+    // as a stageSpec with a `stairs` block, like the Grand Staircase below),
+    // NOT hand-placed. buildStage routes the stair through stairwellAt, which
+    // automatically LIFTS the room ceiling over the flight (stairRects, roofY =
+    // max(WALL_H, deckH + 2.0)) so a climber gets headroom at the TOP of the
+    // run. If a stair is ever hand-placed instead, its top ceiling will sit at
+    // the normal WALL_H and the climber/zombie will headbutt the roof and STALL
+    // at the top of the stairs — and because the geometry still looks correct,
+    // this fails SILENTLY (no error, just a nav body that won't finish the
+    // climb). If you must hand-place a stair, you MUST also lift the ceiling
+    // over its top cells by hand. (Descending stairs — descend:true — don't hit
+    // this: dropping away from the ceiling only gains headroom.)
+    // ===================================================================
     function buildStage(s) {
+      // descending staircase: cuts down THROUGH an omitted floor slab to a
+      // landing at s.baseH (a negative Y — the floor below). Built via buildStage
+      // so it shares the stair idiom and is correct to wire to Floor B later; the
+      // ground floor over its footprint is removed via the map's FLOOR_OMIT list.
+      if (s.descend) {
+        var bH = s.baseH, dst = s.stairs;
+        var dn = dst.steps, drun = (dst.zBase - dst.zTop) / dn;
+        var dsw = dst.x2 - dst.x1, dscx = (dst.x1 + dst.x2) / 2;
+        // continuous walkable ramp from the ground-floor edge (y 0, at zTop) down
+        // to the landing (y bH, at zBase)
+        map.addSurface({ x1: dst.x1, x2: dst.x2,
+                         z1: Math.min(dst.zTop, dst.zBase), z2: Math.max(dst.zTop, dst.zBase),
+                         ramp: true, axis: 'z', c1: dst.zTop, c2: dst.zBase, h1: 0, h2: bH });
+        for (var di = 1; di <= dn; di++) {
+          var dzA = dst.zTop + (di - 1) * drun, dzN = dst.zTop + di * drun;
+          var dStepH = bH * (di / dn);                 // tread height (descends to bH)
+          addBox(dsw, 0.14, Math.abs(drun) + 0.05, dscx, dStepH + 0.07, dzN - drun / 2, deckMat);  // tread
+          // solid fill from the landing level up to the tread underside, so there
+          // is no gap under the descending flight and it reads as a stair mass
+          if (dStepH - bH > 0.05)
+            map.addCollider(dst.x1, Math.min(dzA, dzN), dst.x2, Math.max(dzA, dzN), bH, dStepH);
+        }
+        // bottom landing slab + collider + walkable surface (the future Floor B
+        // connection pad)
+        addBox(s.x2 - s.x1, 0.3, s.z2 - s.z1, (s.x1 + s.x2) / 2, bH - 0.15, (s.z1 + s.z2) / 2, deckMat);
+        map.addCollider(s.x1, s.z1, s.x2, s.z2, bH - 0.25, bH + 0.05);
+        map.addSurface({ x1: s.x1, x2: s.x2, z1: s.z1, z2: s.z2, y: bH });
+        map.stages.push({
+          deckCenter: new THREE.Vector3((s.x1 + s.x2) / 2, bH, (s.z1 + s.z2) / 2), deckTop: bH,
+          stairBase: new THREE.Vector3(dscx, 0, dst.zTop)
+        });
+        return;
+      }
       var H = s.h, dcx = (s.x1 + s.x2) / 2, dcz = (s.z1 + s.z2) / 2;
       var dw = s.x2 - s.x1, dd = s.z2 - s.z1;
       addBox(dw, 0.3, dd, dcx, H - 0.15, dcz, deckMat);          // floor slab (visual)

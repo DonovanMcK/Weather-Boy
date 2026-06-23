@@ -343,7 +343,117 @@
     SHIELD_BENCH: { cell: [3, 3], face: 'S' }
   };
 
-  CFG.MAP_IDS = ['nacht', 'derriese', 'wetterjunge'];
+  /* ===================================================================
+     KURHAUS — "The Aether Baths"  (original 3-floor map, built bottom-up)
+     FLOOR 1 — THE GRAND HALLS (ground + spawn). Warm, opulent, decayed
+     grandeur. A ring of five connected halls around a central open-shaft
+     Atrium: Foyer(spawn S) - Colonnade - Atrium - Ballroom - Courtyard(yard).
+     Every room has >=2 exits; the Atrium and Courtyard are the two training
+     ovals. All rooms sit at floorY 0 (the ground floor). The Grand Staircase
+     (off the Ballroom, rises to +4 = future Floor 2) and the Service
+     Staircase (off the Foyer, descends to -4 = future Floor B) are built via
+     buildStage in map.js so they inherit the stairwell-headroom lift. The
+     Atrium ceiling is left OPEN (OPEN_CEIL) as the future vertical shaft.
+     GREY-BOX: layout + flow only, no bespoke prop dressing yet.
+     =================================================================== */
+  CFG.MAPS.kurhaus = {
+    id: 'kurhaus',
+    name: 'KURHAUS',
+    sub: 'The Aether Baths — Floor 1: the Grand Halls (grey-box). Wonder weapon: the Maelstrom Driver.',
+    wonder: 'maelstrom',
+    papRule: 'power',
+    atmos: { sky: 0x2a2c33, fog: 0x24262c, density: 0.012,
+             amb: 0x4a3f2c, ambI: 0.55, hemiSky: 0xbaa784, hemiGround: 0x2a2218 },
+    // surface palette — warm/opulent decayed spa-resort (gold plaster, aged
+    // brass, dark walnut, warm stone). Per-room floor/light tints below carry
+    // the distinct §9 zone families (gold foyer, mint atrium, crimson ballroom,
+    // mossy courtyard).
+    palette: { wallA: 0xb8a06a, wallB: 0xa8905c, wood: 0x6e4a2e, plank: 0x855a36,
+               metal: 0x9a8a5a, beam: 0x5a4a32, rust: 0x7a5a3a, conc: 0x9c9080,
+               deck: 0x7a6a4a, ceil: 0x6a5d44, accent: 0xc9a24b, lampTint: 0xffd9a0 },
+    OUTDOOR: ['Y'],            // the Courtyard is the open-air yard
+    OPEN_CEIL: ['A'],          // the Atrium is open to the (future) floors above
+    GRID: [
+      '...YYYYYYYYYYYYY...', // Courtyard (outdoor yard) — north training oval
+      '...YYYYYYYYYYYYY...',
+      '...YYYYYYYYYYYYY...',
+      '...YYYYYYYYYYYYY...',
+      '...YYYYYYYYYYYYY...',
+      '...1.....2.....3...', // 1: Court->Foyer  2: Court->Atrium  3: Court->Ballroom
+      'SSSSS.AAAAAAA.BBBBB', // S=Foyer(spawn)  A=Atrium(open shaft)  B=Ballroom
+      'SSSSS4AAAAAAA5BBBBB', // 4: Foyer->Atrium   5: Atrium->Ballroom
+      'SSSSS.AAAAAAA.BBBBB',
+      'SSSSS.AAAAAAA.BBBBB',
+      'SSSSS.AAAAAAA.BBBBB',
+      '...6.....7.....8...', // 6: Foyer->Colonnade  7: Atrium->Colonnade  8: Ballroom->Colonnade
+      '...OOOOOOOOOOOOO...', // O=Colonnade (arched south promenade)
+      '...OOOOOOOOOOOOO...',
+      '...OOOOOOOOOOOOO...'
+    ],
+    ROOMS: {
+      S: { name: 'Grand Foyer', floor: 0x4a3826, light: 0xe0b070, floorY: 0 },
+      O: { name: 'Colonnade',   floor: 0x46382a, light: 0xd8a868, floorY: 0 },
+      A: { name: 'Atrium',      floor: 0x3c4a40, light: 0xbfd4cc, floorY: 0 },
+      B: { name: 'Ballroom',    floor: 0x4a1f24, light: 0xe0a850, floorY: 0 },
+      Y: { name: 'Courtyard',   floor: 0x33402e, light: 0x9fb0bc, floorY: 0 }
+    },
+    DOORS: {
+      1: { cost: 750,  name: 'Courtyard' },
+      2: { cost: 1000, name: 'Atrium' },
+      3: { cost: 1000, name: 'Ballroom' },
+      4: { cost: 1000, name: 'Atrium' },
+      5: { cost: 1000, name: 'Ballroom' },
+      6: { cost: 1250, name: 'Colonnade' },
+      7: { cost: 1000, name: 'Colonnade' },
+      8: { cost: 1250, name: 'Colonnade' }
+    },
+    WINDOWS: [
+      { cell: [0, 6],  dir: 'W' },   // Foyer (3 boarded windows)
+      { cell: [0, 7],  dir: 'W' },
+      { cell: [0, 8],  dir: 'W' },
+      { cell: [14, 6], dir: 'N' },   // Ballroom (clear of the Grand Staircase, NE corner)
+      { cell: [18, 10], dir: 'E' },
+      { cell: [5, 0],  dir: 'N' },   // Courtyard (outdoor)
+      { cell: [9, 0],  dir: 'N' },
+      { cell: [13, 0], dir: 'N' },
+      { cell: [5, 14], dir: 'S' },   // Colonnade
+      { cell: [9, 14], dir: 'S' },
+      { cell: [13, 14], dir: 'S' }
+    ],
+    RISERS: [[7, 2], [11, 2]],
+    PERK_MACHINES: [
+      { perk: 'revive', cell: [1, 6],  off: [-1.0, 0] },   // Quick Revive in the Foyer
+      { perk: 'jugg',   cell: [14, 9], off: [-1.0, 0] },   // Juggernog in the Ballroom
+      { perk: 'stamin', cell: [4, 2],  off: [-1.0, 0] },   // Stamin-Up in the Courtyard
+      { perk: 'speed',  cell: [12, 13], off: [0, 1.0] }    // Speed Cola in the Colonnade
+    ],
+    WALLBUYS: [
+      { gun: 'olympia', cell: [4, 10], off: [0, 1.6],  face: 'S' },   // Foyer starter wall weapon
+      { gun: 'm14',     cell: [16, 10], off: [0, 1.6], face: 'S' },   // Ballroom
+      { gun: 'mp5k',    cell: [7, 14], off: [0, 1.6],  face: 'S' }    // Colonnade mid-run
+    ],
+    BOX_SPOTS: [
+      { cell: [9, 8],  off: [0, 0] },   // Atrium (common spawn)
+      { cell: [15, 7], off: [0, 0] },   // Ballroom
+      { cell: [2, 7],  off: [0, 0] },   // Foyer
+      { cell: [9, 2],  off: [0, 0] },   // Courtyard
+      { cell: [6, 13], off: [0, 0] }    // Colonnade
+    ],
+    TELEPORTERS: [],
+    MAINFRAME: null,
+    PAP: { cell: [16, 8], off: [0, 0] },     // temporary — moves to the Core (Floor B) once built
+    POWER: { cell: [9, 13], off: [0, 0] },
+    PLAYER_SPAWN: { cell: [3, 8], off: [0, 0.4] },
+    RELIC_SPOTS: [],
+    EE_SOULBOX: null,
+    SHIELD_PARTS: {},
+    SHIELD_BENCH: null,
+    // cells whose ground-floor slab is omitted so the Service Staircase can
+    // descend through it to Floor B (see the kurhaus stageSpecs in map.js)
+    FLOOR_OMIT: [[0, 9], [1, 9], [0, 10], [1, 10]]
+  };
+
+  CFG.MAP_IDS = ['nacht', 'derriese', 'wetterjunge', 'kurhaus'];
 
   // Copies the chosen map's data onto CFG.* so the rest of the code keeps a
   // single source. Also sets the grid->world centering offsets.
@@ -796,6 +906,17 @@
       mag: 4, reserve: 16, reload: 3.2, mode: 'semi', spread: 0, box: 2.5,
       projectile: 'storm', wonder: true, stormDur: 4, stormRadius: 5.5,
       pap: { name: 'Auge des Sturms', dmg: 5000, mag: 8, reserve: 24,
+             stormDur: 6.5, stormRadius: 7.5 }
+    },
+    // Kurhaus wonder weapon (placeholder behaviour reuses the storm-vortex
+    // projectile until the bespoke Maelstrom Driver model + thermal FX are
+    // authored in a later stage). Flagged wonder:true so it only rolls on Kurhaus.
+    maelstrom: {
+      name: 'Maelstrom Driver', cls: 'storm', dmg: 2600, head: 1, rpm: 75,
+      mag: 4, reserve: 16, reload: 3.2, mode: 'semi', spread: 0, box: 2.5,
+      vm: { driver: 1 },
+      projectile: 'storm', wonder: true, stormDur: 4, stormRadius: 5.5,
+      pap: { name: 'Maelstrom Driver — Overcharged', dmg: 5200, mag: 8, reserve: 24,
              stormDur: 6.5, stormRadius: 7.5 }
     }
   };

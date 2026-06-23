@@ -249,6 +249,15 @@
       box(0.05, 0.14, 0.08, 0, -0.12, 0.06, M.poly, 0.25);
       box(0.04, 0.05, 0.18, 0, -0.07, -0.25, M.poly);
       tipZ = -0.56;
+      if (vm.driver) {
+        // Maelstrom Driver: twin thermal canisters (ember + rime) flank the
+        // receiver and a heavier reinforced muzzle — its own silhouette so it
+        // reads distinct from the Wettermacher storm-orb launcher
+        cylZ(0.05, 0.05, 0.26, 0.085, 0.01, -0.16, accentMat(0xe8821e, papped, dpap), 12);  // ember canister
+        cylZ(0.05, 0.05, 0.26, -0.085, 0.01, -0.16, accentMat(0xbfe7f0, papped, dpap), 12); // rime canister
+        cylZ(0.11, 0.05, 0.1, 0, 0, -0.58, M.mid, 12);                   // reinforced muzzle ring
+        tipZ = -0.63;
+      }
       void st;
     } else {
       /* ------------------ generic long gun: smg / rifle / shotgun / lmg / sniper */

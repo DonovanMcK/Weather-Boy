@@ -160,7 +160,7 @@ ok(fails === fails0, 'every weapon has PaP name, unique name, sane stats, valid 
 var dmgs = {};
 ids.forEach(function (id) { dmgs[CFG.WEAPONS[id].dmg] = true; });
 ok(Object.keys(dmgs).length >= 15, 'damage values are varied (' + Object.keys(dmgs).length + ' distinct)');
-ok(new Set(CFG.MAP_IDS.map(function (id) { return CFG.MAPS[id].wonder; })).size === 3,
+ok(new Set(CFG.MAP_IDS.map(function (id) { return CFG.MAPS[id].wonder; })).size === CFG.MAP_IDS.length,
    'each map has a distinct wonder weapon');
 
 // ---- damage profiles: shots-to-kill follows the COD archetypes ----
