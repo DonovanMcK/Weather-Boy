@@ -426,6 +426,15 @@
     // gentle slopes; walk off an edge and you fall.
     var climb = wasGround ? STEP : 0.05;
     var support = G.map.supportAt ? G.map.supportAt(P.pos.x, P.pos.z, P.pos.y, climb) : 0;
+    // swept landing: a fast fall can move past a thin ELEVATED floor in a single
+    // frame (the per-feet support check only sees surfaces within `climb`). Catch
+    // any walkable surface the feet crossed between last frame's Y and now, so a
+    // body falling onto an upper floor lands on it instead of tunnelling through.
+    if (P.vel.y < 0 && G.map.supportAt) {
+      var prevY = P.pos.y - P.vel.y * dt;
+      var crossed = G.map.supportAt(P.pos.x, P.pos.z, prevY, 0.05);
+      if (crossed > support && crossed > P.pos.y && crossed <= prevY + 0.05) support = crossed;
+    }
     if (P.pos.y <= support + 1e-3) {
       if (!P.onGround && fallV < -5.5) {
         P.landDip = Math.min(0.16, 0.05 + (-fallV - 5.5) * 0.018);
