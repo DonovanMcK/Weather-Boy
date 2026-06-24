@@ -639,7 +639,9 @@
   // buildable traps and bosses: AoE damage + a starburst flash + boom
   W.boom = function (pos, dmg, radius, color, opts) {
     color = color || 0xffaa55;
-    G.zombies.aoe(pos, dmg, radius, opts || {});
+    opts = opts || {};
+    if (opts.y == null) opts.y = pos.y || 0;   // explosions hit only their own floor
+    G.zombies.aoe(pos, dmg, radius, opts);
     var c = new THREE.Vector3(pos.x, (pos.y || 0) + 0.4, pos.z);
     for (var i = 0; i < 12; i++) {
       var a = i / 12 * Math.PI * 2;

@@ -446,6 +446,27 @@
       });
     });
 
+    // traps — buyable, power-gated zone hazards (no trap fires before power)
+    map.traps.forEach(function (tr) {
+      add({
+        pos: tr.pos, r: 2.4,
+        prompt: function () {
+          if (!map.power) return tr.name + ' — needs power';
+          if (tr.active > 0) return tr.name + ' — ACTIVE (' + Math.ceil(tr.active) + 's)';
+          if (tr.cooldown > 0) return tr.name + ' — cooling down (' + Math.ceil(tr.cooldown) + 's)';
+          return 'Activate ' + tr.name + ' — ' + tr.cost;
+        },
+        use: function () {
+          if (!map.power) { G.audio.deny(); return; }
+          if (tr.active > 0 || tr.cooldown > 0) { G.audio.deny(); return; }
+          if (!G.player.spend(tr.cost)) return;
+          tr.active = tr.dur;
+          G.audio.buy();
+          G.hud.banner(tr.name + ' ACTIVE', '#' + new THREE.Color(tr.color).getHexString(), 2);
+        }
+      });
+    });
+
     // window barricades (hold F)
     map.windows.forEach(function (w) {
       add({
@@ -595,6 +616,19 @@
 
   I.update = function (dt) {
     if (G.state !== 'playing') { G.player.consumeInteract(); return; }
+
+    // traps: while active, damage zombies in the zone (on this floor only, via the
+    // aoe Y-band) every 0.25s; then a cooldown before it can fire again
+    (G.map.traps || []).forEach(function (tr) {
+      if (tr.active > 0) {
+        tr.active -= dt;
+        tr._tick = (tr._tick || 0) + dt;
+        if (tr._tick >= 0.25) { tr._tick = 0; G.zombies.aoe(tr.zone, tr.dps * 0.25, tr.radius, { y: tr.zone.y, slow: tr.type === 'cryo' ? 1.2 : 0 }); }
+        if (tr.active <= 0) { tr.active = 0; tr.cooldown = 8; }
+      } else if (tr.cooldown > 0) {
+        tr.cooldown -= dt; if (tr.cooldown < 0) tr.cooldown = 0;
+      }
+    });
 
     // pack-a-punch: cook the gun (you're free to move), then float the upgraded
     // gun at the machine for a grab window before it fades back in

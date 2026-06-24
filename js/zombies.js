@@ -264,7 +264,11 @@
       z.mesh.position.z += (Math.random() - 0.5) * 1.5;
       z.state = 'rise';
     }
-    z.mesh.position.y = -1.9;
+    // the floor this zombie spawns onto (0 for flat maps; the window/riser's Y on
+    // a stacked map) — drives rise/vault so it surfaces on the RIGHT floor and so
+    // the void-despawn doesn't kill it while it's outside the window in the void
+    z._spawnY = spot.riser ? (spot.riser.y || 0) : (spot.w.outside.y || 0);
+    z.mesh.position.y = z._spawnY - 1.9;
     G.scene.add(z.mesh);
     Z.list.push(z);
     Z._shootablesDirty = true;
@@ -517,10 +521,15 @@
   // (webs) survivors. Returns how many zombies were caught.
   Z.aoe = function (pos, dmg, radius, opts) {
     opts = opts || {};
+    // optional Y-band: an explosion / trap only hits zombies on its OWN floor, so
+    // a Floor-B blast can't damage zombies stacked above it (default: hit any Y,
+    // which is unchanged for flat maps where every zombie is at y~0)
+    var yb = opts.y == null ? null : opts.y;
     var n = 0;
     for (var i = Z.list.length - 1; i >= 0; i--) {
       var z = Z.list[i];
       if (z.dead) continue;
+      if (yb !== null && Math.abs(z.mesh.position.y - yb) > 2.5) continue;
       var d = Math.hypot(z.mesh.position.x - pos.x, z.mesh.position.z - pos.z);
       if (d > radius) continue;
       if (opts.slow) z.slowT = Math.max(z.slowT || 0, opts.slow);
@@ -721,7 +730,11 @@
     }
     // states below manage their own y; everything else rests on the support
     // height under the zombie (floor, stairs or a deck) so they climb catwalks
-    var freeY = z.state === 'rise' || z.state === 'dying' || z.state === 'flung' || z.state === 'vault';
+    // spawn states (rise/towindow/tear/vault) manage their own Y at the window's
+    // floor — exempt them from the support-snap AND the void-despawn (a zombie
+    // outside its window stands over the void until it vaults in)
+    var freeY = z.state === 'rise' || z.state === 'dying' || z.state === 'flung' ||
+                z.state === 'vault' || z.state === 'towindow' || z.state === 'tear';
     if (!freeY) {
       var base = G.map.supportAt
         ? G.map.supportAt(z.mesh.position.x, z.mesh.position.z, z.mesh.position.y, 0.6) : 0;
@@ -833,8 +846,8 @@
       switch (z.state) {
         case 'rise':
           z.mesh.position.y += dt * 1.7;
-          if (z.mesh.position.y >= 0) {
-            z.mesh.position.y = 0;
+          if (z.mesh.position.y >= (z._spawnY || 0)) {
+            z.mesh.position.y = z._spawnY || 0;
             z.state = z.window ? 'towindow' : 'chase';
           }
           break;
@@ -865,9 +878,10 @@
         case 'vault':
           z.vaultT += dt;
           var k = Math.min(1, z.vaultT / 0.7);
+          var wy = z._spawnY || 0;                 // vault over the window onto its OWN floor
           z.mesh.position.lerpVectors(z.window.outside, z.window.inside, k);
-          z.mesh.position.y = Math.sin(k * Math.PI) * 0.9;
-          if (k >= 1) { z.mesh.position.y = 0; z.state = 'chase'; }
+          z.mesh.position.y = wy + Math.sin(k * Math.PI) * 0.9;
+          if (k >= 1) { z.mesh.position.y = wy; z.state = 'chase'; }
           break;
 
         case 'chase':

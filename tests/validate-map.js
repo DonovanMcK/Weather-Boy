@@ -83,28 +83,41 @@ CFG.MAP_IDS.forEach(function (mapId) {
   });
   ok(CFG.WINDOWS.length >= 6, 'at least 6 windows (' + CFG.WINDOWS.length + ')');
 
-  // Placed objects must be on room cells.
-  function checkPlacement(label, cell) {
-    var c = P.cells[cell[1]] && P.cells[cell[1]][cell[0]];
+  // a placement with a `y` lives on a stacked floor — resolve which grid it
+  // should be validated against (so B/2 placements aren't checked vs Floor 1)
+  var floorGrids = {};
+  (M.FLOORS || []).forEach(function (f) { floorGrids[f.floorY || 0] = CFG.parseGrid(f.GRID); });
+  function gridFor(spec) {
+    var y = (spec && spec.y) || 0;
+    return floorGrids[y] || P;
+  }
+
+  // Placed objects must be on room cells (on their own floor).
+  function checkPlacement(label, cell, spec) {
+    var gp = gridFor(spec);
+    var c = gp.cells[cell[1]] && gp.cells[cell[1]][cell[0]];
     ok(c && c.type === 'room', label + ' on room cell [' + cell + '] (' +
        (c ? c.type : 'oob') + ')');
   }
-  CFG.PERK_MACHINES.forEach(function (p) { checkPlacement('perk ' + p.perk, p.cell); });
-  CFG.WALLBUYS.forEach(function (w) { checkPlacement('wallbuy ' + w.gun, w.cell); });
-  CFG.BOX_SPOTS.forEach(function (b, i) { checkPlacement('box spot ' + i, b.cell); });
-  CFG.TELEPORTERS.forEach(function (t) { checkPlacement('teleporter ' + t.id, t.cell); });
-  if (CFG.MAINFRAME) checkPlacement('mainframe', CFG.MAINFRAME.cell);
-  checkPlacement('pack-a-punch', CFG.PAP.cell);
-  checkPlacement('power switch', CFG.POWER.cell);
-  checkPlacement('player spawn', CFG.PLAYER_SPAWN.cell);
+  CFG.PERK_MACHINES.forEach(function (p) { checkPlacement('perk ' + p.perk, p.cell, p); });
+  CFG.WALLBUYS.forEach(function (w) { checkPlacement('wallbuy ' + w.gun, w.cell, w); });
+  CFG.BOX_SPOTS.forEach(function (b, i) { checkPlacement('box spot ' + i, b.cell, b); });
+  CFG.TELEPORTERS.forEach(function (t) { checkPlacement('teleporter ' + t.id, t.cell, t); });
+  if (CFG.MAINFRAME) checkPlacement('mainframe', CFG.MAINFRAME.cell, CFG.MAINFRAME);
+  checkPlacement('pack-a-punch', CFG.PAP.cell, CFG.PAP);
+  checkPlacement('power switch', CFG.POWER.cell, CFG.POWER);
+  checkPlacement('player spawn', CFG.PLAYER_SPAWN.cell, CFG.PLAYER_SPAWN);
   CFG.RISERS.forEach(function (rs, i) { checkPlacement('riser ' + i, rs); });
+  (CFG.TRAPS || []).forEach(function (t) { checkPlacement('trap ' + t.type, t.cell, t); });
 
-  // Wall buys should face a wall (void or different room beyond their face dir).
+  // Wall buys should face a wall (void or different room beyond their face dir),
+  // on their own floor's grid.
   CFG.WALLBUYS.forEach(function (w) {
+    var gp = gridFor(w);
     var o = OFF[w.face], nr = w.cell[1] + o[1], nc = w.cell[0] + o[0];
-    var n = (nr < 0 || nr >= P.rows || nc < 0 || nc >= P.cols)
-      ? { type: 'void' } : P.cells[nr][nc];
-    var cell = P.cells[w.cell[1]][w.cell[0]];
+    var n = (nr < 0 || nr >= gp.rows || nc < 0 || nc >= gp.cols)
+      ? { type: 'void' } : gp.cells[nr][nc];
+    var cell = gp.cells[w.cell[1]][w.cell[0]];
     var wallThere = n.type === 'void' || (n.type === 'room' && n.room !== cell.room);
     ok(wallThere, 'wallbuy ' + w.gun + ' faces a wall (' + w.face + ')');
   });

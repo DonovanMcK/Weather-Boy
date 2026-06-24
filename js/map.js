@@ -252,6 +252,7 @@
     perkMachines: [],
     wallbuys: [],
     boxSpots: [],
+    traps: [],
     teleporters: [],
     roomLights: [],
     lamps: [],
@@ -948,15 +949,17 @@
       return { x0: a.x - CELL / 2 + WALL_T, x1: b.x + CELL / 2 - WALL_T,
         z0: a.z - CELL / 2 + WALL_T, z1: b.z + CELL / 2 - WALL_T };
     }
-    function spotClear(p, dist) {
-      var cr = CFG.worldToCell(p.x, p.z), cell = map.cellAt(cr.col, cr.row);
+    function spotClear(p, dist, y) {
+      y = y || 0;
+      var cr = CFG.worldToCell(p.x, p.z), cell = map.cellAt(cr.col, cr.row, y);
       if (!cell || cell.type !== 'room') return false;
       // stay outside any door's interaction radius so buy-prompts never hijack
-      // the door's "open" prompt
+      // the door's "open" prompt (only doors on THIS floor count)
       if (!Object.keys(map.doors).every(function (id) {
-        return Math.hypot(map.doors[id].pos.x - p.x, map.doors[id].pos.z - p.z) > 3.0; })) return false;
+        var d = map.doors[id];
+        return Math.abs((d.pos.y || 0) - y) > 2 || Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > 3.0; })) return false;
       if (!map.windows.every(function (w) {
-        return Math.hypot(w.inside.x - p.x, w.inside.z - p.z) > 1.3; })) return false;
+        return Math.abs((w.inside.y || 0) - y) > 2 || Math.hypot(w.inside.x - p.x, w.inside.z - p.z) > 1.3; })) return false;
       for (var i = 0; i < occupied.length; i++) {
         if (Math.hypot(occupied[i].x - p.x, occupied[i].z - p.z) < dist) return false;
       }
@@ -992,9 +995,10 @@
     // recording the chosen wall's cardinal yaw on the position for the prop +
     // collider to share. Reuses door/window/occupancy avoidance.
     function pushToWall(pos, hd) {
-      var rid = map.roomAt(pos.x, pos.z);
-      if (!rid || !P.rooms[rid]) return pos;
-      var bb = roomInner(rid);
+      var y = pos.y || 0, fp = map.parsedAtY(y);
+      var rid = map.roomAt(pos.x, pos.z, y);
+      if (!rid || !fp.rooms[rid]) return pos;
+      var bb = roomInner(rid, fp);
       var cands = [
         { x: bb.x0 + hd, z: pos.z, d: pos.x - bb.x0, yaw: WALL_YAW.W },
         { x: bb.x1 - hd, z: pos.z, d: bb.x1 - pos.x, yaw: WALL_YAW.E },
@@ -1002,8 +1006,8 @@
         { x: pos.x, z: bb.z1 - hd, d: bb.z1 - pos.z, yaw: WALL_YAW.S }
       ].sort(function (a, b) { return a.d - b.d; });
       for (var i = 0; i < cands.length; i++) {
-        var np = new THREE.Vector3(cands[i].x, 0, cands[i].z);
-        if (spotClear(np, 1.7)) { pos.x = np.x; pos.z = np.z; pos.wallYaw = cands[i].yaw; break; }
+        var np = new THREE.Vector3(cands[i].x, y, cands[i].z);
+        if (spotClear(np, 1.7, y)) { pos.x = np.x; pos.z = np.z; pos.wallYaw = cands[i].yaw; break; }
       }
       if (pos.wallYaw == null) pos.wallYaw = nearestWallYaw(pos);
       return pos;
@@ -1105,9 +1109,30 @@
 
     CFG.BOX_SPOTS.forEach(function (bs, i) {
       var p = place(bs);
-      if (!bs.y) pushToWall(p, 0.65);    // box hugs a wall (ground spots only)
+      pushToWall(p, 0.65);    // box hugs a clear wall on its own floor (Y-aware)
       occupy(p);
       map.boxSpots.push({ idx: i, pos: p });
+    });
+
+    // traps: a buyable, power-gated zone hazard (Molten Pour / Cryo Vent / Tesla
+    // Gate). The console hugs a clear wall (Y-aware), the damage zone sits in front
+    // of it inside the room. The zone is DAMAGE-ONLY (no movement collider) so it
+    // can never wall off a path — but it's still kept clear of doorways via the
+    // wall-flush + the standing rule.
+    (CFG.TRAPS || []).forEach(function (tr) {
+      var p = place(tr), by = p.y || 0;
+      var fl = wallFlush(p, 0.3, by);
+      addBox(0.45, 1.3, 0.45, fl.x, by + 0.65, fl.z, G.MAT.get('darkIron'));   // console (visual, no collider)
+      var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8),
+        new THREE.MeshBasicMaterial({ color: tr.color || 0xffaa33 }));
+      lamp.position.set(fl.x, by + 1.45, fl.z); G.scene.add(lamp);
+      var fwd = { x: Math.sin(fl.yaw), z: Math.cos(fl.yaw) };
+      var stand = new THREE.Vector3(fl.x + fwd.x * 0.95, by, fl.z + fwd.z * 0.95);
+      var zone = new THREE.Vector3(fl.x + fwd.x * 3.5, by, fl.z + fwd.z * 3.5);
+      occupy(stand);
+      map.traps.push({ type: tr.type, name: tr.name, cost: tr.cost, color: tr.color || 0xffaa33,
+        radius: tr.radius || 5, dur: tr.dur || 6, dps: tr.dps || 300, pos: stand, zone: zone,
+        lamp: lamp, active: 0, cooldown: 0 });
     });
 
     // teleporters

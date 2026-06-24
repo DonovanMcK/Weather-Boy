@@ -399,17 +399,29 @@
       { perk: 'widows',   cell: [13, 13], off: [0, 0], y: -4, ee: true }, // FB Core (EE-reserved)
       { perk: 'wonderfizz', cell: [11, 13], off: [0, 1.0] }              // Der Wunderfizz — F1 Colonnade (random-perk vendor)
     ],
+    // one wall weapon per major room on the gated critical path, spread across all
+    // three floors so a player is never weaponless after a box dry spell
     WALLBUYS: [
-      { gun: 'olympia', cell: [4, 10], off: [0, 1.6],  face: 'S' },   // Foyer starter wall weapon
-      { gun: 'm14',     cell: [16, 10], off: [0, 1.6], face: 'S' },   // Ballroom
-      { gun: 'mp5k',    cell: [7, 14], off: [0, 1.6],  face: 'S' }    // Colonnade mid-run
+      { gun: 'olympia',  cell: [4, 10], off: [0, 1.6],  face: 'S' },             // F1 Foyer (starter)
+      { gun: 'm14',      cell: [16, 10], off: [0, 1.6], face: 'S' },             // F1 Ballroom
+      { gun: 'mp5k',     cell: [7, 14], off: [0, 1.6],  face: 'S' },             // F1 Colonnade
+      { gun: 'mp40',     cell: [12, 8], off: [1.6, 0],  face: 'E', y: -4 },      // FB Hot Springs
+      { gun: 'stakeout', cell: [19, 8], off: [1.6, 0],  face: 'E', y: -4 },      // FB Cold Plunge
+      { gun: 'ak74u',    cell: [18, 7], off: [1.6, 0],  face: 'E', y: 4 },       // F2 Tesla Hall
+      { gun: 'm16',      cell: [0, 7],  off: [-1.6, 0], face: 'W', y: 4 }        // F2 Treatment Wards
     ],
+    // Mystery box rotates among the 3 doc spots, one per floor (the box hugs a
+    // clear wall on each floor; relocate/fire-sale cycles through all three)
     BOX_SPOTS: [
-      { cell: [9, 8],  off: [0, 0] },   // Atrium (common spawn)
-      { cell: [15, 7], off: [0, 0] },   // Ballroom
-      { cell: [2, 7],  off: [0, 0] },   // Foyer
-      { cell: [9, 2],  off: [0, 0] },   // Courtyard
-      { cell: [6, 13], off: [0, 0] }    // Colonnade
+      { cell: [9, 8],  off: [0, 0] },            // Atrium (Floor 1, starting spot)
+      { cell: [16, 11], off: [0, 0], y: 4 },     // Records (Floor 2)
+      { cell: [9, 8],  off: [0, 0], y: -4 }      // Hot Springs (Floor B)
+    ],
+    // traps — one per zone, power-gated + buyable to activate (the 3 from the doc)
+    TRAPS: [
+      { type: 'molten', name: 'Molten Pour', cell: [13, 1], y: -4, cost: 1000, radius: 5.5, dur: 6, dps: 320, color: 0xe8821e },  // Furnace (FB)
+      { type: 'cryo',   name: 'Cryo Vent',   cell: [17, 9], y: -4, cost: 1000, radius: 5.5, dur: 6, dps: 300, color: 0xbfe7f0 },  // Cold Plunge (FB)
+      { type: 'tesla',  name: 'Tesla Gate',  cell: [15, 6], y: 4,  cost: 1250, radius: 5.5, dur: 6, dps: 400, color: 0x3a6ce0 }   // Tesla Hall (F2)
     ],
     TELEPORTERS: [],
     MAINFRAME: null,
@@ -578,7 +590,7 @@
     CFG.ROOMS = rooms;
     CFG.WINDOWS = primary.WINDOWS || m.WINDOWS || [];
     CFG.RISERS = primary.RISERS || m.RISERS || [];
-    ['DOORS', 'PERK_MACHINES', 'WALLBUYS', 'BOX_SPOTS', 'TELEPORTERS', 'MAINFRAME',
+    ['DOORS', 'PERK_MACHINES', 'WALLBUYS', 'BOX_SPOTS', 'TRAPS', 'TELEPORTERS', 'MAINFRAME',
      'PAP', 'POWER', 'PLAYER_SPAWN', 'RELIC_SPOTS', 'EE_SOULBOX', 'SHIELD_PARTS', 'SHIELD_BENCH']
       .forEach(function (k) { CFG[k] = m[k]; });
     // the main build reads CFG.cur.OUTDOOR / OPEN_CEIL / FLOOR_OMIT — point them at
