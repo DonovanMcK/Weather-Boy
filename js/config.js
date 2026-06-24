@@ -373,15 +373,17 @@
                deck: 0x7a6a4a, ceil: 0x6a5d44, accent: 0xc9a24b, lampTint: 0xffd9a0 },
     // map-level placements live on the ground floor (Floor 1) — kept here so the
     // legacy single-grid build path drives them unchanged
+    // Floor 1 gating: spawn (Foyer) opens cheapest into the Atrium hub (750),
+    // then the loop expands outward through the Courtyard / Colonnade / Ballroom.
     DOORS: {
-      1: { cost: 750,  name: 'Courtyard' },
-      2: { cost: 1000, name: 'Atrium' },
-      3: { cost: 1000, name: 'Ballroom' },
-      4: { cost: 1000, name: 'Atrium' },
-      5: { cost: 1000, name: 'Ballroom' },
-      6: { cost: 1250, name: 'Colonnade' },
-      7: { cost: 1000, name: 'Colonnade' },
-      8: { cost: 1250, name: 'Colonnade' }
+      1: { cost: 1000, name: 'Courtyard' },    // Foyer -> Courtyard
+      4: { cost: 750,  name: 'Atrium' },       // Foyer -> Atrium (primary opening)
+      6: { cost: 1000, name: 'Colonnade' },    // Foyer -> Colonnade
+      2: { cost: 1000, name: 'Atrium' },       // Courtyard -> Atrium
+      3: { cost: 1250, name: 'Ballroom' },     // Courtyard -> Ballroom
+      5: { cost: 1000, name: 'Ballroom' },     // Atrium -> Ballroom
+      7: { cost: 1000, name: 'Colonnade' },    // Atrium -> Colonnade
+      8: { cost: 1250, name: 'Colonnade' }     // Ballroom -> Colonnade
     },
     // 8 perks across the three floors (per the design doc). y lifts a machine onto
     // its floor (Floor B -4 / Floor 2 +4); all gated behind power except Quick
@@ -394,7 +396,7 @@
       { perk: 'mule',     cell: [12, 14], off: [0, 0], y: 4 },         // F2 Solarium
       { perk: 'speed',    cell: [16, 8],  off: [0, 0], y: -4 },         // FB Cold Plunge
       { perk: 'deadshot', cell: [2, 8],   off: [0, 0], y: -4 },         // FB Cistern
-      { perk: 'widows',   cell: [9, 13],  off: [0, 0], y: -4, ee: true }, // FB Core (EE-reserved)
+      { perk: 'widows',   cell: [13, 13], off: [0, 0], y: -4, ee: true }, // FB Core (EE-reserved)
       { perk: 'wonderfizz', cell: [11, 13], off: [0, 1.0] }              // Der Wunderfizz — F1 Colonnade (random-perk vendor)
     ],
     WALLBUYS: [
@@ -411,7 +413,8 @@
     ],
     TELEPORTERS: [],
     MAINFRAME: null,
-    PAP: { cell: [16, 8], off: [0, 0] },     // temporary — moves to the Core (Floor B) once built
+    PAP: { cell: [6, 14], off: [0, 0], y: -4 },    // the Core, Floor B (south wall, clear of the north doors)
+    papCoreGated: true,                            // PaP needs power + the awakened Core (the EE drives map.coreUnlocked)
     POWER: { cell: [9, 2], off: [0, 0], y: -4 },   // the Furnace, Floor B
     PLAYER_SPAWN: { cell: [3, 8], off: [0, 0.4] },
     RELIC_SPOTS: [],
@@ -434,6 +437,18 @@
           C: { name: 'The Core',       floor: 0x301a3a, light: 0x9cf0c0 }
         },
         OUTDOOR: [], OPEN_CEIL: [], FLOOR_OMIT: [],
+        // the Service stair lands in the Cistern (T); from there door 1 opens to the
+        // Furnace = power (buyable, no power needed — no chicken-and-egg)
+        DOORS: {
+          1: { cost: 1000, name: 'Furnace' },       // Cistern -> Furnace (to power)
+          2: { cost: 1250, name: 'Hot Springs' },   // Furnace -> Hot Springs
+          3: { cost: 1250, name: 'Cold Plunge' },   // Furnace -> Cold Plunge
+          4: { cost: 1000, name: 'Hot Springs' },   // Cistern -> Hot Springs
+          5: { cost: 1250, name: 'Cold Plunge' },   // Hot Springs -> Cold Plunge
+          6: { cost: 1500, name: 'The Core' },      // Cistern -> Core
+          7: { cost: 1500, name: 'The Core' },      // Hot Springs -> Core
+          8: { cost: 1500, name: 'The Core' }       // Cold Plunge -> Core
+        },
         WINDOWS: [{ cell: [9, 0], dir: 'N' }, { cell: [0, 8], dir: 'W' }, { cell: [19, 8], dir: 'E' }, { cell: [9, 14], dir: 'S' }],
         GRID: [
           '...FFFFFFFFFFFFFF...', // Furnace (N)
@@ -498,6 +513,16 @@
           L: { name: 'Solarium',        floor: 0x3a4030, light: 0xcfe0a8 }
         },
         OUTDOOR: [], OPEN_CEIL: [], FLOOR_OMIT: [],
+        // the Grand stair lands in the Galleries (G); from there the Annex opens out
+        DOORS: {
+          1: { cost: 1250, name: 'Treatment Wards' }, // Galleries -> Wards
+          2: { cost: 1250, name: 'Tesla Hall' },      // Galleries -> Tesla Hall
+          3: { cost: 1000, name: 'Records' },         // Tesla Hall -> Records
+          4: { cost: 1000, name: 'Records' },         // Galleries -> Records
+          5: { cost: 1250, name: 'Solarium' },        // Wards -> Solarium
+          6: { cost: 1250, name: 'Solarium' },        // Galleries -> Solarium
+          7: { cost: 1000, name: 'Solarium' }         // Records -> Solarium
+        },
         WINDOWS: [{ cell: [0, 8], dir: 'W' }, { cell: [18, 6], dir: 'E' }, { cell: [9, 14], dir: 'S' }],
         GRID: [
           '....................',

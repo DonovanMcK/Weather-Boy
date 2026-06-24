@@ -295,7 +295,10 @@
         G.audio.powerOn();
         G.hud.banner('POWER ON', '#ff5', 3, 'The machines hum to life');
         if (map.powerSwitch.setPowered) map.powerSwitch.setPowered(true);
-        if (CFG.cur.papRule === 'power' && !map.pap.unlocked) map.pap.unlock();
+        // a core-gated PaP (Kurhaus) needs power AND the awakened Core, so power
+        // alone doesn't drop the field — map.coreUnlocked (set by the EE) does
+        if (CFG.cur.papRule === 'power' && !map.pap.unlocked &&
+            !(CFG.cur.papCoreGated && !map.coreUnlocked)) map.pap.unlock();
       }
     });
 
@@ -361,6 +364,8 @@
       pos: map.pap.pos, r: 2.4,
       prompt: function () {
         if (!map.pap.unlocked) {
+          if (CFG.cur.papCoreGated && !map.coreUnlocked)
+            return 'Pack-a-Punch — awaken the Core (power + the four currents)';
           return CFG.cur.papRule === 'power'
             ? 'Pack-a-Punch — turn on the power'
             : 'Pack-a-Punch — link all 3 teleporters';

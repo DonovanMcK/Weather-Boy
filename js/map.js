@@ -766,6 +766,42 @@
     }
 
     /* -------------------------------------------------------------- doors */
+    // build one buyable debris door at (wcx,wcz) on the floor at fy. Used for
+    // Floor 1's doors AND (via buildExtraFloor / buildStage) for the stacked
+    // floors' doors and the stair gates. The collider is a FINITE band
+    // [fy, fy+WALL_H] — a tall [0,99] door would block the floor stacked above it.
+    function buildBuyDoor(id, cost, name, rooms, wcx, wcz, fy, alongZ) {
+      var mesh = alongZ
+        ? addBox(CELL - 0.2, WALL_H - 0.4, 0.5, wcx, fy + (WALL_H - 0.4) / 2, wcz, G.mats.wood, { solid: true })
+        : addBox(0.5, WALL_H - 0.4, CELL - 0.2, wcx, fy + (WALL_H - 0.4) / 2, wcz, G.mats.wood, { solid: true });
+      for (var k = -1; k <= 1; k++) {
+        var pm = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? CELL - 0.1 : 0.6, 0.3, alongZ ? 0.6 : CELL - 0.1), G.mats.plank);
+        pm.position.set(0, k * 1.0, 0);
+        pm.rotation[alongZ ? 'z' : 'x'] = k * 0.15;
+        mesh.add(pm);
+      }
+      var collider = map.addCollider(wcx - CELL / 2, wcz - CELL / 2, wcx + CELL / 2, wcz + CELL / 2, fy, fy + WALL_H);
+      var frameMat = G.MAT.get('darkIron');
+      if (alongZ) {
+        addBox(CELL, 0.32, 0.7, wcx, fy + WALL_H - 0.3, wcz, frameMat);                 // lintel
+        addBox(0.3, WALL_H, 0.7, wcx - CELL / 2 + 0.15, fy + WALL_H / 2, wcz, frameMat); // jambs
+        addBox(0.3, WALL_H, 0.7, wcx + CELL / 2 - 0.15, fy + WALL_H / 2, wcz, frameMat);
+      } else {
+        addBox(0.7, 0.32, CELL, wcx, fy + WALL_H - 0.3, wcz, frameMat);
+        addBox(0.7, WALL_H, 0.3, wcx, fy + WALL_H / 2, wcz - CELL / 2 + 0.15, frameMat);
+        addBox(0.7, WALL_H, 0.3, wcx, fy + WALL_H / 2, wcz + CELL / 2 - 0.15, frameMat);
+      }
+      var chip = costChip(cost);
+      chip.position.set(wcx, fy + 2.05, wcz);
+      G.scene.add(chip);
+      map.doors[id] = {
+        id: id, cost: cost, name: name, rooms: rooms, open: false,
+        mesh: mesh, collider: collider, sprite: chip, baseY: mesh.position.y,
+        pos: new THREE.Vector3(wcx, fy, wcz)
+      };
+      return map.doors[id];
+    }
+    map.buildBuyDoor = buildBuyDoor;
     Object.keys(P.doors).forEach(function (id) {
       var pd = P.doors[id], cd = CFG.DOORS[id];
       var cellCR = pd.cells[0];
@@ -777,38 +813,7 @@
         if (n && n.type === 'room') roomDirs.push(dir);
       });
       var alongZ = roomDirs.indexOf('N') >= 0 || roomDirs.indexOf('S') >= 0;
-      var mesh = alongZ
-        ? addBox(CELL - 0.2, WALL_H - 0.4, 0.5, wc.x, (WALL_H - 0.4) / 2, wc.z, G.mats.wood, { solid: true })
-        : addBox(0.5, WALL_H - 0.4, CELL - 0.2, wc.x, (WALL_H - 0.4) / 2, wc.z, G.mats.wood, { solid: true });
-      for (var k = -1; k <= 1; k++) {
-        var pm = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? CELL - 0.1 : 0.6, 0.3, alongZ ? 0.6 : CELL - 0.1), G.mats.plank);
-        pm.position.set(0, k * 1.0, 0);
-        pm.rotation[alongZ ? 'z' : 'x'] = k * 0.15;
-        mesh.add(pm);
-      }
-      var collider = map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2);
-      // structural door frame around the opening (decorative, stays after the
-      // debris is bought away so the doorway reads as a built threshold)
-      var frameMat = G.MAT.get('darkIron');
-      if (alongZ) {
-        addBox(CELL, 0.32, 0.7, wc.x, WALL_H - 0.3, wc.z, frameMat);                 // lintel
-        addBox(0.3, WALL_H, 0.7, wc.x - CELL / 2 + 0.15, WALL_H / 2, wc.z, frameMat); // jambs
-        addBox(0.3, WALL_H, 0.7, wc.x + CELL / 2 - 0.15, WALL_H / 2, wc.z, frameMat);
-      } else {
-        addBox(0.7, 0.32, CELL, wc.x, WALL_H - 0.3, wc.z, frameMat);
-        addBox(0.7, WALL_H, 0.3, wc.x, WALL_H / 2, wc.z - CELL / 2 + 0.15, frameMat);
-        addBox(0.7, WALL_H, 0.3, wc.x, WALL_H / 2, wc.z + CELL / 2 - 0.15, frameMat);
-      }
-      // a small glowing cost chip on the debris so you can spot a buyable door;
-      // the full "Open X — cost" text shows in the HUD when you look at it
-      var chip = costChip(cd.cost);
-      chip.position.set(wc.x, 2.05, wc.z);
-      G.scene.add(chip);
-      map.doors[id] = {
-        id: +id, cost: cd.cost, name: cd.name, rooms: pd.rooms, open: false,
-        mesh: mesh, collider: collider, sprite: chip, baseY: mesh.position.y,
-        pos: new THREE.Vector3(wc.x, 0, wc.z)
-      };
+      buildBuyDoor(+id, cd.cost, cd.name, pd.rooms, wc.x, wc.z, 0, alongZ);
     });
 
     /* ----------------------------------------------------- placed objects */
@@ -882,14 +887,16 @@
       // Lands within Floor 2's footprint (cols 13-18) so it connects to the
       // gallery floor. Regraded to ~0.5 (8m run / steps 10).
       var grand = { x1: xW(17) - CELL / 2, x2: xW(18) + CELL / 2,
-                    z1: zW(6) - CELL / 2, z2: zW(7) + CELL / 2, h: WALL_H, thin: true };
+                    z1: zW(6) - CELL / 2, z2: zW(7) + CELL / 2, h: WALL_H, thin: true,
+                    gate: { id: 'grand', cost: 1250, name: 'Grand Staircase (Floor 2)', rooms: ['B', 'G'] } };
       grand.stairs = { x1: grand.x1, x2: grand.x2, zTop: grand.z2, zBase: zW(9) + CELL / 2, steps: 10 };
       // SERVICE STAIRCASE — Foyer (SW) DOWN through the omitted ground slab
       // (config FLOOR_OMIT) to Floor B at -4 (now a real plate, no open pit).
       // Already ~0.5 (8m run).
       var service = { x1: xW(0) - CELL / 2, x2: xW(1) + CELL / 2,
                       z1: zW(9) - CELL / 2, z2: zW(10) + CELL / 2,
-                      h: 0, baseH: -WALL_H, descend: true };
+                      h: 0, baseH: -WALL_H, descend: true,
+                      gate: { id: 'service', cost: 1000, name: 'Service Staircase (Floor B)', rooms: ['S', 'T'] } };
       service.stairs = { x1: service.x1, x2: service.x2,
                          zTop: zW(9) - CELL / 2, zBase: zW(10) + CELL / 2, steps: 10 };
       stageSpecs.push(grand, service);
@@ -1141,20 +1148,21 @@
     // pack-a-punch: a chunkier machine — base, sloped hopper, glowing feed
     // slot and a gold output tray
     var pp = place(CFG.PAP);
-    var ppfl = wallFlush(pp, 0.48);
+    var ppY = pp.y || 0;                          // PaP may live on any floor (Kurhaus: the Core, -4)
+    var ppfl = wallFlush(pp, 0.48, ppY);
     pp.x = ppfl.x; pp.z = ppfl.z;
     occupy(pp);
     var papYaw = ppfl.yaw;
-    var papRoot = G.Props.create('pack_a_punch', { position: new THREE.Vector3(pp.x, 0, pp.z), rotationY: papYaw });
+    var papRoot = G.Props.create('pack_a_punch', { position: new THREE.Vector3(pp.x, ppY, pp.z), rotationY: papYaw });
     propSolids(papRoot);
     var pc = papRoot.userData.colliderBox;
-    propCollider(pp.x, pp.z, pc.hw, pc.hd, pc.y1, pc.y2, papYaw);
+    propCollider(pp.x, pp.z, pc.hw, pc.hd, ppY + pc.y1, ppY + pc.y2, papYaw);
     var papBody = papRoot;
     var field = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.0, 3.4, 16, 1, true),
       new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.28, side: THREE.DoubleSide }));
-    field.position.set(pp.x, 1.7, pp.z);
+    field.position.set(pp.x, ppY + 1.7, pp.z);
     G.scene.add(field);
-    var fieldCol = map.addCollider(pp.x - 1.8, pp.z - 1.8, pp.x + 1.8, pp.z + 1.8);
+    var fieldCol = map.addCollider(pp.x - 1.8, pp.z - 1.8, pp.x + 1.8, pp.z + 1.8, ppY, ppY + 3.4);
     map.pap = {
       pos: pp, mesh: papBody, field: field, fieldCol: fieldCol, unlocked: false,
       unlock: function () {
@@ -1740,6 +1748,28 @@
     }
     stageSpecs.forEach(buildStage);
 
+    // STAIR GATES — a buyable debris barrier across a staircase's Floor-1 entrance
+    // (the stair base for an up-flight, the stair top for a descend). Registered in
+    // map.doors with cross-floor rooms so recomputeReachable flows spawn -> up/down
+    // once bought. Spans the full stair width (a 1-cell door wouldn't block it).
+    stageSpecs.forEach(function (s) {
+      if (!s.gate || !s.stairs) return;
+      var st = s.stairs, gz = s.descend ? st.zTop : st.zBase, gx = (st.x1 + st.x2) / 2;
+      var gw = Math.abs(st.x2 - st.x1);
+      var mesh = addBox(gw - 0.2, WALL_H - 0.4, 0.5, gx, (WALL_H - 0.4) / 2, gz, G.mats.wood, { solid: true });
+      for (var k = -1; k <= 1; k++) {
+        var pm = new THREE.Mesh(new THREE.BoxGeometry(gw - 0.1, 0.3, 0.6), G.mats.plank);
+        pm.position.set(0, k * 1.0, 0); pm.rotation.z = k * 0.12; mesh.add(pm);
+      }
+      var collider = map.addCollider(gx - gw / 2, gz - 0.6, gx + gw / 2, gz + 0.6, 0, WALL_H);
+      var chip = costChip(s.gate.cost); chip.position.set(gx, 2.05, gz); G.scene.add(chip);
+      map.doors['gate:' + s.gate.id] = {
+        id: 'gate:' + s.gate.id, cost: s.gate.cost, name: s.gate.name, rooms: s.gate.rooms,
+        open: false, mesh: mesh, collider: collider, sprite: chip, baseY: mesh.position.y,
+        pos: new THREE.Vector3(gx, 0, gz)
+      };
+    });
+
     // ---- STACKED FLOORS (B3) — build every non-primary floor at its own floorY,
     // sharing the same x,z footprint. A compact grey-box builder: floor slabs +
     // finite-band walls + capped/opened ceilings. The primary floor is already
@@ -1799,11 +1829,6 @@
               map.addCollider(cx - (alongX ? CELL / 2 : WALL_T / 2), cz - (alongX ? WALL_T / 2 : CELL / 2),
                               cx + (alongX ? CELL / 2 : WALL_T / 2), cz + (alongX ? WALL_T / 2 : CELL / 2), fy, fy + h);
             });
-          } else if (isDoor) {
-            // decorative lintel across the opening (no collider — passable)
-            var alongZdoor = ['N', 'S'].some(function (dir) { var o = OFF[dir], rr2 = fp.cells[r + o[1]]; return rr2 && rr2[c] && rr2[c].type === 'room'; });
-            if (alongZdoor) addBox(0.6, 0.3, CELL, wc.x, fy + WALL_H - 0.25, wc.z, G.MAT.get('darkIron'));
-            else addBox(CELL, 0.3, 0.6, wc.x, fy + WALL_H - 0.25, wc.z, G.MAT.get('darkIron'));
           }
           // a DESCEND staircase punches DOWN through this floor's ceiling — skip
           // the ceiling there or the seam seal blocks the climber's head going up
@@ -1822,6 +1847,14 @@
           }
         }
       }
+      // buyable debris doors for this floor — globally-keyed (floorId:localId) so
+      // they don't collide with Floor 1's numeric ids, cost from the floor's DOORS
+      Object.keys(fp.doors).forEach(function (lid) {
+        var pd = fp.doors[lid], cd = (f.DOORS && f.DOORS[lid]) || { cost: 1000, name: 'Door' };
+        var cr0 = pd.cells[0], wcd = CFG.cellToWorld(cr0[0], cr0[1]);
+        var alongZ = ['N', 'S'].some(function (dir) { var o = OFF[dir], rr2 = fp.cells[cr0[1] + o[1]]; return rr2 && rr2[cr0[0]] && rr2[cr0[0]].type === 'room'; });
+        buildBuyDoor(f.id + ':' + lid, cd.cost, cd.name, pd.rooms, wcd.x, wcd.z, fy, alongZ);
+      });
       // spawn windows — boarded openings registered for the round director, at fy
       (f.WINDOWS || []).forEach(function (w) {
         var wcw = CFG.cellToWorld(w.cell[0], w.cell[1]), o = OFF[w.dir];
