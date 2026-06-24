@@ -362,8 +362,8 @@
     sub: 'The Aether Baths — Floor 1: the Grand Halls (grey-box). Wonder weapon: the Maelstrom Driver.',
     wonder: 'maelstrom',
     papRule: 'power',
-    atmos: { sky: 0x2a2c33, fog: 0x24262c, density: 0.012,
-             amb: 0x4a3f2c, ambI: 0.55, hemiSky: 0xbaa784, hemiGround: 0x2a2218 },
+    atmos: { sky: 0x3a3d46, fog: 0x33363e, density: 0.008,
+             amb: 0x6a5c44, ambI: 0.9, hemiSky: 0xd8c49a, hemiGround: 0x4a4236 },
     // surface palette — warm/opulent decayed spa-resort (gold plaster, aged
     // brass, dark walnut, warm stone). Per-room floor/light tints below carry
     // the distinct §9 zone families (gold foyer, mint atrium, crimson ballroom,
@@ -375,15 +375,13 @@
     // legacy single-grid build path drives them unchanged
     // Floor 1 gating: spawn (Foyer) opens cheapest into the Atrium hub (750),
     // then the loop expands outward through the Courtyard / Colonnade / Ballroom.
+    // fewer doors: the Atrium is the hub — spawn opens into it (750), everything
+    // else hangs off it. Redundant loop-doors removed (rooms still all reachable).
     DOORS: {
-      1: { cost: 1000, name: 'Courtyard' },    // Foyer -> Courtyard
       4: { cost: 750,  name: 'Atrium' },       // Foyer -> Atrium (primary opening)
-      6: { cost: 1000, name: 'Colonnade' },    // Foyer -> Colonnade
       2: { cost: 1000, name: 'Atrium' },       // Courtyard -> Atrium
-      3: { cost: 1250, name: 'Ballroom' },     // Courtyard -> Ballroom
       5: { cost: 1000, name: 'Ballroom' },     // Atrium -> Ballroom
-      7: { cost: 1000, name: 'Colonnade' },    // Atrium -> Colonnade
-      8: { cost: 1250, name: 'Colonnade' }     // Ballroom -> Colonnade
+      7: { cost: 1000, name: 'Colonnade' }     // Atrium -> Colonnade
     },
     // 8 perks across the three floors (per the design doc). y lifts a machine onto
     // its floor (Floor B -4 / Floor 2 +4); all gated behind power except Quick
@@ -451,15 +449,13 @@
         OUTDOOR: [], OPEN_CEIL: [], FLOOR_OMIT: [],
         // the Service stair lands in the Cistern (T); from there door 1 opens to the
         // Furnace = power (buyable, no power needed — no chicken-and-egg)
+        // Hot Springs is the hub: Cistern (where the Service stair lands) opens to
+        // it (4), and the Furnace/power is one more door from there (2).
         DOORS: {
-          1: { cost: 1000, name: 'Furnace' },       // Cistern -> Furnace (to power)
-          2: { cost: 1250, name: 'Hot Springs' },   // Furnace -> Hot Springs
-          3: { cost: 1250, name: 'Cold Plunge' },   // Furnace -> Cold Plunge
           4: { cost: 1000, name: 'Hot Springs' },   // Cistern -> Hot Springs
+          2: { cost: 1250, name: 'Furnace' },       // Hot Springs -> Furnace (to power)
           5: { cost: 1250, name: 'Cold Plunge' },   // Hot Springs -> Cold Plunge
-          6: { cost: 1500, name: 'The Core' },      // Cistern -> Core
-          7: { cost: 1500, name: 'The Core' },      // Hot Springs -> Core
-          8: { cost: 1500, name: 'The Core' }       // Cold Plunge -> Core
+          7: { cost: 1500, name: 'The Core' }       // Hot Springs -> Core
         },
         WINDOWS: [{ cell: [9, 0], dir: 'N' }, { cell: [0, 8], dir: 'W' }, { cell: [19, 8], dir: 'E' }, { cell: [9, 14], dir: 'S' }],
         GRID: [
@@ -468,13 +464,13 @@
           '...FFFFFFFFFFFFFF...',
           '...FFFFFFFFFFFFFF...',
           '...FFFFFFFFFFFFFF...',
-          '...1.....2.....3....', // 1:Furnace-Cistern 2:Furnace-HotSprings 3:Furnace-ColdPlunge
+          '.........2..........', // 2: Furnace-HotSprings
           'TTTTT.HHHHHHH.PPPPPP', // T=Cistern(W) H=Hot Springs(oval) P=Cold Plunge(E)
           'TTTTT4HHHHHHH5PPPPPP', // 4:Cistern-HotSprings 5:HotSprings-ColdPlunge
           'TTTTT.HHHHHHH.PPPPPP',
           'TTTTT.HHHHHHH.PPPPPP',
           'TTTTT.HHHHHHH.PPPPPP',
-          '...6.....7.....8....', // 6:Cistern-Core 7:HotSprings-Core 8:ColdPlunge-Core
+          '.........7..........', // 7: HotSprings-Core
           '...CCCCCCCCCCCCCC...', // C=The Core (S, gated in the gameplay pass)
           '...CCCCCCCCCCCCCC...',
           '...CCCCCCCCCCCCCC...'
@@ -503,13 +499,13 @@
           '...YYYYYYYYYYYYYY...',
           '...YYYYYYYYYYYYYY...',
           '...YYYYYYYYYYYYYY...',
-          '...1.....2.....3....', // 1:Court-Foyer 2:Court-Atrium 3:Court-Ballroom
+          '.........2..........', // 2: Courtyard-Atrium
           'SSSSS.AAAAAAA.BBBBBB', // S=Foyer(spawn) A=Atrium(shaft) B=Ballroom(widened)
           'SSSSS4AAAAAAA5BBBBBB', // 4:Foyer-Atrium 5:Atrium-Ballroom
           'SSSSS.AAAAAAA.BBBBBB',
           'SSSSS.AAAAAAA.BBBBBB',
           'SSSSS.AAAAAAA.BBBBBB',
-          '...6.....7.....8....', // 6:Foyer-Colonnade 7:Atrium-Colonnade 8:Ballroom-Colonnade
+          '.........7..........', // 7: Atrium-Colonnade
           '...OOOOOOOOOOOOOO...', // O=Colonnade (south promenade)
           '...OOOOOOOOOOOOOO...',
           '...OOOOOOOOOOOOOO...'

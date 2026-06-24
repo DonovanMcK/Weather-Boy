@@ -1488,8 +1488,10 @@
       }
 
       // corner support pillars — skip any that would land in/near a doorway
-      // (they'd block the threshold and read as a pillar in front of the door)
-      [[bb.x0 + 0.42, bb.z0 + 0.42], [bb.x1 - 0.42, bb.z0 + 0.42],
+      // (they'd block the threshold and read as a pillar in front of the door).
+      // Kurhaus skips the decorative clutter entirely (perf + the rooms read clean)
+      var minimal = CFG.cur.id === 'kurhaus';
+      if (!minimal) [[bb.x0 + 0.42, bb.z0 + 0.42], [bb.x1 - 0.42, bb.z0 + 0.42],
        [bb.x0 + 0.42, bb.z1 - 0.42], [bb.x1 - 0.42, bb.z1 - 0.42]].forEach(function (c) {
         var nearDoor = Object.keys(map.doors).some(function (id) {
           return Math.hypot(map.doors[id].pos.x - c[0], map.doors[id].pos.z - c[1]) < 2.2;
@@ -1502,7 +1504,7 @@
       // wall ribs / pilasters on a regular rhythm (skip doors + windows) — a
       // deterministic every-other-bay cadence reads as deliberate structure
       // instead of the old random scatter that looked different each load
-      edges.forEach(function (e) {
+      if (!minimal) edges.forEach(function (e) {
         if (e.door || e.win || (e.cr[0] + e.cr[1]) % 2 !== 0) return;
         var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
         var alongX = (e.dir === 'N' || e.dir === 'S');
@@ -1510,13 +1512,13 @@
           wc.x + e.o[0] * (CELL / 2 - 0.1), (WALL_H - 0.5) / 2, wc.z + e.o[1] * (CELL / 2 - 0.1), dBeam);
       });
 
-      // a themed hero structure
-      placeHero(room, room.id && CFG.ROOMS[room.id] ? CFG.ROOMS[room.id].name : '');
+      // a themed hero structure (skipped on Kurhaus — kept clean)
+      if (!minimal) placeHero(room, room.id && CFG.ROOMS[room.id] ? CFG.ROOMS[room.id].name : '');
 
       // outdoor yards: themed landmarks set along the perimeter walls, long axis
       // run PARALLEL to the wall so they hug the edge and never block the open
       // training centre. Deterministic, clear of doors/windows/interactables.
-      if (isOut) {
+      if (isOut && !minimal) {
         var yardProps = {
           nacht: ['wrecked_car', 'sandbag_wall', 'barrel_cluster', 'crate_stack', 'concrete_barrier', 'cargo_container'],
           derriese: ['cargo_container', 'machinery_unit', 'barrel_cluster', 'concrete_barrier', 'crate_stack'],
@@ -1561,8 +1563,9 @@
       // one authored corner cluster per indoor room (replaces uniform debris
       // litter): a themed primary filler + a small supporting piece, tucked into
       // a dead corner out of the circling lane. Deterministic per map load, no
-      // colliders (decorative) so navigation is untouched.
-      if (!isOut) {
+      // colliders (decorative) so navigation is untouched. (Skipped on Kurhaus —
+      // it was littering every room with crates/debris and tanking perf.)
+      if (!isOut && !minimal) {
         var clr = G.PU.seeded(G.PU.hashStr('clutter:' + rid));
         var fillers = {
           nacht: ['ammo_crate', 'sandbag_stack', 'wood_crate', 'crate_stack', 'barrel_cluster', 'debris_pile'],
