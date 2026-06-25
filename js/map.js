@@ -14,7 +14,7 @@
   // stamps it on every mesh (and addLamp on every room light) so a stacked map
   // can hide the floors the player isn't on. _multiFloor gates the bookkeeping
   // so flat legacy maps stay byte-identical (nothing is ever tagged or hidden).
-  var _fy = 0, _multiFloor = false;
+  var _fy = 0, _multiFloor = false, _fyByPos = false;
 
   /* -------------------------------------------------- procedural textures */
   function makeCanvas(s) {
@@ -188,7 +188,13 @@
     var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
     mesh.position.set(x, y, z);
     G.scene.add(mesh);
-    if (_multiFloor) { mesh.userData.fy = _fy; G.map.cullables.push(mesh); }
+    // staircases span two floors, so their meshes are tagged by their ACTUAL Y
+    // (nearest floor) rather than the build-phase floor — otherwise the grand
+    // deck (y=+4) and service landing (y=-4) cull with the wrong floor.
+    if (_multiFloor) {
+      mesh.userData.fy = _fyByPos ? Math.round(y / WALL_H) * WALL_H : _fy;
+      G.map.cullables.push(mesh);
+    }
     if (opts.collide) {
       // opts.cy1/cy2 give an explicit collider Y-band (per-floor walls); default
       // [0,99] keeps every existing call (flat maps) unchanged
@@ -1279,12 +1285,12 @@
       G.scene.add(light);
       G.map.roomLights.push(light);
       G.map.lamps.push({ light: light, bulb: bulb });
-      // tag the fixture + light with their floor so culling can hide the lights
-      // (a real per-fragment cost) on floors the player isn't standing on
-      if (_multiFloor) {
-        fixture.userData.fy = fy; G.map.cullables.push(fixture);
-        light.userData.fy = fy;  G.map.cullables.push(light);
-      }
+      // cull only the fixture MESH (toggling mesh.visible is free). Deliberately
+      // do NOT cull the PointLight: toggling a light's visibility changes the
+      // scene light count, which makes three.js recompile every lit material —
+      // a stutter on every floor transition. The light stays lit (it only ever
+      // illuminates its own now-hidden floor, so there's nothing visible to see).
+      if (_multiFloor) { fixture.userData.fy = fy; G.map.cullables.push(fixture); }
     }
 
     Object.keys(P.rooms).forEach(function (roomId) {
@@ -1811,6 +1817,7 @@
         stairBase: st ? new THREE.Vector3(scx, 0, st.zBase - 0.6) : null
       });
     }
+    _fyByPos = true;   // stair meshes span floors — tag each by its real Y
     stageSpecs.forEach(buildStage);
 
     // STAIR GATES — a buyable debris barrier across a staircase's Floor-1 entrance
@@ -1834,6 +1841,7 @@
         pos: new THREE.Vector3(gx, 0, gz)
       };
     });
+    _fyByPos = false;
 
     // ---- STACKED FLOORS (B3) — build every non-primary floor at its own floorY,
     // sharing the same x,z footprint. A compact grey-box builder: floor slabs +
@@ -1878,16 +1886,29 @@
             fl.rotation.x = -Math.PI / 2; fl.position.set(wc.x, fy, wc.z); G.scene.add(fl);
             map.addSurface({ x1: wc.x - CELL / 2, x2: wc.x + CELL / 2, z1: wc.z - CELL / 2, z2: wc.z + CELL / 2, y: fy, floor: true });
           }
-          if (cell.type === 'room') {
-            // perimeter / party walls — finite band [fy, fy+WALL_H] so stacked
-            // floors tile edge to edge (E/S only on shared room boundaries)
+          // perimeter / party walls (room cells) AND door-flank walls (door
+          // cells) — finite band [fy, fy+WALL_H] so stacked floors tile edge to
+          // edge. The door branch mirrors the primary floor (lines 716-717):
+          // WITHOUT it a door's void-flanked sides have no wall on floors B/2, so
+          // the player walks straight around the door slab and the inter-room
+          // void columns read as "missing walls". Room boundaries dedup on E/S.
+          if (cell.type === 'room' || isDoor) {
             ['N', 'S', 'E', 'W'].forEach(function (dir) {
               var o = OFF[dir], nc = c + o[0], nr = r + o[1], row2 = fp.cells[nr], n = (row2 && row2[nc]) || { type: 'void' };
-              if (!(n.type === 'void' || (n.type === 'room' && n.room !== cell.room && (dir === 'E' || dir === 'S')))) return;
-              // a void neighbour the border flood-fill never reached is the interior
-              // shaft — waist-high railing there, a full wall everywhere else
-              var rail = n.type === 'void' && !extVoid[nc + ',' + nr];
-              var h = rail ? RAIL_H : WALL_H;
+              var build = false, rail = false, h = WALL_H;
+              if (cell.type === 'room') {
+                if (n.type === 'void' || (n.type === 'room' && n.room !== cell.room && (dir === 'E' || dir === 'S'))) {
+                  build = true;
+                  // a void neighbour the border flood-fill never reached is the
+                  // interior shaft — waist-high railing there, full wall elsewhere
+                  rail = n.type === 'void' && !extVoid[nc + ',' + nr];
+                  h = rail ? RAIL_H : WALL_H;
+                }
+              } else {  // door cell: seal flanks toward void; passage (the room
+                        // neighbours) stays open. Solid wall, never a railing.
+                if (n.type === 'void') build = true;
+              }
+              if (!build) return;
               var cx = wc.x + o[0] * CELL / 2, cz = wc.z + o[1] * CELL / 2, alongX = (dir === 'N' || dir === 'S');
               var m = rail ? G.mats.metal : ((c + r) % 2 ? G.mats.wallA : G.mats.wallB);
               if (alongX) addBox(CELL + WALL_T, h, WALL_T, cx, fy + h / 2, cz, m);

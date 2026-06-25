@@ -364,6 +364,14 @@
     G.camera.add(W.vmRoot);
     W.flashLight = new THREE.PointLight(0xffcc77, 0, 8);
     G.scene.add(W.flashLight);
+    // explosion-light POOL — added to the scene ONCE and only ever intensity-
+    // driven afterward. Adding/removing a light at detonation time changes the
+    // scene light count, which makes three.js recompile every lit material — a
+    // hard frame hitch on each explosive / wonder-weapon shot. A fixed pool keeps
+    // the light count constant so there are zero in-play recompiles.
+    W.boomLights = [];
+    for (var _bi = 0; _bi < 4; _bi++) { var _bl = new THREE.PointLight(0xffaa33, 0, 10); G.scene.add(_bl); W.boomLights.push(_bl); }
+    W.boomIdx = 0;
     W.giveWeapon('m1911');
     document.addEventListener('mousedown', function (e) {
       if (e.button === 0 && document.pointerLockElement) { W.mouseDown = true; W.semiLatch = false; }
@@ -781,14 +789,18 @@
     inner.material.opacity = 0.45;
     inner.position.y = 2.2;
     grp.add(inner);
-    var light = new THREE.PointLight(0x88ddff, 1.6, opts.storm.radius * 3);
-    light.position.y = 2;
-    grp.add(light);
-    grp.position.set(pos.x, 0, pos.z);
+    // plant the vortex on the floor it detonated over (supportAt -> 0 on flat
+    // maps) instead of the hardcoded base plane, so the storm works on every floor
+    var fy = G.map.supportAt(pos.x, pos.z, pos.y, 0);
+    grp.position.set(pos.x, fy, pos.z);
     G.scene.add(grp);
+    // a pooled flash at spawn instead of a persistent PointLight on the group:
+    // adding/removing the group's light each storm forced a shader recompile. The
+    // cones are unlit MeshBasicMaterial, so the vortex still reads as glowing.
+    poolFlash(new THREE.Vector3(pos.x, fy + 2, pos.z), 0x88ddff, 2.2, opts.storm.radius * 3);
     G.audio.vortex();
     W.vortices.push({
-      mesh: grp, cone: cone, inner: inner, light: light,
+      mesh: grp, cone: cone, inner: inner,
       t: opts.storm.dur, radius: opts.storm.radius, dmg: opts.dmg, tick: 0
     });
   }
@@ -799,9 +811,10 @@
       v.t -= dt;
       v.cone.rotation.y += dt * 7;
       v.inner.rotation.y -= dt * 11;
-      v.light.intensity = 1.2 + Math.random() * 1.2;
+      v.cone.material.opacity = 0.22 + Math.random() * 0.12;  // flicker (was the light)
       G.zombies.list.forEach(function (z) {
         if (z.dead || (z.state !== 'chase' && z.state !== 'attack')) return;
+        if (Math.abs(z.mesh.position.y - v.mesh.position.y) > 2.5) return;  // own floor only
         var dx = v.mesh.position.x - z.mesh.position.x;
         var dz = v.mesh.position.z - z.mesh.position.z;
         var d = Math.hypot(dx, dz);
@@ -815,9 +828,12 @@
         G.audio.vortexTick();
         G.zombies.list.slice().forEach(function (z) {
           if (z.dead) return;
+          // confine to the vortex's own floor (floors are 4 apart) so it doesn't
+          // bleed damage through the ceiling/floor to the level above or below
+          if (Math.abs(z.mesh.position.y - v.mesh.position.y) > 2.5) return;
           var d = z.mesh.position.distanceTo(v.mesh.position);
           if (d < v.radius) {
-            var a = v.mesh.position.clone(); a.y = 4.5;
+            var a = v.mesh.position.clone(); a.y += 4.5;
             var b = z.mesh.position.clone(); b.y += 1.3;
             addLine(a, b, 0xaaeeff, 0.15, 0.9);
             G.zombies.damageZombie(z, v.dmg, { boom: true });
@@ -907,6 +923,13 @@
     return null;
   }
 
+  // light a transient flash from the pool (no scene add/remove -> no recompile)
+  function poolFlash(pos, color, intensity, dist) {
+    var L = W.boomLights[W.boomIdx]; W.boomIdx = (W.boomIdx + 1) % W.boomLights.length;
+    L.position.copy(pos); L.color.setHex(color); L.intensity = intensity; L.distance = dist;
+    W.flashes.push({ mesh: L, life: 0.22, isLight: true, pooled: true });
+  }
+
   W.explode = function (pos, dmg, radius, opts) {
     opts = opts || {};
     G.audio.explosion();
@@ -916,10 +939,7 @@
     flash.position.copy(pos);
     G.scene.add(flash);
     W.flashes.push({ mesh: flash, life: 0.22 });
-    var l = new THREE.PointLight(opts.color || 0xffaa33, 3, radius * 4);
-    l.position.copy(pos);
-    G.scene.add(l);
-    W.flashes.push({ mesh: l, life: 0.22, isLight: true });
+    poolFlash(pos, opts.color || 0xffaa33, 3, radius * 4);
     G.zombies.list.slice().forEach(function (z) {
       if (z.dead) return;
       var d = z.mesh.position.distanceTo(pos);
@@ -942,8 +962,13 @@
       var nx = p.mesh.position.x + p.vel.x * dt;
       var ny = p.mesh.position.y + p.vel.y * dt;
       var nz = p.mesh.position.z + p.vel.z * dt;
+      // floor under the projectile at its CURRENT height — not the hardcoded
+      // base plane. On a stacked map this lets a grenade land/bounce/detonate on
+      // Floor B (-4) or Floor 2 (+4); supportAt returns 0 on flat maps, so legacy
+      // behaviour is unchanged.
+      var floorH = G.map.supportAt(nx, nz, ny, 0);
       var hitWall = pointBlocked(nx, ny, nz, 0.1);
-      var hitFloor = ny <= 0.1;
+      var hitFloor = ny <= floorH + 0.1;
       var detonate = false;
 
       if (p.type === 'monkey' && p.landed) {
@@ -953,7 +978,7 @@
       } else if (hitWall || hitFloor) {
         if (p.opts.bounce) {
           if (hitFloor && Math.abs(p.vel.y) < 1.2) {
-            p.mesh.position.y = 0.1;
+            p.mesh.position.y = floorH + 0.1;
             p.vel.set(0, 0, 0);
             if (p.type === 'monkey' && !p.landed) {
               p.landed = true;
@@ -962,7 +987,7 @@
               G.zombies.lure = { pos: p.mesh.position.clone(), proj: p };
             }
           } else {
-            if (hitFloor) { p.mesh.position.y = 0.12; p.vel.y *= -0.4; p.vel.x *= 0.6; p.vel.z *= 0.6; }
+            if (hitFloor) { p.mesh.position.y = floorH + 0.12; p.vel.y *= -0.4; p.vel.x *= 0.6; p.vel.z *= 0.6; }
             if (hitWall) { p.vel.x *= -0.4; p.vel.z *= -0.4; }
           }
         } else detonate = true;
@@ -979,7 +1004,9 @@
           if (z.dead) continue;
           var zp = z.mesh.position;
           var horiz = Math.hypot(zp.x - p.mesh.position.x, zp.z - p.mesh.position.z);
-          if (horiz < 0.85 && p.mesh.position.y > -0.2 && p.mesh.position.y < 2.2) {
+          // body column is RELATIVE to the zombie's feet (zp.y), so the orb
+          // contacts hordes on Floor B / Floor 2 too — not just the base floor
+          if (horiz < 0.85 && p.mesh.position.y > zp.y - 0.3 && p.mesh.position.y < zp.y + 2.4) {
             detonate = true; break;
           }
         }
@@ -1095,7 +1122,13 @@
       fl.life -= dt;
       if (fl.isLight) fl.mesh.intensity *= 0.8;
       else { fl.mesh.scale.multiplyScalar(1.08); fl.mesh.material.opacity *= 0.8; }
-      if (fl.life <= 0) { G.scene.remove(fl.mesh); W.flashes.splice(f, 1); }
+      if (fl.life <= 0) {
+        // pooled lights stay in the scene (constant light count) — just dim them;
+        // everything else is a throwaway mesh and gets removed
+        if (fl.pooled) fl.mesh.intensity = 0;
+        else G.scene.remove(fl.mesh);
+        W.flashes.splice(f, 1);
+      }
     }
     for (var b = W.particles.length - 1; b >= 0; b--) {
       var pa = W.particles[b];
