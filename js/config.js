@@ -462,7 +462,7 @@
     ],
     TELEPORTERS: [],
     MAINFRAME: null,
-    PAP: { cell: [3, 3], off: [0, 0] },       // the Sanctum (aether font) — power-gated
+    PAP: { cell: [4, 2], off: [0, 0] },       // the Sanctum (aether font) — power-gated; north wall, clear of door 5
     POWER: { cell: [3, 8], off: [0, 0] },     // the Mineral Baths (boiler/pump)
     PLAYER_SPAWN: { cell: [9, 14], off: [0, 0] },
     RELIC_SPOTS: [],
