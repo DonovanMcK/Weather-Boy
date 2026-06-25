@@ -10,6 +10,11 @@
 
   var WALL_H = 4, WALL_T = 0.35, CELL = 4;
   var OFF = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] };
+  // FLOOR CULLING — the floor whose geometry is currently being built. addBox
+  // stamps it on every mesh (and addLamp on every room light) so a stacked map
+  // can hide the floors the player isn't on. _multiFloor gates the bookkeeping
+  // so flat legacy maps stay byte-identical (nothing is ever tagged or hidden).
+  var _fy = 0, _multiFloor = false;
 
   /* -------------------------------------------------- procedural textures */
   function makeCanvas(s) {
@@ -183,6 +188,7 @@
     var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
     mesh.position.set(x, y, z);
     G.scene.add(mesh);
+    if (_multiFloor) { mesh.userData.fy = _fy; G.map.cullables.push(mesh); }
     if (opts.collide) {
       // opts.cy1/cy2 give an explicit collider Y-band (per-floor walls); default
       // [0,99] keeps every existing call (flat maps) unchanged
@@ -451,6 +457,25 @@
 
     update: function (dt) {
       var self = this;
+      // FLOOR CULLING — on a stacked map, hide the geometry/lights of floors more
+      // than one level away from the player. The shaft stays correct because the
+      // adjacent floor is always shown (so the atrium up/down view never voids),
+      // and we only re-walk the cullable list when the shown set actually changes
+      // (a floor transition), so per-frame cost is one cheap key comparison.
+      if (this.cullables && this.cullables.length) {
+        var py = G.player.pos.y, fl = this.floors, key = '|';
+        for (var fi = 0; fi < fl.length; fi++) {
+          if (Math.abs(fl[fi].floorY - py) <= WALL_H + 2.5)  // current + adjacent
+            key += fl[fi].floorY + '|';
+        }
+        if (key !== this._shownKey) {
+          this._shownKey = key;
+          for (var ci = 0; ci < this.cullables.length; ci++) {
+            var c = this.cullables[ci];
+            c.visible = key.indexOf('|' + c.userData.fy + '|') !== -1;
+          }
+        }
+      }
       // keep the sky dome centered on the camera so its far side never crosses
       // the far clip plane (otherwise looking up clips a black hole in the sky)
       if (this.sky && G.camera) this.sky.position.copy(G.camera.position);
@@ -506,6 +531,12 @@
   /* ----------------------------------------------------------- the build */
   G.map.build = function () {
     CFG = G.CFG;
+    // adopt this map's grid scale (CFG.CELL is set by setMap, default 4m). The
+    // module-level CELL is cached at load, so refresh it for every build.
+    CELL = CFG.CELL || 4;
+    // floor-culling bookkeeping: only stacked maps (>1 floor) tag/hide geometry
+    _multiFloor = (CFG.cur._floors || []).length > 1;
+    _fy = 0; G.map.cullables = []; G.map._shownKey = null;
     var P = G.map.parsed = CFG.parseGrid(CFG.GRID);
     var map = G.map;
 
@@ -1248,6 +1279,12 @@
       G.scene.add(light);
       G.map.roomLights.push(light);
       G.map.lamps.push({ light: light, bulb: bulb });
+      // tag the fixture + light with their floor so culling can hide the lights
+      // (a real per-fragment cost) on floors the player isn't standing on
+      if (_multiFloor) {
+        fixture.userData.fy = fy; G.map.cullables.push(fixture);
+        light.userData.fy = fy;  G.map.cullables.push(light);
+      }
     }
 
     Object.keys(P.rooms).forEach(function (roomId) {
@@ -1808,6 +1845,7 @@
     // void) so the down-view runs top to bottom.
     function buildExtraFloor(f) {
       var fp = CFG.parseGrid(f.GRID), fy = f.floorY || 0;
+      _fy = fy;   // tag everything this builder adds (via addBox) to floor `fy`
       var omit = {}; (f.FLOOR_OMIT || []).forEach(function (c) { omit[c[0] + ',' + c[1]] = 1; });
       var openC = f.OPEN_CEIL || [], outd = f.OUTDOOR || [];
       var aboveCap = map.floorAbove(fy);          // a real floor sits above this one
@@ -1899,6 +1937,7 @@
       });
     }
     (CFG.cur._floors || []).forEach(function (f) { if (f !== CFG.cur._primary) buildExtraFloor(f); });
+    _fy = 0;   // anything built after the floor loop defaults back to the ground floor
     // record every floor's parsed grid + floorY so roomAt/cellAt can resolve which
     // floor a body at height y is on (Y-aware now that B/2 have real rooms)
     map.floors = (CFG.cur._floors || [{ id: '1', floorY: 0 }]).map(function (f) {

@@ -362,6 +362,10 @@
     sub: 'The Aether Baths — Floor 1: the Grand Halls (grey-box). Wonder weapon: the Maelstrom Driver.',
     wonder: 'maelstrom',
     papRule: 'power',
+    // 3m grid (vs the default 4m) shrinks the footprint ~25% linear / ~44% area
+    // without re-authoring grids or placements — keeps the 3-floor map tight and
+    // less laggy. WALL_H stays 4m so floors keep full standing height.
+    cellSize: 3,
     atmos: { sky: 0x3a3d46, fog: 0x33363e, density: 0.008,
              amb: 0x6a5c44, ambI: 0.9, hemiSky: 0xd8c49a, hemiGround: 0x4a4236 },
     // surface palette — warm/opulent decayed spa-resort (gold plaster, aged
@@ -596,6 +600,10 @@
     m.FLOOR_OMIT = primary.FLOOR_OMIT || m.FLOOR_OMIT || [];
     CFG._cx = primary.GRID[0].length / 2 - 0.5;
     CFG._cz = primary.GRID.length / 2 - 0.5;
+    // per-map grid scale: a map may shrink its footprint without re-authoring
+    // grids/placements by declaring a smaller cellSize (default 4m). WALL_H
+    // (inter-floor height) stays fixed so floors don't get cramped vertically.
+    CFG.CELL = m.cellSize || 4;
     return m;
   };
 
