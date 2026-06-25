@@ -68,7 +68,7 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
 
       // ---- 1. CRITICAL-PATH WALK: spawn -> through every door -> every room ----
       // hops as [fromRoom, doorId, toRoom]; walk center->door->next center
-      var hops = [['S', 1, 'A'], ['A', 4, 'V'], ['V', 5, 'N'], ['N', 7, 'B'], ['B', 2, 'S'], ['S', 3, 'M'], ['M', 8, 'F'], ['F', 6, 'V']];
+      var hops = CFG.cur.id === 'kurhaus' ? [['S', 1, 'A'], ['A', 4, 'V'], ['V', 5, 'N'], ['N', 7, 'B'], ['B', 2, 'S'], ['S', 3, 'M'], ['M', 8, 'F'], ['F', 6, 'V']] : [];
       var walk = [];
       hops.forEach(function (h) {
         tp(ctr(h[0]).x, ctr(h[0]).z);            // always start the hop in its from-room
@@ -83,7 +83,13 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
       // ---- 2. TRAINING CIRCLE in every room (props/pillars must not jam it) ----
       var circles = [];
       Object.keys(rooms).forEach(function (rid) {
-        var c = ctr(rid), R = 5.0;
+        var c = ctr(rid);
+        // size the circle to the room so small rooms (catwalks/corners) aren't
+        // false-flagged: radius = half the room's short side, minus a margin
+        var minc = 99, maxc = -99, minr = 99, maxr = -99;
+        rooms[rid].cells.forEach(function (cr) { minc = Math.min(minc, cr[0]); maxc = Math.max(maxc, cr[0]); minr = Math.min(minr, cr[1]); maxr = Math.max(maxr, cr[1]); });
+        var shortSide = (Math.min(maxc - minc, maxr - minr) + 1) * CFG.CELL;
+        var R = Math.max(2.0, Math.min(5.0, shortSide / 2 - 1.6));
         tp(c.x, c.z + R);
         var pts = 8, doneFrames = 0, jammed = null;
         for (var i = 1; i <= pts && !jammed; i++) {
