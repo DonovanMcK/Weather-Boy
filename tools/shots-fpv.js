@@ -21,11 +21,11 @@ var URL = 'file://' + path.join(ROOT, 'index.html'), W = 1280, H = 760;
     // eye-level views: stand at a room centre on each floor, look toward the room's far side + up
     var views = await p.evaluate(function () {
       var G = window.G, CFG = G.CFG, out = [];
-      function room(rid, y) { var r = G.map.floors.filter(function (f) { return Math.abs(f.floorY - y) < 0.5; })[0]; return r && r.parsed.rooms[rid] && r.parsed.rooms[rid].center; }
-      [['S', 0, 'foyer'], ['A', 0, 'atrium'], ['B', 0, 'ballroom'], ['H', -4, 'hotsprings'], ['F', -4, 'furnace'], ['G', 4, 'galleries'], ['E', 4, 'tesla']].forEach(function (q) {
-        var c = room(q[0], q[1]); if (!c) return;
-        out.push({ name: q[2] + '-fwd', pos: [c.x, q[1] + 1.6, c.z], look: [c.x + 8, q[1] + 1.5, c.z] });
-        out.push({ name: q[2] + '-up', pos: [c.x, q[1] + 1.6, c.z], look: [c.x + 4, q[1] + 5, c.z] });
+      function room(rid) { var r = G.map.floors[0]; return r && r.parsed.rooms[rid] && r.parsed.rooms[rid].center; }
+      [['S', 'foyer'], ['A', 'pumphall'], ['V', 'caldera'], ['F', 'frostworks'], ['N', 'sanctum'], ['B', 'baths'], ['M', 'cellar']].forEach(function (q) {
+        var c = room(q[0]); if (!c) return;
+        out.push({ name: q[1] + '-fwd', pos: [c.x, 1.6, c.z], look: [c.x + 8, 1.5, c.z] });
+        out.push({ name: q[1] + '-rev', pos: [c.x, 1.6, c.z], look: [c.x - 8, 1.5, c.z] });
       });
       return out;
     });

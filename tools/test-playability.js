@@ -84,8 +84,9 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
     });
 
     // ---- C. explosives detonate on zombies on every floor ----
-    console.log('C. EXPLOSIVES HIT ZOMBIES ON FLOOR B (-4) AND FLOOR 2 (+4)');
-    for (var floorY of [0, -4, 4]) {
+    console.log('C. EXPLOSIVES DETONATE ON ZOMBIES (every floor the map has)');
+    var floorYs = await p.evaluate(function () { return G.map.floors.map(function (f) { return f.floorY; }); });
+    for (var floorY of floorYs) {
       var rc = await p.evaluate(function (fy) {
         var G = window.G;
         // a clear room centre on the target floor

@@ -1465,6 +1465,78 @@
       }
     }
 
+    /* ---- KURHAUS per-wing themed decor ----------------------------------
+       Each wing gets a flat, WALKABLE emissive floor motif at its centre (lava
+       cracks / rune ring / frost / bloodstain / pool — no collider, so the
+       training oval stays clear) plus themed props in clearOf-gated corners
+       (auto-avoids machines, doors, windows). Modest mesh counts, shared mats. */
+    function dressKurhausRoom(rid, room, bb) {
+      var TH = dressKurhausRoom, S = G.scene;
+      if (!TH._m) {
+        var B = function (c) { return new THREE.MeshBasicMaterial({ color: c }); };
+        var L = function (c) { return new THREE.MeshLambertMaterial({ color: c }); };
+        var GL = function (c, o) { return new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false }); };
+        TH._m = {
+          lava: B(0xff5a14), lavaDim: B(0xc0420a), rock: L(0x2a1c16), ember: B(0xffaa3a),
+          ice: L(0xbfe7f0), steel: L(0x9aa6b0), frostF: GL(0xcfeefc, 0.18),
+          meat: L(0x6e2222), bone: L(0xc9bca0), flesh: L(0x7a2e2e), blood: GL(0x5a1414, 0.55),
+          corpse: L(0x3e4636), chead: L(0x6a6a52), rune: B(0xb074ff), runeF: GL(0x7a3aff, 0.5), aether: B(0xc9a6ff),
+          water: GL(0x2fd0c8, 0.5), brass: L(0x9a7a3a), pipe: L(0x6a6256), velvet: L(0x6a1f24), gold: L(0xb8923a)
+        };
+      }
+      var M = TH._m;
+      function box(w, h, d, x, y, z, m) { return addBox(w, h, d, x, y, z, m); }
+      function cyl(r, h, x, y, z, m, sg) { var e = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, sg || 10), m); e.position.set(x, y, z); S.add(e); return e; }
+      function coneM(r, h, x, y, z, m) { var e = new THREE.Mesh(new THREE.ConeGeometry(r, h, 8), m); e.position.set(x, y, z); S.add(e); return e; }
+      function sph(r, x, y, z, m) { var e = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 8), m); e.position.set(x, y, z); S.add(e); return e; }
+      function disc(r, x, z, m, y) { var e = new THREE.Mesh(new THREE.CircleGeometry(r, 24), m); e.rotation.x = -Math.PI / 2; e.position.set(x, y || 0.07, z); e.renderOrder = 1; S.add(e); return e; }
+      function ring(ro, ri, x, z, m, y) { var e = new THREE.Mesh(new THREE.TorusGeometry(ro, ri, 8, 30), m); e.rotation.x = Math.PI / 2; e.position.set(x, y || 0.08, z); S.add(e); return e; }
+      function glow(x, y, z, c, i, dist) { var l = new THREE.PointLight(c, i, dist || 15, 1.6); l.position.set(x, y, z); S.add(l); return l; }
+      var cx = bb.cx, cz = bb.cz, x0 = bb.x0, x1 = bb.x1, z0 = bb.z0, z1 = bb.z1;
+      // candidate corner anchors (inset), filtered so we never sit on a machine/door/window
+      var corners = [[x0 + 1.3, z0 + 1.3], [x1 - 1.3, z0 + 1.3], [x0 + 1.3, z1 - 1.3], [x1 - 1.3, z1 - 1.3]]
+        .filter(function (c) { return clearOf(new THREE.Vector3(c[0], 0, c[1]), 1.7); });
+
+      if (rid === 'V') {                       // CALDERA — molten cracks + embers
+        disc(2.6, cx, cz, M.lava); disc(3.2, cx, cz, M.lavaDim, 0.05);
+        glow(cx, 1.4, cz, 0xff6a1e, 1.7, 18);
+        corners.forEach(function (c, i) { box(0.5 + (i % 2) * 0.2, 0.45, 0.5, c[0], 0.22, c[1], M.rock); sph(0.22, c[0], 0.5, c[1], i % 2 ? M.lava : M.ember); });
+      } else if (rid === 'F') {                // FROSTWORKS — vents + icicles + frost
+        disc(2.8, cx, cz, M.frostF); glow(cx, 2.4, cz, 0x9fd8ee, 1.0, 16);
+        corners.forEach(function (c) { cyl(0.5, WALL_H, c[0], WALL_H / 2, c[1], M.steel); cyl(0.62, 0.4, c[0], WALL_H - 0.3, c[1], M.ice); coneM(0.18, 0.9, c[0], WALL_H - 0.9, c[1], M.ice); });
+      } else if (rid === 'M') {                // COLD CELLAR — meat hooks + dead + blood
+        disc(2.6, cx, cz, M.blood);
+        // a rail of hanging carcasses down the clear west side
+        for (var hi = 0; hi < 3; hi++) {
+          var hz = z0 + 1.8 + hi * (bb.d - 3.6) / 2, hx = x0 + 1.2;
+          if (!clearOf(new THREE.Vector3(hx, 0, hz), 1.2)) continue;
+          cyl(0.05, 1.5, hx, WALL_H - 0.75, hz, M.steel, 6); box(0.45, 1.3, 0.45, hx, WALL_H - 2.05, hz, M.meat); box(0.5, 0.12, 0.5, hx, WALL_H - 1.4, hz, M.bone);
+        }
+        corners.forEach(function (c) { box(0.7, 1.1, 0.4, c[0], 0.55, c[1], M.corpse); sph(0.26, c[0], 1.2, c[1], M.chead); });
+        glow(cx, 2.6, cz, 0x9aa6b0, 0.7, 15);
+      } else if (rid === 'N') {                // SANCTUM — aether rune ring + braziers
+        ring(2.0, 0.12, cx, cz, M.rune); ring(1.3, 0.08, cx, cz, M.runeF, 0.09);
+        for (var gi = 0; gi < 4; gi++) { var ga = gi / 4 * 6.28; box(0.32, 0.32, 0.06, cx + Math.cos(ga) * 2.0, 1.5 + (gi % 2) * 0.4, cz + Math.sin(ga) * 2.0, M.aether); }
+        corners.forEach(function (c) { cyl(0.22, 1.2, c[0], 0.6, c[1], M.brass); sph(0.3, c[0], 1.4, c[1], M.aether); glow(c[0], 1.6, c[1], 0x9c6cf0, 0.7, 10); });
+        glow(cx, 2.4, cz, 0x9c6cf0, 1.0, 15);
+      } else if (rid === 'B') {                // MINERAL BATHS — steaming teal pools + pipes
+        disc(2.8, cx, cz, M.water); ring(2.9, 0.16, cx, cz, M.brass, 0.12);
+        glow(cx, 1.6, cz, 0x3fd0c8, 1.0, 16);
+        corners.forEach(function (c, i) { cyl(0.16, WALL_H, c[0], WALL_H / 2, c[1], M.brass); if (i % 2) cyl(0.16, WALL_H, c[0] + 0.5, WALL_H / 2, c[1], M.brass); });
+      } else if (rid === 'A') {                // PUMP HALL — brass pumps + gauges (centre clear)
+        corners.forEach(function (c) { box(1.0, 1.5, 1.0, c[0], 0.75, c[1], M.brass); cyl(0.5, 0.3, c[0], 1.65, c[1], M.pipe); sph(0.22, c[0] + (c[0] < cx ? 0.55 : -0.55), 1.05, c[1], M.gold); });
+        // overhead pipe runs along the two side walls (decorative, up high)
+        [x0 + 0.5, x1 - 0.5].forEach(function (px) { var e = cyl(0.13, bb.d - 1.0, px, WALL_H - 0.5, cz, M.pipe); e.rotation.x = Math.PI / 2; });
+      } else if (rid === 'S') {                // GRAND FOYER — decayed lobby (concourse open)
+        glow(cx, 2.8, cz, 0xe0b070, 0.5, 20);
+        // reception desk + broken column tucked into clear corners only
+        corners.forEach(function (c, i) {
+          if (i % 2 === 0) { box(2.6, 1.0, 0.9, c[0], 0.5, c[1], M.gold); box(2.6, 0.12, 0.9, c[0], 1.05, c[1], M.brass); }
+          else { cyl(0.4, WALL_H - 1.0, c[0], (WALL_H - 1.0) / 2, c[1], M.gold, 12); var ch = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.1, 6, 16), M.brass); ch.position.set(c[0], 0.3, c[1]); ch.rotation.set(0.5, 0, 0.3); S.add(ch); }
+        });
+      }
+    }
+
     /* ---- per-room: ceiling/beams, pillars, ribs, hero, debris ---- */
     Object.keys(P.rooms).forEach(function (rid) {
       var room = P.rooms[rid];
@@ -1532,9 +1604,10 @@
 
       // corner support pillars — skip any that would land in/near a doorway
       // (they'd block the threshold and read as a pillar in front of the door).
-      // Kurhaus skips the decorative clutter entirely (perf + the rooms read clean)
-      var minimal = CFG.cur.id === 'kurhaus';
-      if (!minimal) [[bb.x0 + 0.42, bb.z0 + 0.42], [bb.x1 - 0.42, bb.z0 + 0.42],
+      // Kurhaus keeps the structural pillars/ribs (rooms read built) but swaps the
+      // generic crate clutter + hero for its own per-wing themed decor (below).
+      var minimal = CFG.cur.id === 'kurhaus', themed = CFG.cur.id === 'kurhaus';
+      [[bb.x0 + 0.42, bb.z0 + 0.42], [bb.x1 - 0.42, bb.z0 + 0.42],
        [bb.x0 + 0.42, bb.z1 - 0.42], [bb.x1 - 0.42, bb.z1 - 0.42]].forEach(function (c) {
         var nearDoor = Object.keys(map.doors).some(function (id) {
           return Math.hypot(map.doors[id].pos.x - c[0], map.doors[id].pos.z - c[1]) < 2.2;
@@ -1547,7 +1620,7 @@
       // wall ribs / pilasters on a regular rhythm (skip doors + windows) — a
       // deterministic every-other-bay cadence reads as deliberate structure
       // instead of the old random scatter that looked different each load
-      if (!minimal) edges.forEach(function (e) {
+      edges.forEach(function (e) {
         if (e.door || e.win || (e.cr[0] + e.cr[1]) % 2 !== 0) return;
         var wc = CFG.cellToWorld(e.cr[0], e.cr[1]);
         var alongX = (e.dir === 'N' || e.dir === 'S');
@@ -1641,6 +1714,12 @@
           occupy(cp); placedC++;
         }
       }
+
+      // KURHAUS — per-wing themed decor (the lava caldera, frost vents, meat
+      // locker, aether sanctum, mineral baths, brass pump hall, decayed foyer).
+      // Hugs the walls/corners, clear of the central training oval, modest mesh
+      // counts so it reads rich without lag.
+      if (themed) dressKurhausRoom(rid, room, bb);
     });
 
     // roof the DOORWAYS too: door cells belong to no room, so the room ceiling

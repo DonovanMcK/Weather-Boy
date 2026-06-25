@@ -359,203 +359,117 @@
   CFG.MAPS.kurhaus = {
     id: 'kurhaus',
     name: 'KURHAUS',
-    sub: 'The Aether Baths — Floor 1: the Grand Halls (grey-box). Wonder weapon: the Maelstrom Driver.',
+    sub: 'The Aether Baths — a sunken thermal spa gone wrong. Wonder weapon: the Maelstrom Driver.',
     wonder: 'maelstrom',
     papRule: 'power',
-    // 3m grid (vs the default 4m) shrinks the footprint ~25% linear / ~44% area
-    // without re-authoring grids or placements — keeps the 3-floor map tight and
-    // less laggy. WALL_H stays 4m so floors keep full standing height.
-    cellSize: 3,
-    atmos: { sky: 0x3a3d46, fog: 0x33363e, density: 0.008,
-             amb: 0x6a5c44, ambI: 0.9, hemiSky: 0xd8c49a, hemiGround: 0x4a4236 },
-    // surface palette — warm/opulent decayed spa-resort (gold plaster, aged
-    // brass, dark walnut, warm stone). Per-room floor/light tints below carry
-    // the distinct §9 zone families (gold foyer, mint atrium, crimson ballroom,
-    // mossy courtyard).
+    atmos: { sky: 0x2a2620, fog: 0x241f18, density: 0.01,
+             amb: 0x6a5238, ambI: 0.9, hemiSky: 0xd8c49a, hemiGround: 0x463a2a },
+    // warm, opulent, decayed spa-resort. Each WING carries its own floor/light
+    // family (gold foyer, molten caldera, icy frostworks, aether sanctum, teal
+    // baths, cold meat cellar) so a glance tells you which room you're in.
     palette: { wallA: 0xb8a06a, wallB: 0xa8905c, wood: 0x6e4a2e, plank: 0x855a36,
                metal: 0x9a8a5a, beam: 0x5a4a32, rust: 0x7a5a3a, conc: 0x9c9080,
-               deck: 0x7a6a4a, ceil: 0x6a5d44, accent: 0xc9a24b, lampTint: 0xffd9a0 },
-    // map-level placements live on the ground floor (Floor 1) — kept here so the
-    // legacy single-grid build path drives them unchanged
-    // Floor 1 gating: spawn (Foyer) opens cheapest into the Atrium hub (750),
-    // then the loop expands outward through the Courtyard / Colonnade / Ballroom.
-    // fewer doors: the Atrium is the hub — spawn opens into it (750), everything
-    // else hangs off it. Redundant loop-doors removed (rooms still all reachable).
-    DOORS: {
-      4: { cost: 750,  name: 'Atrium' },       // Foyer -> Atrium (primary opening)
-      2: { cost: 1000, name: 'Atrium' },       // Courtyard -> Atrium
-      5: { cost: 1000, name: 'Ballroom' },     // Atrium -> Ballroom
-      7: { cost: 1000, name: 'Colonnade' }     // Atrium -> Colonnade
+               deck: 0x7a6a4a, ceil: 0x5e5240, accent: 0xc9a24b, lampTint: 0xffd9a0 },
+    // ---- SINGLE FLOOR. Seven distinct themed wings joined in ONE big outer loop
+    // around a central Pump Hall (A), with a hub shortcut. Outer ring:
+    // Foyer(S) -> Baths(B) -> Sanctum(N) -> Caldera(V) -> Frostworks(F) ->
+    // Cold Cellar(M) -> Foyer. Hub A bridges Caldera<->Foyer. 8 doors. Every
+    // room has >=2 exits (no dead-ends); each room is a clean ~5x5 training oval
+    // and the Foyer is a wide grand concourse (spawn). Power in the Baths,
+    // Pack-a-Punch in the Sanctum. (rows are 19 wide, 17 tall)
+    GRID: [
+      '...................', // 0
+      '.NNNNN.VVVVV.FFFFF.', // 1  N=Sanctum  V=Caldera  F=Frostworks
+      '.NNNNN.VVVVV.FFFFF.', // 2
+      '.NNNNN5VVVVV6FFFFF.', // 3  5:Sanctum-Caldera  6:Caldera-Frostworks
+      '.NNNNN.VVVVV.FFFFF.', // 4
+      '.NNNNN.VVVVV.FFFFF.', // 5
+      '...7.....4.....8...', // 6  7:Sanctum-Baths  4:Caldera-PumpHall  8:Frostworks-Cellar
+      '.BBBBB.AAAAA.MMMMM.', // 7  B=Mineral Baths  A=Pump Hall (hub)  M=Cold Cellar
+      '.BBBBB.AAAAA.MMMMM.', // 8
+      '.BBBBB.AAAAA.MMMMM.', // 9
+      '.BBBBB.AAAAA.MMMMM.', // 10
+      '.BBBBB.AAAAA.MMMMM.', // 11
+      '...2.....1.....3...', // 12 2:Baths-Foyer  1:PumpHall-Foyer  3:Cellar-Foyer
+      '.SSSSSSSSSSSSSSSSS.', // 13 S=Grand Foyer concourse (spawn)
+      '.SSSSSSSSSSSSSSSSS.', // 14
+      '.SSSSSSSSSSSSSSSSS.', // 15
+      '...................'  // 16
+    ],
+    ROOMS: {
+      S: { name: 'Grand Foyer',   floor: 0x4a3826, light: 0xe0b070 },
+      A: { name: 'Pump Hall',     floor: 0x3a3a30, light: 0xc8b486 },
+      V: { name: 'The Caldera',   floor: 0x3a1a10, light: 0xff6a1e },
+      F: { name: 'Frostworks',    floor: 0x223e46, light: 0xbfe7f0 },
+      N: { name: 'The Sanctum',   floor: 0x2a1a38, light: 0x9c6cf0 },
+      B: { name: 'Mineral Baths', floor: 0x163a38, light: 0x4ad0c8 },
+      M: { name: 'Cold Cellar',   floor: 0x2c2422, light: 0x9aa6b0 }
     },
-    // 8 perks across the three floors (per the design doc). y lifts a machine onto
-    // its floor (Floor B -4 / Floor 2 +4); all gated behind power except Quick
-    // Revive, and the Core perk is reserved behind the easter egg (ee:true).
+    OUTDOOR: [],
+    DOORS: {
+      1: { cost: 750,  name: 'Pump Hall' },      // Foyer -> Hub (spawn primary)
+      2: { cost: 1000, name: 'Mineral Baths' },  // Foyer -> Baths (power)
+      3: { cost: 1000, name: 'Cold Cellar' },    // Foyer -> Meat locker
+      4: { cost: 1250, name: 'The Caldera' },    // Hub -> Caldera
+      6: { cost: 1000, name: 'Frostworks' },     // Caldera -> Frostworks
+      5: { cost: 1250, name: 'The Sanctum' },    // Caldera -> Sanctum
+      7: { cost: 1250, name: 'The Sanctum' },    // Baths -> Sanctum
+      8: { cost: 1000, name: 'Cold Cellar' }     // Frostworks -> Cellar
+    },
+    WINDOWS: [
+      { cell: [3, 1],  dir: 'N' }, { cell: [1, 3], dir: 'W' },   // Sanctum
+      { cell: [9, 1],  dir: 'N' },                                // Caldera
+      { cell: [15, 1], dir: 'N' }, { cell: [17, 3], dir: 'E' },  // Frostworks
+      { cell: [1, 9],  dir: 'W' },                                // Baths
+      { cell: [17, 9], dir: 'E' },                                // Cold Cellar
+      { cell: [5, 15], dir: 'S' }, { cell: [9, 15], dir: 'S' }, { cell: [13, 15], dir: 'S' },
+      { cell: [1, 14], dir: 'W' }, { cell: [17, 14], dir: 'E' }  // Foyer concourse
+    ],
+    RISERS: [[7, 14], [11, 14]],
+    // 8 perks + Der Wunderfizz, spread one-ish per wing so the map forces
+    // movement. All power-gated except Quick Revive.
     PERK_MACHINES: [
-      { perk: 'revive',   cell: [1, 7],   off: [-1.0, 0] },             // F1 Grand Foyer
-      { perk: 'stamin',   cell: [4, 2],   off: [-1.0, 0] },             // F1 Courtyard
-      { perk: 'jugg',     cell: [15, 9],  off: [0, 0] },                // F1 Ballroom
-      { perk: 'dtap',     cell: [16, 6],  off: [0, 0], y: 4 },          // F2 Tesla Hall
-      { perk: 'mule',     cell: [12, 14], off: [0, 0], y: 4 },         // F2 Solarium
-      { perk: 'speed',    cell: [16, 8],  off: [0, 0], y: -4 },         // FB Cold Plunge
-      { perk: 'deadshot', cell: [2, 8],   off: [0, 0], y: -4 },         // FB Cistern
-      { perk: 'widows',   cell: [13, 13], off: [0, 0], y: -4, ee: true }, // FB Core (EE-reserved)
-      { perk: 'wonderfizz', cell: [11, 13], off: [0, 1.0] }              // Der Wunderfizz — F1 Colonnade (random-perk vendor)
+      { perk: 'revive',     cell: [3, 14],  off: [0, 0] },    // Foyer (spawn)
+      { perk: 'stamin',     cell: [15, 14], off: [0, 0] },    // Foyer
+      { perk: 'jugg',       cell: [9, 2],   off: [0, 0] },    // Caldera
+      { perk: 'speed',      cell: [2, 9],   off: [0, 0] },    // Baths
+      { perk: 'mule',       cell: [16, 9],  off: [0, 0] },    // Cold Cellar
+      { perk: 'dtap',       cell: [16, 4],  off: [0, 0] },    // Frostworks
+      { perk: 'deadshot',   cell: [2, 4],   off: [0, 0] },    // Sanctum
+      { perk: 'widows',     cell: [11, 8],  off: [0, 0] },    // Pump Hall
+      { perk: 'wonderfizz', cell: [14, 10], off: [0, 0] }     // Cold Cellar vendor
     ],
-    // one wall weapon per major room on the gated critical path, spread across all
-    // three floors so a player is never weaponless after a box dry spell
     WALLBUYS: [
-      { gun: 'olympia',  cell: [4, 10], off: [0, 1.6],  face: 'S' },             // F1 Foyer (starter)
-      { gun: 'm14',      cell: [16, 10], off: [0, 1.6], face: 'S' },             // F1 Ballroom
-      { gun: 'mp5k',     cell: [7, 14], off: [0, 1.6],  face: 'S' },             // F1 Colonnade
-      { gun: 'mp40',     cell: [12, 8], off: [1.6, 0],  face: 'E', y: -4 },      // FB Hot Springs
-      { gun: 'stakeout', cell: [19, 8], off: [1.6, 0],  face: 'E', y: -4 },      // FB Cold Plunge
-      { gun: 'ak74u',    cell: [18, 7], off: [1.6, 0],  face: 'E', y: 4 },       // F2 Tesla Hall
-      { gun: 'm16',      cell: [0, 7],  off: [-1.6, 0], face: 'W', y: 4 }        // F2 Treatment Wards
+      { gun: 'olympia',  cell: [4, 15],  off: [0, 1.6],  face: 'S' },   // Foyer starter
+      { gun: 'mp5k',     cell: [14, 15], off: [0, 1.6],  face: 'S' },   // Foyer
+      { gun: 'm14',      cell: [9, 1],   off: [0, -1.6], face: 'N' },   // Caldera
+      { gun: 'mp40',     cell: [1, 8],   off: [-1.6, 0], face: 'W' },   // Baths
+      { gun: 'stakeout', cell: [17, 10], off: [1.6, 0],  face: 'E' },   // Cold Cellar
+      { gun: 'ak74u',    cell: [17, 4],  off: [1.6, 0],  face: 'E' },   // Frostworks
+      { gun: 'm16',      cell: [1, 4],   off: [-1.6, 0], face: 'W' }    // Sanctum
     ],
-    // Mystery box rotates among the 3 doc spots, one per floor (the box hugs a
-    // clear wall on each floor; relocate/fire-sale cycles through all three)
     BOX_SPOTS: [
-      { cell: [9, 8],  off: [0, 0] },            // Atrium (Floor 1, starting spot)
-      { cell: [16, 11], off: [0, 0], y: 4 },     // Records (Floor 2)
-      { cell: [9, 8],  off: [0, 0], y: -4 }      // Hot Springs (Floor B)
+      { cell: [9, 9],  off: [0, 0] },    // Pump Hall (start)
+      { cell: [15, 8], off: [0, 0] },    // Cold Cellar
+      { cell: [9, 4],  off: [0, 0] },    // Caldera
+      { cell: [11, 14], off: [0, 0] },   // Foyer concourse
+      { cell: [3, 10], off: [0, 0] }     // Baths
     ],
-    // traps — one per zone, power-gated + buyable to activate (the 3 from the doc)
     TRAPS: [
-      { type: 'molten', name: 'Molten Pour', cell: [13, 1], y: -4, cost: 1000, radius: 5.5, dur: 6, dps: 320, color: 0xe8821e },  // Furnace (FB)
-      { type: 'cryo',   name: 'Cryo Vent',   cell: [17, 9], y: -4, cost: 1000, radius: 5.5, dur: 6, dps: 300, color: 0xbfe7f0 },  // Cold Plunge (FB)
-      { type: 'tesla',  name: 'Tesla Gate',  cell: [15, 6], y: 4,  cost: 1250, radius: 5.5, dur: 6, dps: 400, color: 0x3a6ce0 }   // Tesla Hall (F2)
+      { type: 'molten', name: 'Molten Pour', cell: [11, 2], cost: 1000, radius: 5.5, dur: 6, dps: 320, color: 0xe8821e },  // Caldera
+      { type: 'cryo',   name: 'Cryo Vent',   cell: [13, 2], cost: 1000, radius: 5.5, dur: 6, dps: 300, color: 0xbfe7f0 },  // Frostworks
+      { type: 'tesla',  name: 'Tesla Gate',  cell: [4, 10], cost: 1250, radius: 5.5, dur: 6, dps: 400, color: 0x3a6ce0 }   // Baths
     ],
     TELEPORTERS: [],
     MAINFRAME: null,
-    PAP: { cell: [6, 14], off: [0, 0], y: -4 },    // the Core, Floor B (south wall, clear of the north doors)
-    papCoreGated: true,                            // PaP needs power + the awakened Core (the EE drives map.coreUnlocked)
-    POWER: { cell: [9, 2], off: [0, 0], y: -4 },   // the Furnace, Floor B
-    PLAYER_SPAWN: { cell: [3, 8], off: [0, 0.4] },
+    PAP: { cell: [3, 3], off: [0, 0] },       // the Sanctum (aether font) — power-gated
+    POWER: { cell: [3, 8], off: [0, 0] },     // the Mineral Baths (boiler/pump)
+    PLAYER_SPAWN: { cell: [9, 14], off: [0, 0] },
     RELIC_SPOTS: [],
     EE_SOULBOX: null,
     SHIELD_PARTS: {},
-    SHIELD_BENCH: null,
-    // ---- TRUE STACKED FLOORS — all three share the same x,z footprint (20x15
-    // grid). Floor B (-4) sits directly under Floor 1 (0); Floor 2 (+4) directly
-    // over it, ringing the Atrium shaft. Floor 1 is the primary (drives the
-    // legacy build + placements); B/2 are grey-box plates built by buildExtraFloor.
-    FLOORS: [
-      { id: 'B', floorY: -4,    // THE UNDERBATH — springs & furnace (Floor 1's ring
-        // topology, mirrored below: Furnace N / Cistern W / Hot Springs centre-oval
-        // / Cold Plunge E / Core S). The Service Staircase lands in the Cistern.
-        ROOMS: {
-          F: { name: 'Furnace',        floor: 0x4a2418, light: 0xe8821e },
-          T: { name: 'Cistern Tunnels', floor: 0x232c30, light: 0x6a8a92 },
-          H: { name: 'Hot Springs',    floor: 0x2c3a3a, light: 0xc88a4a },
-          P: { name: 'Cold Plunge',    floor: 0x24424a, light: 0xbfe7f0 },
-          C: { name: 'The Core',       floor: 0x301a3a, light: 0x9cf0c0 }
-        },
-        OUTDOOR: [], OPEN_CEIL: [], FLOOR_OMIT: [],
-        // the Service stair lands in the Cistern (T); from there door 1 opens to the
-        // Furnace = power (buyable, no power needed — no chicken-and-egg)
-        // Hot Springs is the hub: Cistern (where the Service stair lands) opens to
-        // it (4), and the Furnace/power is one more door from there (2).
-        DOORS: {
-          4: { cost: 1000, name: 'Hot Springs' },   // Cistern -> Hot Springs
-          2: { cost: 1250, name: 'Furnace' },       // Hot Springs -> Furnace (to power)
-          5: { cost: 1250, name: 'Cold Plunge' },   // Hot Springs -> Cold Plunge
-          7: { cost: 1500, name: 'The Core' }       // Hot Springs -> Core
-        },
-        WINDOWS: [{ cell: [9, 0], dir: 'N' }, { cell: [0, 8], dir: 'W' }, { cell: [19, 8], dir: 'E' }, { cell: [9, 14], dir: 'S' }],
-        GRID: [
-          '...FFFFFFFFFFFFFF...', // Furnace (N)
-          '...FFFFFFFFFFFFFF...',
-          '...FFFFFFFFFFFFFF...',
-          '...FFFFFFFFFFFFFF...',
-          '...FFFFFFFFFFFFFF...',
-          '.........2..........', // 2: Furnace-HotSprings
-          'TTTTT.HHHHHHH.PPPPPP', // T=Cistern(W) H=Hot Springs(oval) P=Cold Plunge(E)
-          'TTTTT4HHHHHHH5PPPPPP', // 4:Cistern-HotSprings 5:HotSprings-ColdPlunge
-          'TTTTT.HHHHHHH.PPPPPP',
-          'TTTTT.HHHHHHH.PPPPPP',
-          'TTTTT.HHHHHHH.PPPPPP',
-          '.........7..........', // 7: HotSprings-Core
-          '...CCCCCCCCCCCCCC...', // C=The Core (S, gated in the gameplay pass)
-          '...CCCCCCCCCCCCCC...',
-          '...CCCCCCCCCCCCCC...'
-        ] },
-      { id: '1', floorY: 0, primary: true,   // THE GRAND HALLS — spawn + hub
-        ROOMS: {
-          S: { name: 'Grand Foyer', floor: 0x4a3826, light: 0xe0b070 },
-          O: { name: 'Colonnade',   floor: 0x46382a, light: 0xd8a868 },
-          A: { name: 'Atrium',      floor: 0x3c4a40, light: 0xbfd4cc },
-          B: { name: 'Ballroom',    floor: 0x4a1f24, light: 0xe0a850 },
-          Y: { name: 'Courtyard',   floor: 0x33402e, light: 0x9fb0bc }
-        },
-        OUTDOOR: ['Y'], OPEN_CEIL: ['A'],   // Atrium is the open vertical shaft
-        // Foyer SW slab omitted so the Service Staircase descends to Floor B
-        FLOOR_OMIT: [[0, 9], [1, 9], [0, 10], [1, 10]],
-        WINDOWS: [
-          { cell: [0, 6],  dir: 'W' }, { cell: [0, 7], dir: 'W' }, { cell: [0, 8], dir: 'W' },
-          { cell: [14, 6], dir: 'N' }, { cell: [19, 8], dir: 'E' },
-          { cell: [5, 0],  dir: 'N' }, { cell: [9, 0], dir: 'N' }, { cell: [14, 0], dir: 'N' },
-          { cell: [5, 14], dir: 'S' }, { cell: [9, 14], dir: 'S' }, { cell: [14, 14], dir: 'S' }
-        ],
-        RISERS: [[7, 2], [11, 2]],
-        GRID: [
-          '...YYYYYYYYYYYYYY...', // Courtyard (outdoor) — north training oval
-          '...YYYYYYYYYYYYYY...',
-          '...YYYYYYYYYYYYYY...',
-          '...YYYYYYYYYYYYYY...',
-          '...YYYYYYYYYYYYYY...',
-          '.........2..........', // 2: Courtyard-Atrium
-          'SSSSS.AAAAAAA.BBBBBB', // S=Foyer(spawn) A=Atrium(shaft) B=Ballroom(widened)
-          'SSSSS4AAAAAAA5BBBBBB', // 4:Foyer-Atrium 5:Atrium-Ballroom
-          'SSSSS.AAAAAAA.BBBBBB',
-          'SSSSS.AAAAAAA.BBBBBB',
-          'SSSSS.AAAAAAA.BBBBBB',
-          '.........7..........', // 7: Atrium-Colonnade
-          '...OOOOOOOOOOOOOO...', // O=Colonnade (south promenade)
-          '...OOOOOOOOOOOOOO...',
-          '...OOOOOOOOOOOOOO...'
-        ] },
-      { id: '2', floorY: 4,    // THE ANNEX — Upper Galleries ring the Atrium shaft
-        // (G, railed), with Wards (W), Tesla Hall (E), Records (R), Solarium (L).
-        // The shaft void (cols6-12, rows6-10) lines up exactly with the Atrium below.
-        ROOMS: {
-          G: { name: 'Upper Galleries', floor: 0x33424a, light: 0x8fd0e0 },
-          W: { name: 'Treatment Wards', floor: 0x3e4448, light: 0xd7dee0 },
-          E: { name: 'Tesla Hall',      floor: 0x222838, light: 0x3a6ce0 },
-          R: { name: 'Records',         floor: 0x303636, light: 0x9aa6b0 },
-          L: { name: 'Solarium',        floor: 0x3a4030, light: 0xcfe0a8 }
-        },
-        OUTDOOR: [], OPEN_CEIL: [], FLOOR_OMIT: [],
-        // the Grand stair lands in the Galleries (G); from there the Annex opens out
-        DOORS: {
-          1: { cost: 1250, name: 'Treatment Wards' }, // Galleries -> Wards
-          2: { cost: 1250, name: 'Tesla Hall' },      // Galleries -> Tesla Hall
-          3: { cost: 1000, name: 'Records' },         // Tesla Hall -> Records
-          4: { cost: 1000, name: 'Records' },         // Galleries -> Records
-          5: { cost: 1250, name: 'Solarium' },        // Wards -> Solarium
-          6: { cost: 1250, name: 'Solarium' },        // Galleries -> Solarium
-          7: { cost: 1000, name: 'Solarium' }         // Records -> Solarium
-        },
-        WINDOWS: [{ cell: [0, 8], dir: 'W' }, { cell: [18, 6], dir: 'E' }, { cell: [9, 14], dir: 'S' }],
-        GRID: [
-          '....................',
-          '....................',
-          '....................',
-          '....................',
-          '....................',
-          'WWWW.GGGGGGGGG.EEEE.', // W=Wards  G=Galleries(ring)  E=Tesla Hall
-          'WWWW.G.......G.EEEE.', // shaft open cols6-12 (ringed by G, railed)
-          'WWWW.G.......G2EEEE.', // 2:Galleries-Tesla
-          'WWWW1G.......G.EEEE.', // 1:Wards-Galleries
-          'WWWW.G.......G...3..', // 3:Tesla-Records
-          'WWWW.G.......G4RRRR.', // 4:Galleries-Records
-          'WWWW.GGGGGGGGG.RRRR.', // G south gallery
-          '.5.......6......7...', // 5:Wards-Solarium 6:Galleries-Solarium 7:Records-Solarium
-          'LLLLLLLLLLLLLLLLLLL.', // L=Solarium (south)
-          'LLLLLLLLLLLLLLLLLLL.'
-        ] }
-    ]
+    SHIELD_BENCH: null
   };
-
   CFG.MAP_IDS = ['nacht', 'derriese', 'wetterjunge', 'kurhaus'];
 
   // Copies the chosen map's data onto CFG.* so the rest of the code keeps a
