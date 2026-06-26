@@ -873,72 +873,8 @@
     map.stages = [];
     var stageSpecs = [];
     var bridgeSpecs = [];
-    if (CFG.cur.id === 'derriese') {
-      // THE iconic Der Riese upper catwalk: a U of raised walkways wrapping the
-      // west, north and east walls of the Mainframe Courtyard (the Teleporter-C
-      // "upstairs"), open toward spawn, railed over the central pit. Thin decks
-      // so the ground — and the doorways the catwalk crosses — stay walkable
-      // beneath; reached by a staircase at each front corner. The nav engine
-      // routes the horde up the stairs and around the loop.
-      var H = 3.2;
-      var westDeck = { x1: xW(3) - CELL / 2, x2: xW(3) + CELL / 2,
-                       z1: zW(5) - CELL / 2, z2: zW(7) + CELL / 2, h: H, thin: true, railE: true };
-      westDeck.stairs = { x1: westDeck.x1, x2: westDeck.x2, zTop: westDeck.z2, zBase: zW(9), steps: 8 };
-      var eastDeck = { x1: xW(12) - CELL / 2, x2: xW(12) + CELL / 2,
-                       z1: zW(5) - CELL / 2, z2: zW(7) + CELL / 2, h: H, thin: true, railW: true };
-      eastDeck.stairs = { x1: eastDeck.x1, x2: eastDeck.x2, zTop: eastDeck.z2, zBase: zW(9), steps: 8 };
-      // rear catwalk widened to two cells deep so the Mainframe has a real
-      // focal platform: footprint, a passing lane and zombie approach + turning
-      // space (still a thin deck — the courtyard floor stays walkable beneath).
-      var northDeck = { x1: xW(3) - CELL / 2, x2: xW(12) + CELL / 2,
-                        z1: zW(5) - CELL / 2, z2: zW(6) + CELL / 2, h: H, thin: true, railS: true,
-                        supports: true };
-      stageSpecs.push(westDeck, eastDeck, northDeck);
-    }
-    if (CFG.cur.id === 'wetterjunge') {
-      // not every upstairs is a catwalk — this is a full enclosed LOFT ROOM
-      // above the Storage room's north half (its own walls + vibe), reached by a
-      // staircase on the far east side, clear of the doorways. Thin floor keeps
-      // the room below fully walkable.
-      var loft = { x1: xW(11) - CELL / 2, x2: xW(14) + CELL / 2,
-                   z1: zW(5) - CELL / 2, z2: zW(6) + CELL / 2, h: 3.4, thin: true, walls: true,
-                   railN: true, railW: true, railE: true, railS: true };
-      loft.stairs = { x1: xW(14) - CELL / 2, x2: xW(14) + CELL / 2, zTop: loft.z2, zBase: zW(8), steps: 8 };
-      stageSpecs.push(loft);
-    }
-    if (CFG.cur.id === 'kurhaus') {
-      // ===================================================================
-      // KURHAUS STAIR STANDING RULE (locked in after the _t3 stacked proof)
-      // -------------------------------------------------------------------
-      // EVERY Kurhaus staircase — Grand, Service, and any added on Floor B or
-      // Floor 2 later — MUST be: (1) built via buildStage (for the automatic
-      // stairwell-headroom lift, see the CONSTRAINT note at buildStage); (2)
-      // graded ~0.5 (about an 8m run for a 4m rise, i.e. zBase-zTop >= 8 over
-      // h=WALL_H); and (3) given an opening as WIDE as the full flight. A steeper
-      // ~0.67 flight (6m run) or a flight squeezed through a 1-cell doorway makes
-      // the nav edges fragile — the under-flight fill cuts mid-ramp edges and the
-      // flanking walls block the climb, so the horde stalls partway up. The _t3
-      // proof only went 6/6 once the flight was regraded to ~0.5 and widened.
-      // ===================================================================
-      //
-      // GRAND STAIRCASE — Ballroom (NE) up to the Floor 2 east gallery at +4.
-      // Lands within Floor 2's footprint (cols 13-18) so it connects to the
-      // gallery floor. Regraded to ~0.5 (8m run / steps 10).
-      var grand = { x1: xW(17) - CELL / 2, x2: xW(18) + CELL / 2,
-                    z1: zW(6) - CELL / 2, z2: zW(7) + CELL / 2, h: WALL_H, thin: true,
-                    gate: { id: 'grand', cost: 1250, name: 'Grand Staircase (Floor 2)', rooms: ['B', 'G'] } };
-      grand.stairs = { x1: grand.x1, x2: grand.x2, zTop: grand.z2, zBase: zW(9) + CELL / 2, steps: 10 };
-      // SERVICE STAIRCASE — Foyer (SW) DOWN through the omitted ground slab
-      // (config FLOOR_OMIT) to Floor B at -4 (now a real plate, no open pit).
-      // Already ~0.5 (8m run).
-      var service = { x1: xW(0) - CELL / 2, x2: xW(1) + CELL / 2,
-                      z1: zW(9) - CELL / 2, z2: zW(10) + CELL / 2,
-                      h: 0, baseH: -WALL_H, descend: true,
-                      gate: { id: 'service', cost: 1000, name: 'Service Staircase (Floor B)', rooms: ['S', 'T'] } };
-      service.stairs = { x1: service.x1, x2: service.x2,
-                         zTop: zW(9) - CELL / 2, zBase: zW(10) + CELL / 2, steps: 10 };
-      stageSpecs.push(grand, service);
-    }
+    // (All maps are single flat floors now — no stairs, catwalks or lofts.
+    // stageSpecs stays empty so buildStage never runs.)
     // reserve the deck and stair footprints (separately, so we don't over-claim
     // the whole bounding box) — machines steer clear of the structure
     function reserveRect(x1, z1, x2, z2) {

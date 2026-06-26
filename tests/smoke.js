@@ -376,7 +376,7 @@ async function runQuick(mapId) {
     testNoRange(ctx);
     testDetail(ctx);
   }
-  if (mapId === 'derriese') { testVerticality(ctx); testMainframeCatwalk(ctx); testStairFunnel(ctx); }
+  // (all maps are single flat floors now — verticality/catwalk/stair tests retired)
   testWallAlignment(ctx, mapId);
 }
 

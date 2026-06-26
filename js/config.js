@@ -181,7 +181,7 @@
     PERK_MACHINES: [
       { perk: 'revive', cell: [6, 12], off: [0, 0] },
       { perk: 'jugg',   cell: [5, 8],  off: [0, 0] },
-      { perk: 'speed',  cell: [5, 5],  off: [0, 0.4], y: 3.2 },   // UP on the catwalk
+      { perk: 'speed',  cell: [5, 5],  off: [0, 0.4] },   // Courtyard, north edge
       { perk: 'dtap',   cell: [14, 8], off: [0, 0] },
       { perk: 'wonderfizz', cell: [0, 3],  off: [0, 0] },
       { perk: 'stamin', cell: [15, 3], off: [0, 0] }
@@ -204,14 +204,14 @@
       { cell: [7, 2],  off: [0, 0] },
       { cell: [9, 11], off: [0, 0] },
       { cell: [6, 8],  off: [0, 0] },
-      { cell: [10, 5], off: [0, 0.4], y: 3.2 }   // a spot UP on the catwalk
+      { cell: [10, 5], off: [0, 0.4] }   // Courtyard, north edge
     ],
     TELEPORTERS: [
       { id: 'A', cell: [0, 7],  off: [0, 0] },
       { id: 'B', cell: [15, 7], off: [0, 0] },
       { id: 'C', cell: [7, 1],  off: [0, 0] }
     ],
-    MAINFRAME: { cell: [7, 5], off: [0, -0.8], y: 3.2 },   // on the rear (north) catwalk
+    MAINFRAME: { cell: [7, 5], off: [0, -0.8] },   // Courtyard, against the north wall
     PAP: { cell: [9, 7], off: [0, 0] },
     POWER: { cell: [10, 2], off: [0, 0] },
     PLAYER_SPAWN: { cell: [7, 12], off: [0, 0.5] },
@@ -273,10 +273,10 @@
     },
     DOORS: {
       1: { cost: 750,  name: 'Courtyard' },
-      2: { cost: 1000, name: 'Laboratory Stair' },
+      2: { cost: 1000, name: 'Laboratory' },
       3: { cost: 1000, name: 'Laboratory' },
       4: { cost: 1000, name: 'Storage' },
-      5: { cost: 1000, name: 'Storage Stair' },
+      5: { cost: 1000, name: 'Storage' },
       6: { cost: 1250, name: 'West Catwalk' },
       7: { cost: 1500, name: 'Radar Dome' },
       8: { cost: 1250, name: 'East Catwalk' }
@@ -299,7 +299,7 @@
       { perk: 'revive', cell: [6, 12], off: [-1.0, 0] },
       { perk: 'jugg',   cell: [13, 7], off: [1.0, 0] },
       { perk: 'speed',  cell: [1, 7],  off: [-1.0, 0] },
-      { perk: 'dtap',   cell: [12, 5], off: [0, 0.5], y: 3.4 },   // UP in the Storage loft
+      { perk: 'dtap',   cell: [12, 5], off: [0, 0.5] },   // Storage
       { perk: 'stamin', cell: [2, 1],  off: [0, 0] },
       { perk: 'wonderfizz', cell: [13, 2], off: [0, 1.0] }
     ],
@@ -312,7 +312,7 @@
       { gun: 'm16',      cell: [13, 0], off: [0, -1.6], face: 'N' },
       { gun: 'stakeout', cell: [0, 8],  off: [-1.6, 0], face: 'W' },
       { gun: 'frags',    cell: [0, 2],  off: [-1.6, 0], face: 'W' },
-      { gun: 'rpk',      cell: [13, 5], off: [0, -1.6], face: 'N', y: 3.4 }   // UP in the loft
+      { gun: 'rpk',      cell: [13, 5], off: [0, -1.6], face: 'N' }   // Storage, north wall
     ],
     BOX_SPOTS: [
       { cell: [2, 2],  off: [0, 0] },
