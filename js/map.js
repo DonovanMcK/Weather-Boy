@@ -1492,6 +1492,10 @@
       function disc(r, x, z, m, y) { var e = new THREE.Mesh(new THREE.CircleGeometry(r, 24), m); e.rotation.x = -Math.PI / 2; e.position.set(x, y || 0.07, z); e.renderOrder = 1; S.add(e); return e; }
       function ring(ro, ri, x, z, m, y) { var e = new THREE.Mesh(new THREE.TorusGeometry(ro, ri, 8, 30), m); e.rotation.x = Math.PI / 2; e.position.set(x, y || 0.08, z); S.add(e); return e; }
       function glow(x, y, z, c, i, dist) { var l = new THREE.PointLight(c, i, dist || 15, 1.6); l.position.set(x, y, z); S.add(l); return l; }
+      // make a floor-standing corner prop solid (so you can't clip through it) —
+      // only ever called for things tucked in clearOf'd corners, never the
+      // walkable floor motifs or overhead hooks/icicles.
+      function solid(x, z, hw, hd, h) { map.addCollider(x - hw, z - hd, x + hw, z + hd, 0, h); }
       var cx = bb.cx, cz = bb.cz, x0 = bb.x0, x1 = bb.x1, z0 = bb.z0, z1 = bb.z1;
       // candidate corner anchors (inset), filtered so we never sit on a machine/door/window
       var corners = [[x0 + 1.3, z0 + 1.3], [x1 - 1.3, z0 + 1.3], [x0 + 1.3, z1 - 1.3], [x1 - 1.3, z1 - 1.3]]
@@ -1503,7 +1507,7 @@
         corners.forEach(function (c, i) { box(0.5 + (i % 2) * 0.2, 0.45, 0.5, c[0], 0.22, c[1], M.rock); sph(0.22, c[0], 0.5, c[1], i % 2 ? M.lava : M.ember); });
       } else if (rid === 'F') {                // FROSTWORKS — vents + icicles + frost
         disc(2.8, cx, cz, M.frostF); glow(cx, 2.4, cz, 0x9fd8ee, 1.0, 16);
-        corners.forEach(function (c) { cyl(0.5, WALL_H, c[0], WALL_H / 2, c[1], M.steel); cyl(0.62, 0.4, c[0], WALL_H - 0.3, c[1], M.ice); coneM(0.18, 0.9, c[0], WALL_H - 0.9, c[1], M.ice); });
+        corners.forEach(function (c) { cyl(0.5, WALL_H, c[0], WALL_H / 2, c[1], M.steel); cyl(0.62, 0.4, c[0], WALL_H - 0.3, c[1], M.ice); coneM(0.18, 0.9, c[0], WALL_H - 0.9, c[1], M.ice); solid(c[0], c[1], 0.6, 0.6, WALL_H); });
       } else if (rid === 'M') {                // COLD CELLAR — meat hooks + dead + blood
         disc(2.6, cx, cz, M.blood);
         // a rail of hanging carcasses down the clear west side
@@ -1517,22 +1521,22 @@
       } else if (rid === 'N') {                // SANCTUM — aether rune ring + braziers
         ring(2.0, 0.12, cx, cz, M.rune); ring(1.3, 0.08, cx, cz, M.runeF, 0.09);
         for (var gi = 0; gi < 4; gi++) { var ga = gi / 4 * 6.28; box(0.32, 0.32, 0.06, cx + Math.cos(ga) * 2.0, 1.5 + (gi % 2) * 0.4, cz + Math.sin(ga) * 2.0, M.aether); }
-        corners.forEach(function (c) { cyl(0.22, 1.2, c[0], 0.6, c[1], M.brass); sph(0.3, c[0], 1.4, c[1], M.aether); glow(c[0], 1.6, c[1], 0x9c6cf0, 0.7, 10); });
+        corners.forEach(function (c) { cyl(0.22, 1.2, c[0], 0.6, c[1], M.brass); sph(0.3, c[0], 1.4, c[1], M.aether); glow(c[0], 1.6, c[1], 0x9c6cf0, 0.7, 10); solid(c[0], c[1], 0.35, 0.35, 1.5); });
         glow(cx, 2.4, cz, 0x9c6cf0, 1.0, 15);
       } else if (rid === 'B') {                // MINERAL BATHS — steaming teal pools + pipes
         disc(2.8, cx, cz, M.water); ring(2.9, 0.16, cx, cz, M.brass, 0.12);
         glow(cx, 1.6, cz, 0x3fd0c8, 1.0, 16);
         corners.forEach(function (c, i) { cyl(0.16, WALL_H, c[0], WALL_H / 2, c[1], M.brass); if (i % 2) cyl(0.16, WALL_H, c[0] + 0.5, WALL_H / 2, c[1], M.brass); });
       } else if (rid === 'A') {                // PUMP HALL — brass pumps + gauges (centre clear)
-        corners.forEach(function (c) { box(1.0, 1.5, 1.0, c[0], 0.75, c[1], M.brass); cyl(0.5, 0.3, c[0], 1.65, c[1], M.pipe); sph(0.22, c[0] + (c[0] < cx ? 0.55 : -0.55), 1.05, c[1], M.gold); });
+        corners.forEach(function (c) { box(1.0, 1.5, 1.0, c[0], 0.75, c[1], M.brass); cyl(0.5, 0.3, c[0], 1.65, c[1], M.pipe); sph(0.22, c[0] + (c[0] < cx ? 0.55 : -0.55), 1.05, c[1], M.gold); solid(c[0], c[1], 0.55, 0.55, 1.6); });
         // overhead pipe runs along the two side walls (decorative, up high)
         [x0 + 0.5, x1 - 0.5].forEach(function (px) { var e = cyl(0.13, bb.d - 1.0, px, WALL_H - 0.5, cz, M.pipe); e.rotation.x = Math.PI / 2; });
       } else if (rid === 'S') {                // GRAND FOYER — decayed lobby (concourse open)
         glow(cx, 2.8, cz, 0xe0b070, 0.5, 20);
         // reception desk + broken column tucked into clear corners only
         corners.forEach(function (c, i) {
-          if (i % 2 === 0) { box(2.6, 1.0, 0.9, c[0], 0.5, c[1], M.gold); box(2.6, 0.12, 0.9, c[0], 1.05, c[1], M.brass); }
-          else { cyl(0.4, WALL_H - 1.0, c[0], (WALL_H - 1.0) / 2, c[1], M.gold, 12); var ch = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.1, 6, 16), M.brass); ch.position.set(c[0], 0.3, c[1]); ch.rotation.set(0.5, 0, 0.3); S.add(ch); }
+          if (i % 2 === 0) { box(2.6, 1.0, 0.9, c[0], 0.5, c[1], M.gold); box(2.6, 0.12, 0.9, c[0], 1.05, c[1], M.brass); solid(c[0], c[1], 1.3, 0.45, 1.0); }
+          else { cyl(0.4, WALL_H - 1.0, c[0], (WALL_H - 1.0) / 2, c[1], M.gold, 12); var ch = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.1, 6, 16), M.brass); ch.position.set(c[0], 0.3, c[1]); ch.rotation.set(0.5, 0, 0.3); S.add(ch); solid(c[0], c[1], 0.45, 0.45, WALL_H - 1.0); }
         });
       }
     }
