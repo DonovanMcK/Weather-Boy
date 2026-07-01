@@ -139,6 +139,23 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         ck(tr.active > 0, 'trap "' + tr.name + '" activated via [F]', 'active=' + (+tr.active).toFixed(1) + 's');
       }
 
+      // -- 11. EASTER EGG: activate the 3 relics via [F], wake the soul chest,
+      // feed it kills, and claim the reward (on kurhaus: the second wonder)
+      if (CFG.RELIC_SPOTS && CFG.RELIC_SPOTS.length && CFG.EE_SOULBOX) {
+        ck(I.ee.relics.length === 3, '3 relic pedestals spawned (of ' + CFG.RELIC_SPOTS.length + ' authored spots)');
+        I.ee.relics.forEach(function (r) { buyAt(r.pos); });
+        ck(I.ee.activated === 3, 'all 3 relics activated via [F]', I.ee.activated + '/3');
+        ck(!!I.ee.box, 'soul chest awakened in the map');
+        // feed it: kills reported next to the chest
+        for (var k2 = 0; k2 < I.ee.need && I.ee.box && !I.ee.done; k2++) I.onKill(I.ee.box);
+        ck(I.ee.done, 'soul chest filled (' + I.ee.need + ' kills)');
+        if (CFG.cur.eeWonder) {
+          ck(G.weapons.hasWeapon(CFG.cur.eeWonder), 'EE rewarded the SECOND WONDER: ' + CFG.WEAPONS[CFG.cur.eeWonder].name);
+          var wonders = G.weapons.slots.filter(function (s) { return CFG.WEAPONS[s.id] && CFG.WEAPONS[s.id].wonder; }).map(function (s) { return s.id; });
+          ck(wonders.length >= 1, 'wonder count in inventory', wonders.join('+'));
+        }
+      }
+
       return out;
     });
 

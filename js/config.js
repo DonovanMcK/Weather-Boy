@@ -360,7 +360,7 @@
   CFG.MAPS.kurhaus = {
     id: 'kurhaus',
     name: 'KURHAUS',
-    sub: 'The Aether Baths — a sunken thermal spa gone wrong. Wonder weapon: the Maelstrom Driver.',
+    sub: 'The Aether Baths — the spa that drilled too deep. Wonder weapon: the Maelstrom Driver… and the founder buried a second.',
     wonder: 'maelstrom',
     papRule: 'power',
     atmos: { sky: 0x2a2620, fog: 0x241f18, density: 0.01,
@@ -473,8 +473,26 @@
                                               // front of door 7 (buyable by accident); the
                                               // west wall is door-free (window is on row 9)
     PLAYER_SPAWN: { cell: [9, 14], off: [0, 0] },
-    RELIC_SPOTS: [],
-    EE_SOULBOX: null,
+    // ---- EASTER EGG — "The Founder's Bargain". 3 of these 9 aether-relic
+    // pedestals spawn per match (deterministic pick in interact.js), tucked
+    // against out-of-the-way walls in different wings. Activate all 3 to wake
+    // the SOUL CHEST in the Pump Hall (the resort's machine heart), feed it 30
+    // kills, and it yields the founder's buried prize: a SECOND wonder weapon
+    // (eeWonder below). Spots deliberately avoid doors/windows/wallbuys and
+    // every wall-flushed machine landing.
+    RELIC_SPOTS: [
+      { cell: [1, 13],  face: 'W' },   // Foyer, west end behind the reception desk
+      { cell: [17, 13], face: 'E' },   // Foyer, east end by the broken column
+      { cell: [7, 11],  face: 'S' },   // Pump Hall, south wall behind the pumps
+      { cell: [7, 4],   face: 'W' },   // Caldera, west wall among the core crates
+      { cell: [17, 2],  face: 'E' },   // Frostworks, behind the coolant tanks
+      { cell: [1, 1],   face: 'W' },   // Sanctum, dark north-west corner shelves
+      { cell: [5, 7],   face: 'E' },   // Mineral Baths, east wall by the stalls
+      { cell: [17, 7],  face: 'E' },   // Cold Cellar, north-east dark corner
+      { cell: [13, 11], face: 'S' }    // Cold Cellar, by the bricked-up archway
+    ],
+    EE_SOULBOX: [9, 8],                // the Pump Hall's heart — feed the machine
+    eeWonder: 'thunder',               // the founder's prize: the buried Thundergun
     SHIELD_PARTS: {},
     SHIELD_BENCH: null
   };

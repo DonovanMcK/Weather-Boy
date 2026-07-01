@@ -264,6 +264,14 @@
       var ee = I.ee; ee.done = true;
       if (ee.boxMesh) G.scene.remove(ee.boxMesh);
       if (ee.glow) G.scene.remove(ee.glow);
+      // a map may bury a SECOND wonder weapon as its quest prize (Kurhaus: the
+      // founder's Thundergun) — the only way to hold two wonders at once
+      if (CFG.cur.eeWonder && CFG.WEAPONS[CFG.cur.eeWonder] && !G.weapons.hasWeapon(CFG.cur.eeWonder)) {
+        G.weapons.giveWeapon(CFG.cur.eeWonder);
+        G.audio.perkJingle();
+        G.hud.banner('THE FOUNDER\'S BARGAIN', '#b6f', 4, 'His buried prize: the ' + CFG.WEAPONS[CFG.cur.eeWonder].name);
+        return;
+      }
       var pool = CFG.FIZZ_POOL.filter(function (id) { return !G.player.hasPerk(id); });
       if (pool.length) {
         var pick = pool[(Math.random() * pool.length) | 0];

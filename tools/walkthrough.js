@@ -118,7 +118,11 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         var w = CFG.cellToWorld(cell[0], cell[1]);
         var tx = w.x + (off ? off[0] : 0), tz = w.z + (off ? off[1] : 0);
         var rid = roomAt(tx, tz), c = ctr(rid);
-        tp(c.x, c.z);
+        // start a step off the exact centre toward the target — some rooms have a
+        // centrepiece prop (e.g. the Caldera drill) that a real player would
+        // never be standing inside; the beeline bot must not spawn wedged in it
+        var sdx = tx - c.x, sdz = tz - c.z, sd = Math.hypot(sdx, sdz) || 1;
+        tp(c.x + sdx / sd * 2.0, c.z + sdz / sd * 2.0);
         var r = goTo(tx, tz, 2.2, 500);
         inter.push({ label: label, ok: r.reached });
         if (!r.reached) bugs.push('UNREACHABLE ' + label + ' @cell' + JSON.stringify(cell) + ' in room ' + rid + ': ' + JSON.stringify(r));
