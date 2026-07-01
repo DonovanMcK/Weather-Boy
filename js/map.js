@@ -2043,15 +2043,8 @@
         var bl = new THREE.PointLight(0xff3322, 0.6, 7); bl.position.copy(beacon.position); G.scene.add(bl);
         map.beacon = beacon; map.beaconLight = bl;
       }
-      // give the lab loft its own vibe: a cold console glow + a bank of screens
-      if (map.stages[0]) {
-        var lc = map.stages[0].deckCenter;
-        var ll = new THREE.PointLight(0x44ccff, 0.9, 9);
-        ll.position.set(lc.x, lc.y + 1.6, lc.z); G.scene.add(ll);
-        addBox(1.6, 0.5, 0.6, lc.x, lc.y + 0.55, lc.z - 0.8, G.mats.metal);   // console desk
-        addBox(1.5, 0.7, 0.1, lc.x, lc.y + 1.15, lc.z - 1.05,
-          mat(0x0a1a22, { emissive: new THREE.Color(0x2aa0ff), emissiveIntensity: 0.7 }));  // screen bank
-      }
+      // (the old loft console/screen bank went with the loft — Storage is a
+      // plain ground room now)
     }
 
     /* ===================== environmental detail pass =====================

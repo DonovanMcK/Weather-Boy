@@ -37,7 +37,7 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
       // so the horde can actually path to the player (and spawns use every window)
       if (roomId) { Object.keys(G.map.doors).forEach(function (id) { try { G.map.openDoor(id); } catch (e) {} }); G.nav.dirty = true; }
 
-      var DT = 1 / 30, maxFrames = 30 * 220, roundStartFrame = 0;
+      var DT = 1 / 30, maxFrames = 30 * (60 + target * 75), roundStartFrame = 0;
       var reached = Z.round, downedAt = null, roundTimes = [];
       var STILL_S = 9;                               // immobile this long while chasing = stuck on geometry
 

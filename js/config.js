@@ -151,18 +151,18 @@
       L: { name: 'Animal Testing',         floor: 0x2e3640, light: 0x66bbcc },
       F: { name: 'Furnace Room',           floor: 0x3b2c24, light: 0xff7733 },
       G: { name: 'Auto Garage',            floor: 0x30322e, light: 0x88aa99 },
-      T: { name: 'West Catwalk',           floor: 0x2f3338, light: 0x7788aa },
-      P: { name: 'East Catwalk',           floor: 0x33302f, light: 0xaa9977 }
+      T: { name: 'West Passage',           floor: 0x2f3338, light: 0x7788aa },
+      P: { name: 'East Passage',           floor: 0x33302f, light: 0xaa9977 }
     },
     DOORS: {
       1: { cost: 750,  name: 'Mainframe Courtyard' },
       2: { cost: 1000, name: 'Animal Lab' },
       3: { cost: 1000, name: 'Furnace' },
-      4: { cost: 1250, name: 'Animal Lab Catwalk' },
-      5: { cost: 1250, name: 'Furnace Catwalk' },
+      4: { cost: 1250, name: 'West Passage' },
+      5: { cost: 1250, name: 'East Passage' },
       6: { cost: 1000, name: 'Garage' },
-      7: { cost: 1250, name: 'West Catwalk' },
-      8: { cost: 1250, name: 'East Catwalk' }
+      7: { cost: 1250, name: 'West Passage' },
+      8: { cost: 1250, name: 'East Passage' }
     },
     WINDOWS: [
       { cell: [0, 1],  dir: 'W' },   // West Catwalk
@@ -277,9 +277,9 @@
       3: { cost: 1000, name: 'Laboratory' },
       4: { cost: 1000, name: 'Storage' },
       5: { cost: 1000, name: 'Storage' },
-      6: { cost: 1250, name: 'West Catwalk' },
+      6: { cost: 1250, name: 'Radar Dome' },
       7: { cost: 1500, name: 'Radar Dome' },
-      8: { cost: 1250, name: 'East Catwalk' }
+      8: { cost: 1250, name: 'Radar Dome' }
     },
     WINDOWS: [
       { cell: [0, 1],  dir: 'W' },   // Generator
@@ -344,17 +344,18 @@
   };
 
   /* ===================================================================
-     KURHAUS — "The Aether Baths"  (original 3-floor map, built bottom-up)
-     FLOOR 1 — THE GRAND HALLS (ground + spawn). Warm, opulent, decayed
-     grandeur. A ring of five connected halls around a central open-shaft
-     Atrium: Foyer(spawn S) - Colonnade - Atrium - Ballroom - Courtyard(yard).
-     Every room has >=2 exits; the Atrium and Courtyard are the two training
-     ovals. All rooms sit at floorY 0 (the ground floor). The Grand Staircase
-     (off the Ballroom, rises to +4 = future Floor 2) and the Service
-     Staircase (off the Foyer, descends to -4 = future Floor B) are built via
-     buildStage in map.js so they inherit the stairwell-headroom lift. The
-     Atrium ceiling is left OPEN (OPEN_CEIL) as the future vertical shaft.
-     GREY-BOX: layout + flow only, no bespoke prop dressing yet.
+     KURHAUS — "The Aether Baths"  (single flat floor, no verticality)
+     Seven themed wings in ONE outer loop around a central Pump Hall hub,
+     8 doors, no dead-ends: Grand Foyer (spawn concourse, S) -> Mineral
+     Baths (power, B) -> Sanctum (Pack-a-Punch, N) -> Caldera (lava, V) ->
+     Frostworks (cold vents, F) -> Cold Cellar (meat locker, M) -> back to
+     the Foyer; Pump Hall (A) bridges Foyer<->Caldera. Every room is a
+     clean ~5x5 training oval with >=2 exits; per-wing themed decor lives
+     in dressKurhausRoom (map.js).
+     PLACEMENT RULE (learned the hard way): perk/power/PaP cells are
+     wall-flushed to the NEAREST clear wall of their room — author each
+     cell so its nearest wall is free of doors, spawn-window barricades
+     AND wall-buy chalk (wallFlush checks doors/windows but not wallbuys).
      =================================================================== */
   CFG.MAPS.kurhaus = {
     id: 'kurhaus',
@@ -434,15 +435,18 @@
       { perk: 'jugg',       cell: [9, 2],   off: [0, 0] },    // Caldera
       { perk: 'speed',      cell: [2, 9],   off: [0, 0] },    // Baths
       { perk: 'mule',       cell: [16, 9],  off: [0, 0] },    // Cold Cellar
-      { perk: 'dtap',       cell: [16, 4],  off: [0, 0] },    // Frostworks
-      { perk: 'deadshot',   cell: [2, 4],   off: [0, 0] },    // Sanctum
+      { perk: 'dtap',       cell: [14, 5],  off: [0, 0] },    // Frostworks — biased to the S wall;
+                                              // authored at [16,4] it wall-flushed E onto the ak74u wall-buy segment
+      { perk: 'deadshot',   cell: [5, 4],   off: [0, 0] },    // Sanctum — biased to the E wall;
+                                              // authored at [2,4] it wall-flushed W onto the m16 wall-buy segment
       { perk: 'widows',     cell: [11, 8],  off: [0, 0] },    // Pump Hall
       { perk: 'wonderfizz', cell: [14, 10], off: [0, 0] }     // Cold Cellar vendor
     ],
     WALLBUYS: [
       { gun: 'olympia',  cell: [4, 15],  off: [0, 1.6],  face: 'S' },   // Foyer starter
       { gun: 'mp5k',     cell: [14, 15], off: [0, 1.6],  face: 'S' },   // Foyer
-      { gun: 'm14',      cell: [9, 1],   off: [0, -1.6], face: 'N' },   // Caldera
+      { gun: 'm14',      cell: [8, 1],   off: [0, -1.6], face: 'N' },   // Caldera — col 8, NOT 9:
+                                              // the [9,1] N wall segment is the spawn window's barricade
       { gun: 'mp40',     cell: [1, 8],   off: [-1.6, 0], face: 'W' },   // Baths
       { gun: 'stakeout', cell: [17, 10], off: [1.6, 0],  face: 'E' },   // Cold Cellar
       { gun: 'ak74u',    cell: [17, 4],  off: [1.6, 0],  face: 'E' },   // Frostworks
@@ -452,7 +456,7 @@
       { cell: [9, 9],  off: [0, 0] },    // Pump Hall (start)
       { cell: [15, 8], off: [0, 0] },    // Cold Cellar
       { cell: [9, 4],  off: [0, 0] },    // Caldera
-      { cell: [11, 14], off: [0, 0] },   // Foyer concourse
+      { cell: [12, 14], off: [0, 0] },   // Foyer concourse — col 12, NOT 11 (the [11,14] cell is a zombie riser)
       { cell: [3, 10], off: [0, 0] }     // Baths
     ],
     TRAPS: [
@@ -462,8 +466,12 @@
     ],
     TELEPORTERS: [],
     MAINFRAME: null,
-    PAP: { cell: [4, 2], off: [0, 0] },       // the Sanctum (aether font) — power-gated; north wall, clear of door 5
-    POWER: { cell: [3, 8], off: [0, 0] },     // the Mineral Baths (boiler/pump)
+    PAP: { cell: [4, 2], off: [0, 0] },       // the Sanctum (aether font) — power-gated; wall-flushes
+                                              // to the EAST wall (W/E/N/S tie order), clear of door 5
+    POWER: { cell: [1, 10], off: [0, 0] },    // Mineral Baths, WEST wall — a room-centre
+                                              // cell wall-flushed to the north wall right in
+                                              // front of door 7 (buyable by accident); the
+                                              // west wall is door-free (window is on row 9)
     PLAYER_SPAWN: { cell: [9, 14], off: [0, 0] },
     RELIC_SPOTS: [],
     EE_SOULBOX: null,

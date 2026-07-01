@@ -1661,7 +1661,7 @@ function runProps() {
 function runRarity() {
   console.log('\n=== mystery box rarity (12k rolls/map) ===');
   var CFG = require('../js/config.js');
-  var maps = [['nacht', 'thunder'], ['derriese', 'wunderwaffe'], ['wetterjunge', 'stormcaller']];
+  var maps = [['nacht', 'thunder'], ['derriese', 'wunderwaffe'], ['wetterjunge', 'stormcaller'], ['kurhaus', 'maelstrom']];
   var N = 12000;
   maps.forEach(function (m) {
     var counts = { common: 0, uncommon: 0, rare: 0, special: 0, wonder: 0 };
@@ -1697,6 +1697,7 @@ if (require.main === module) {
     await runFull('wetterjunge');
     await runQuick('nacht');
     await runQuick('derriese');
+    await runQuick('kurhaus');
     await runMenuNav();
     runGunModels();
     console.log(fails ? '\n' + fails + ' FAILURES' : '\nSMOKE TEST PASSED');
