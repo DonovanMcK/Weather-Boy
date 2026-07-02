@@ -949,6 +949,8 @@
       W.blood(z.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)), 3);
       G.zombies.damageZombie(z, dmg * fall, { boom: true, crawlers: opts.crawlers });
     });
+    // the world reacts to blasts too (quest: cracking the Cellar's bricked arch)
+    if (G.interact && G.interact.onBoom) G.interact.onBoom(pos);
     if (opts.selfDmg) {
       var pd = G.player.pos.distanceTo(pos);
       if (pd < radius * 0.8) G.player.damage(Math.round(45 * (1 - pd / radius)));

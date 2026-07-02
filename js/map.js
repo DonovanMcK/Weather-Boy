@@ -1516,6 +1516,8 @@
         }
         var crown = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.09, 8, 18), M.iron);
         crown.rotation.x = Math.PI / 2; crown.position.set(cx, WALL_H - 0.55, cz); S.add(crown);
+        box(0.7, 0.5, 0.55, cx, WALL_H - 0.28, cz, M.iron);               // motor housing on the crown
+        box(0.2, 0.2, 0.7, cx, WALL_H - 0.2, cz + 0.3, M.brass);          // drive shaft + belt guard
         cyl(0.04, 1.1, cx + 0.55, WALL_H - 1.15, cz, M.steel, 6);         // hanging cable
         KA.bucket = box(0.34, 0.4, 0.34, cx + 0.55, WALL_H - 1.85, cz, M.iron);  // swaying sample bucket
         ring(3.5, 0.07, cx, cz, M.haz, 0.06);                             // painted hazard ring
@@ -1525,11 +1527,16 @@
           var eb = sph(0.07 + (em % 2) * 0.03, cx + Math.cos(ea) * er, 0.3, cz + Math.sin(ea) * er, M.ember);
           KA.embers.push({ m: eb, x: eb.position.x, z: eb.position.z, spd: 0.55 + (em % 3) * 0.2, ph: em * 1.05 });
         }
-        // core-sample crates along the west wall (the relic hides among them)
+        // core-sample crates along the west wall (the relic hides among them) —
+        // shipping crates, not cubes: lid boards, rope lashing, stenciled, canted
         [[x0 + 1.2, cz - 2.2], [x0 + 1.2, cz + 1.4], [x0 + 2.2, cz - 0.6]].forEach(function (c, i) {
           if (!spotOK(c[0], c[1], 1.4)) return;
-          box(0.9, 0.62, 0.9, c[0], 0.31, c[1], M.woodD); solid(c[0], c[1], 0.5, 0.5, 0.7);
-          sph(0.2, c[0] - 0.15, 0.72, c[1] + 0.1, i % 2 ? M.rock : M.lava);
+          var cr8 = box(0.9, 0.62, 0.9, c[0], 0.31, c[1], M.woodD); cr8.rotation.y = 0.15 + i * 0.4;
+          box(0.96, 0.07, 0.3, c[0], 0.655, c[1] - 0.22, M.leather).rotation.y = cr8.rotation.y;   // lid boards
+          box(0.96, 0.07, 0.3, c[0], 0.655, c[1] + 0.22, M.leather).rotation.y = cr8.rotation.y;
+          box(0.94, 0.08, 0.94, c[0], 0.31, c[1], M.rust).rotation.y = cr8.rotation.y;             // rope lashing
+          solid(c[0], c[1], 0.55, 0.55, 0.72);
+          sph(0.2, c[0] - 0.15, 0.75, c[1] + 0.1, i % 2 ? M.rock : M.lava);
         });
         corners.forEach(function (c, i) { box(0.5 + (i % 2) * 0.2, 0.45, 0.5, c[0], 0.22, c[1], M.rock); sph(0.22, c[0], 0.5, c[1], i % 2 ? M.lava : M.ember); });
 
@@ -1537,10 +1544,17 @@
         disc(2.8, cx, cz, M.frostF); disc(1.3, cx - 4.8, cz + 3.4, M.frostF, 0.05); disc(1.1, cx + 4.2, cz - 3.8, M.frostF, 0.05);
         glow(cx, 2.4, cz, 0x9fd8ee, 1.0, 16);
         // coolant tank battery along the north wall (skipping the spawn window)
-        [[cx - 4.6, z0 + 1.2], [cx - 2.8, z0 + 1.2], [cx + 3.4, z0 + 1.2]].forEach(function (c) {
+        [[cx - 4.6, z0 + 1.2], [cx - 2.8, z0 + 1.2], [cx + 3.4, z0 + 1.2]].forEach(function (c, ti) {
           if (!spotOK(c[0], c[1], 1.5)) return;
-          cyl(0.72, 2.6, c[0], 1.3, c[1], M.steel, 12); cyl(0.78, 0.3, c[0], 2.75, c[1], M.ice, 12);
+          cyl(0.72, 2.6, c[0], 1.3, c[1], M.steel, 12);
+          cyl(0.76, 0.1, c[0], 0.55, c[1], M.iron, 12);                 // riveted bands
+          cyl(0.76, 0.1, c[0], 1.85, c[1], M.iron, 12);
+          cyl(0.78, 0.3, c[0], 2.75, c[1], M.ice, 12);                  // frost cap
+          coneM(0.12, 0.5, c[0] + 0.5, 2.5, c[1], M.ice);               // cap icicle
           cyl(0.1, 1.2, c[0], 3.4, c[1], M.pipe, 6);
+          var gv = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.035, 6, 12), M.brass);
+          gv.position.set(c[0], 1.2, c[1] - 0.74); S.add(gv);           // hand valve
+          if (ti === 1) { var tl = cyl(0.72, 2.6, c[0], 1.3, c[1], M.steel, 12); tl.rotation.z = 0.03; } // one sits off-plumb
           solid(c[0], c[1], 0.85, 0.85, 2.9);
         });
         // THE FROZEN ENGINEER — one of Voss's men, entombed mid-stride in the
@@ -1581,13 +1595,38 @@
           box(1.7, 0.9, 0.9, bt[0], 0.45, bt[1], M.woodD); solid(bt[0], bt[1], 0.9, 0.5, 1.0);
           box(0.34, 0.05, 0.2, bt[0] - 0.3, 0.94, bt[1], M.steel); box(0.5, 0.24, 0.4, bt[0] + 0.35, 1.0, bt[1], M.meat);
         }
-        // THE BRICKED-UP ARCHWAY — someone sealed a passage on the south wall and
-        // chalked a warding X over it. The last relic pedestal stands beside it.
-        var ax = CFG.cellToWorld(13, 11).x, az = z1 - 0.28;
-        box(2.3, 3.1, 0.22, ax, 1.55, az, M.brick);
-        box(2.7, 0.4, 0.26, ax, 3.3, az, M.marble);
-        var xr1 = box(1.8, 0.09, 0.06, ax, 1.6, az - 0.14, M.chalk); xr1.rotation.z = 0.6;
-        var xr2 = box(1.8, 0.09, 0.06, ax, 1.6, az - 0.14, M.chalk); xr2.rotation.z = -0.6;
+        // THE BRICKED-UP ARCHWAY — someone sealed a passage on the south wall,
+        // brick by hurried brick (offset courses, mortar gaps, a few laid badly),
+        // and chalked a warding X over it. The quest can CRACK it (KA.arch).
+        var ax = CFG.cellToWorld(13, 11).x, az = z1 - 0.3;
+        var archBricks = [];
+        var mortar = box(2.34, 3.0, 0.16, ax, 1.5, az + 0.04, M.dark);   // shadow gap behind
+        for (var br = 0; br < 8; br++) {                                  // 8 courses
+          var course = 0.355, by2 = 0.19 + br * course, odd = br % 2;
+          for (var bc = 0; bc < 4; bc++) {
+            var bw3 = 0.52, bx3 = ax - 0.86 + bc * 0.575 + (odd ? 0.28 : 0);
+            if (odd && bc === 3) bw3 = 0.26, bx3 -= 0.14;                 // cut end brick
+            var hb = G.PU.hashStr('arch' + br + bc);
+            var bmm = box(bw3, 0.3, 0.2, bx3, by2, az - (hb % 3) * 0.012, M.brick);
+            bmm.rotation.z = ((hb % 5) - 2) * 0.012;                      // hurried coursework
+            archBricks.push(bmm);
+          }
+        }
+        box(2.7, 0.4, 0.28, ax, 3.16, az, M.marble);                      // stone lintel
+        [-1.24, 1.24].forEach(function (jx) { box(0.24, 3.0, 0.24, ax + jx, 1.5, az, M.marble); }); // jambs
+        var xr1 = box(1.8, 0.09, 0.06, ax, 1.6, az - 0.16, M.chalk); xr1.rotation.z = 0.6;
+        var xr2 = box(1.8, 0.09, 0.06, ax, 1.6, az - 0.16, M.chalk); xr2.rotation.z = -0.6;
+        KA.arch = {
+          pos: new THREE.Vector3(ax, 0, az), cracked: false,
+          crack: function () {                                            // quest: blast it open a crack
+            if (KA.arch.cracked) return; KA.arch.cracked = true;
+            var cm = M.brick.clone(); cm.color.multiplyScalar(0.55);
+            archBricks.forEach(function (b3, i3) {
+              if (i3 % 3 === 0) { b3.rotation.z += (i3 % 2 ? 0.14 : -0.12); b3.position.z -= 0.05; }
+              if (i3 % 4 === 0) b3.material = cm;
+            });
+          }
+        };
         [[cx + 4.2, z1 - 1.1], [cx + 4.9, z1 - 1.9]].forEach(function (c) { if (spotOK(c[0], c[1], 1.2)) { cyl(0.42, 0.8, c[0], 0.4, c[1], M.woodD, 10); solid(c[0], c[1], 0.45, 0.45, 0.9); } });
         corners.forEach(function (c) { box(0.7, 1.1, 0.4, c[0], 0.55, c[1], M.corpse); sph(0.26, c[0], 1.2, c[1], M.chead); });
         glow(cx, 2.6, cz, 0x9aa6b0, 0.7, 15);
@@ -1595,19 +1634,37 @@
       } else if (rid === 'N') {                // THE SANCTUM — Voss's bargain room
         ring(2.0, 0.12, cx, cz, M.rune); ring(1.3, 0.08, cx, cz, M.runeF, 0.09);
         for (var gi = 0; gi < 4; gi++) { var ga = gi / 4 * 6.28; box(0.32, 0.32, 0.06, cx + Math.cos(ga) * 2.0, 1.5 + (gi % 2) * 0.4, cz + Math.sin(ga) * 2.0, M.aether); }
-        // chalk leads run OUT from the ring toward the walls — Voss mapped where
-        // he hid his relics; the diagram is the easter egg's only breadcrumb
+        // chalk leads run OUT from the ring toward four floor SIGILS — Voss's
+        // diagram is the quest's first stage: the sigils must be lit (interact.js
+        // reads KA.sigils and makes each one pressable once the power is on)
+        KA.sigils = [];
         for (var ch2 = 0; ch2 < 4; ch2++) {
           var ca = ch2 / 4 * Math.PI * 2 + Math.PI / 4;
           var ln = box(0.07, 0.012, 3.4, cx + Math.cos(ca) * 4.0, 0.06, cz + Math.sin(ca) * 4.0, M.chalk);
           ln.rotation.y = -ca + Math.PI / 2;
-          box(0.3, 0.012, 0.3, cx + Math.cos(ca) * 5.9, 0.06, cz + Math.sin(ca) * 5.9, M.rune);
+          var sgx = cx + Math.cos(ca) * 5.9, sgz = cz + Math.sin(ca) * 5.9;
+          var sg = box(0.42, 0.014, 0.42, sgx, 0.06, sgz, M.rune.clone());
+          sg.rotation.y = 0.6 + ch2;                       // each mark sits askew
+          KA.sigils.push({ mesh: sg, pos: new THREE.Vector3(sgx, 0, sgz), lit: false });
         }
-        // the founder's library — two shelf walls of what he read to get here
-        [[x0 + 0.65, cz - 3.3], [x0 + 0.65, cz - 1.1]].forEach(function (c) {
+        // the founder's library — shelves of individual, mismatched volumes
+        // (deterministic heights/leans, a small spine palette — not one slab)
+        var spineC = [M.velvet, M.paper, M.leather, M.woodD, M.brass];
+        [[x0 + 0.65, cz - 3.3], [x0 + 0.65, cz - 1.1]].forEach(function (c, si2) {
           if (!spotOK(c[0], c[1], 1.4)) return;
           box(0.5, 2.4, 1.9, c[0], 1.2, c[1], M.woodD); solid(c[0], c[1], 0.35, 1.0, 2.4);
-          for (var sh2 = 0; sh2 < 3; sh2++) box(0.42, 0.5, 1.7, c[0] + 0.06, 0.55 + sh2 * 0.7, c[1], sh2 % 2 ? M.paper : M.velvet);
+          box(0.56, 0.08, 2.0, c[0], 2.44, c[1], M.brass);            // cornice
+          for (var sh2 = 0; sh2 < 3; sh2++) {
+            box(0.44, 0.04, 1.8, c[0] + 0.05, 0.32 + sh2 * 0.7, c[1], M.woodD);   // shelf board
+            var bz2 = c[1] - 0.78;
+            for (var bk = 0; bk < 7; bk++) {
+              var hsh = G.PU.hashStr('bk' + si2 + sh2 + bk);
+              var bh = 0.3 + (hsh % 5) * 0.045, bw2 = 0.16 + (hsh % 3) * 0.05;
+              var bm2 = box(0.34, bh, bw2, c[0] + 0.1, 0.35 + sh2 * 0.7 + bh / 2, bz2 + bw2 / 2, spineC[hsh % spineC.length]);
+              if (hsh % 4 === 0) bm2.rotation.x = 0.12;               // the odd leaner
+              bz2 += bw2 + 0.03;
+            }
+          }
         });
         // candle clusters (emissive flames, no lights) just inside the ritual
         // ring — r < 2.4 keeps them off the kite lane
@@ -1618,10 +1675,23 @@
             KA.candles.push(sph(0.045, ccx, 0.4 + (cn % 3) * 0.12, ccz, M.flame)); }
         });
         // VOSS HIMSELF — the portrait hangs over his font (the PaP wall, east),
-        // eyes on the ring. The frame is gold; the face never quite resolves.
-        box(1.5, 2.0, 0.1, x1 - 0.3, 2.5, cz + 0.4, M.gold);
-        box(1.26, 1.76, 0.06, x1 - 0.34, 2.5, cz + 0.4, M.dark);
-        KA.face = sph(0.2, x1 - 0.38, 2.72, cz + 0.4, M.face.clone());   // wakes with the soul chest
+        // eyes on the ring. Layered frame, canted forward off the wall the way
+        // heavy portraits hang; brass nameplate beneath. The face never quite
+        // resolves — and it is the quest's final door (interact.js reads KA.voss).
+        var vG = new THREE.Group();
+        vG.position.set(x1 - 0.3, 2.5, cz + 0.4); vG.rotation.z = 0; vG.rotation.y = -Math.PI / 2;
+        vG.rotation.x = 0.1;                                              // leans off the wall
+        function vbox(w, h, d, x, y, z, m) { var e = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); e.position.set(x, y, z); vG.add(e); return e; }
+        vbox(1.6, 2.1, 0.1, 0, 0, 0, M.gold);                             // outer frame
+        vbox(1.36, 1.86, 0.1, 0, 0, 0.025, M.woodD);                      // frame step
+        vbox(1.2, 1.7, 0.08, 0, 0, 0.05, M.dark);                         // the canvas
+        vbox(0.5, 0.65, 0.07, 0, -0.25, 0.09, M.dark);                    // his shoulders
+        var vFace = new THREE.Mesh(new THREE.SphereGeometry(0.19, 10, 10), M.face.clone());
+        vFace.position.set(0, 0.28, 0.1); vFace.scale.set(0.8, 1.1, 0.6); vG.add(vFace);
+        vbox(0.7, 0.14, 0.03, 0, -1.18, 0.06, M.brass);                   // nameplate: A. VOSS
+        S.add(vG);
+        KA.face = vFace;
+        KA.voss = { group: vG, pos: new THREE.Vector3(x1 - 0.9, 0, cz + 0.4) };
         // hanging censers, still smoking after all these years
         [[cx - 2.2, cz - 2.2], [cx + 2.2, cz + 2.2]].forEach(function (c) {
           cyl(0.03, 1.4, c[0], WALL_H - 0.7, c[1], M.brass, 6); sph(0.16, c[0], WALL_H - 1.5, c[1], M.brass);
@@ -1644,13 +1714,28 @@
         // a guest who never got out of the water
         box(0.45, 0.22, 1.3, cx + 1.1, 0.16, cz + 0.5, M.bone);
         sph(0.16, cx + 1.1, 0.24, cz + 1.25, M.bone);
-        // changing stalls along the south wall, doors ajar — mid-afternoon, once
+        // changing stalls along the south wall, doors ajar — mid-afternoon, once.
+        // Framed panels with a top rail, brass hooks, a towel left over one door.
         [[x1 - 1.1, z1 - 1.0], [x1 - 2.6, z1 - 1.0]].forEach(function (c, i) {
           if (!spotOK(c[0], c[1], 1.3)) return;
           box(0.08, 2.0, 1.5, c[0] - 0.65, 1.0, c[1], M.woodD); box(0.08, 2.0, 1.5, c[0] + 0.65, 1.0, c[1], M.woodD);
+          box(1.42, 0.1, 0.1, c[0], 2.05, c[1] - 0.72, M.brass);          // top rail
+          box(0.05, 0.16, 0.05, c[0] - 0.55, 1.7, c[1] - 0.7, M.brass);   // hook
           var dr = box(1.1, 1.9, 0.06, c[0] + (i ? 0.3 : -0.2), 0.95, c[1] - 0.8, M.woodD); dr.rotation.y = i ? 0.5 : -0.7;
-          box(1.2, 0.35, 0.5, c[0], 0.2, c[1] + 0.4, M.marble);
-          solid(c[0], c[1], 0.75, 0.8, 2.0);
+          box(0.9, 0.06, 0.14, c[0] + (i ? 0.3 : -0.2), 1.92, c[1] - 0.8, M.woodD).rotation.y = dr.rotation.y;  // door cap
+          if (i === 0) { var tw2 = box(0.34, 0.5, 0.08, c[0] - 0.25, 1.6, c[1] - 0.82, M.towel); tw2.rotation.y = dr.rotation.y; tw2.rotation.z = 0.05; } // towel over the door
+          box(1.2, 0.35, 0.5, c[0], 0.2, c[1] + 0.4, M.marble);           // bench
+          box(1.1, 0.06, 0.4, c[0], 0.4, c[1] + 0.4, M.woodD);            // bench slat
+          solid(c[0], c[1], 0.75, 0.8, 2.1);
+        });
+        // pool ladder — brass rails curling over the rim
+        [[cx + 2.75, cz - 0.6]].forEach(function (c) {
+          [-0.22, 0.22].forEach(function (off2) {
+            cyl(0.035, 1.1, c[0], 0.55, c[1] + off2, M.brass, 8);
+            var curl = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.035, 6, 10, Math.PI), M.brass);
+            curl.position.set(c[0] - 0.14, 1.1, c[1] + off2); curl.rotation.z = -Math.PI / 2; S.add(curl);
+          });
+          for (var rg2 = 0; rg2 < 3; rg2++) box(0.04, 0.04, 0.44, c[0], 0.25 + rg2 * 0.32, c[1], M.brass);
         });
         // towel shelf by the water — folded, waiting
         var tw = [x0 + 0.7, z0 + 1.5];
@@ -1682,11 +1767,18 @@
           var vw = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.035, 6, 12), M.brass);
           vw.position.set(gx2, 1.35, z0 + 0.3); S.add(vw);
         }
-        // piston columns flanking the gauge bank, slots still glowing faintly
+        // piston columns flanking the gauge bank — plinth, shaft, capital, bolted
+        // corner flanges, the aether slot still glowing faintly
         [[cx - 3.3, z0 + 0.75], [cx + 3.3, z0 + 0.75]].forEach(function (c) {
           if (!spotOK(c[0], c[1], 1.3)) return;
-          box(0.8, 3.4, 0.8, c[0], 1.7, c[1], M.iron); box(0.16, 2.6, 0.06, c[0], 1.7, c[1] + 0.42, M.runeF);
-          solid(c[0], c[1], 0.45, 0.45, 3.4);
+          box(1.05, 0.25, 1.05, c[0], 0.125, c[1], M.iron);              // plinth
+          box(0.8, 3.0, 0.8, c[0], 1.75, c[1], M.iron);                  // shaft
+          box(1.0, 0.2, 1.0, c[0], 3.35, c[1], M.brass);                 // capital
+          [[-0.44, -0.44], [0.44, -0.44], [-0.44, 0.44], [0.44, 0.44]].forEach(function (f2) {
+            box(0.1, 2.8, 0.1, c[0] + f2[0], 1.7, c[1] + f2[1], M.brass);  // corner flanges
+          });
+          box(0.16, 2.4, 0.06, c[0], 1.7, c[1] + 0.44, M.runeF);         // aether slot
+          solid(c[0], c[1], 0.55, 0.55, 3.5);
         });
         corners.forEach(function (c) { box(1.0, 1.5, 1.0, c[0], 0.75, c[1], M.brass); cyl(0.5, 0.3, c[0], 1.65, c[1], M.pipe); sph(0.22, c[0] + (c[0] < cx ? 0.55 : -0.55), 1.05, c[1], M.gold); solid(c[0], c[1], 0.55, 0.55, 1.6); });
         [x0 + 0.5, x1 - 0.5].forEach(function (px) { var e = cyl(0.13, bb.d - 1.0, px, WALL_H - 0.5, cz, M.pipe); e.rotation.x = Math.PI / 2; });
@@ -1702,25 +1794,52 @@
         crest.position.set(cx, 3.15, z0 + 0.25); S.add(crest);
         var crestFace = new THREE.Mesh(new THREE.CircleGeometry(0.5, 22), M.gold);
         crestFace.position.set(cx, 3.15, z0 + 0.28); S.add(crestFace);
-        // abandoned luggage where the evacuation stalled
+        // abandoned luggage where the evacuation stalled — tossed, not stacked:
+        // every case sits at its own angle, straps and latches still buckled
         [[cx - 5.5, z0 + 1.0], [cx + 6.5, z0 + 1.0], [cx - 7.5, z1 - 1.0]].forEach(function (c, i) {
           if (!spotOK(c[0], c[1], 1.3)) return;
-          box(0.9, 0.5, 0.55, c[0], 0.25, c[1], M.leather); box(0.7, 0.45, 0.5, c[0] + 0.35, 0.72, c[1], M.canvas);
-          if (i === 0) { var hat = cyl(0.22, 0.16, c[0] - 0.6, 0.08, c[1] + 0.3, M.dark, 12); }
+          var big = box(0.9, 0.5, 0.55, c[0], 0.25, c[1], M.leather); big.rotation.y = 0.22 + i * 0.3;
+          box(0.1, 0.52, 0.57, c[0] - 0.22, 0.25, c[1], M.woodD).rotation.y = big.rotation.y;   // strap
+          box(0.1, 0.52, 0.57, c[0] + 0.22, 0.25, c[1], M.woodD).rotation.y = big.rotation.y;
+          var top2 = box(0.66, 0.4, 0.46, c[0] + 0.3, 0.7, c[1] + 0.08, M.canvas); top2.rotation.y = -0.35 - i * 0.2; top2.rotation.z = 0.06;
+          box(0.2, 0.06, 0.3, c[0] + 0.28, 0.92, c[1] + 0.08, M.brass).rotation.y = top2.rotation.y;  // latch plate
+          if (i === 0) cyl(0.22, 0.16, c[0] - 0.7, 0.08, c[1] + 0.35, M.dark, 12);                     // a dropped hat
+          if (i === 1) { var spill = box(0.4, 0.06, 0.3, c[0] - 0.7, 0.03, c[1] + 0.4, M.towel); spill.rotation.y = 0.8; } // spilled linens
           solid(c[0], c[1], 0.6, 0.4, 1.0);
         });
-        // the grandfather clock stopped at the hour it happened
+        // the grandfather clock stopped at the hour it happened — crowned,
+        // plinthed, door ajar
         var gc = [x1 - 0.75, z0 + 1.1];
         if (spotOK(gc[0], gc[1], 1.3)) {
-          box(0.85, 3.0, 0.5, gc[0], 1.5, gc[1], M.woodD); solid(gc[0], gc[1], 0.5, 0.35, 3.0);
+          box(1.0, 0.18, 0.62, gc[0], 0.09, gc[1], M.woodD);                 // plinth
+          box(0.85, 3.0, 0.5, gc[0], 1.59, gc[1], M.woodD); solid(gc[0], gc[1], 0.5, 0.35, 3.2);
+          box(1.0, 0.22, 0.6, gc[0], 3.2, gc[1], M.brass);                   // crown
+          box(0.98, 0.1, 0.58, gc[0], 3.02, gc[1], M.woodD);                 // cornice step
           cyl(0.3, 0.06, gc[0], 2.55, gc[1] - 0.26, M.marble, 14).rotation.x = Math.PI / 2;
-          box(0.04, 0.22, 0.02, gc[0], 2.6, gc[1] - 0.3, M.dark);
-          box(0.16, 0.9, 0.06, gc[0], 1.3, gc[1] - 0.26, M.brass);   // dead pendulum
+          box(0.04, 0.22, 0.02, gc[0], 2.6, gc[1] - 0.3, M.dark);            // hands, stopped
+          box(0.02, 0.16, 0.02, gc[0] + 0.1, 2.52, gc[1] - 0.3, M.dark);
+          var cdoor = box(0.5, 1.5, 0.05, gc[0] - 0.28, 1.1, gc[1] - 0.3, M.woodD); cdoor.rotation.y = -0.5;  // door ajar
+          box(0.16, 0.9, 0.06, gc[0], 1.3, gc[1] - 0.26, M.brass);           // dead pendulum
         }
-        // reception desk + broken column tucked into clear corners only
+        // reception desk (counter top overhang, inset front panels, the guest
+        // ledger open on top) + broken column with its fallen drum ring
         corners.forEach(function (c, i) {
-          if (i % 2 === 0) { box(2.6, 1.0, 0.9, c[0], 0.5, c[1], M.gold); box(2.6, 0.12, 0.9, c[0], 1.05, c[1], M.brass); box(0.5, 0.3, 0.35, c[0] - 0.6, 1.25, c[1], M.paper); solid(c[0], c[1], 1.3, 0.45, 1.0); }
-          else { cyl(0.4, WALL_H - 1.0, c[0], (WALL_H - 1.0) / 2, c[1], M.gold, 12); var ch = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.1, 6, 16), M.brass); ch.position.set(c[0], 0.3, c[1]); ch.rotation.set(0.5, 0, 0.3); S.add(ch); solid(c[0], c[1], 0.45, 0.45, WALL_H - 1.0); }
+          if (i % 2 === 0) {
+            box(2.6, 1.0, 0.9, c[0], 0.5, c[1], M.gold);
+            box(2.84, 0.1, 1.06, c[0], 1.06, c[1], M.woodD);                 // counter overhang
+            box(2.3, 0.5, 0.06, c[0], 0.42, c[1] - 0.46, M.woodD);           // front panel inset
+            var ledger = box(0.5, 0.06, 0.35, c[0] - 0.6, 1.14, c[1], M.paper); ledger.rotation.y = 0.35; ledger.rotation.x = 0.04;
+            box(0.02, 0.1, 0.35, c[0] - 0.6, 1.16, c[1], M.velvet).rotation.y = 0.35;  // spine
+            solid(c[0], c[1], 1.42, 0.53, 1.1);
+          } else {
+            cyl(0.4, WALL_H - 1.6, c[0], (WALL_H - 1.6) / 2 + 0.3, c[1], M.gold, 12);
+            cyl(0.5, 0.3, c[0], 0.15, c[1], M.marble, 12);                   // base
+            var drum = cyl(0.38, 0.5, c[0] + 0.8, 0.22, c[1] + 0.5, M.gold, 12); // fallen drum
+            drum.rotation.z = Math.PI / 2.2; drum.rotation.y = 0.5;
+            var ch = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.1, 6, 16), M.brass);
+            ch.position.set(c[0], 0.3, c[1]); ch.rotation.set(0.5, 0, 0.3); S.add(ch);
+            solid(c[0], c[1], 0.45, 0.45, WALL_H - 1.0);
+          }
         });
       }
     }

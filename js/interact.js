@@ -221,11 +221,49 @@
       });
     }
 
-    // --- mini easter egg: activate 3 hidden relics, then fill the soul chest.
-    // 3 distinct spots are chosen from 9 authored wall-adjacent locations,
-    // deterministically per match; the other 6 are never instantiated.
+    /* ============== THE FOUNDER'S BARGAIN — the full quest chain ==============
+       On Kurhaus (any map whose dressing registers kAnim.sigils) the easter egg
+       is a five-stage chain; other maps keep the classic mini egg (relics ->
+       soul chest -> free perk). Stages, each gated on the last:
+         0. POWER, then trace Voss's four chalk SIGILS in the Sanctum
+         1. the marks burn -> his three hidden RELICS can now be woken
+         2. relics wake the four elemental CURRENTS — each is its own trial:
+              MOLTEN  (Caldera)    attune while the Molten Pour trap is firing
+              FROZEN  (Frostworks) hold F and thaw the valve free
+              DROWNED (Baths)      kneel (crouch) in the spring to reach it
+              BURIED  (Cellar)     crack the bricked archway with an explosive
+         3. the machine hungers — the SOUL CHEST wakes; feed it 30 kills
+         4. he is listening — face the portrait and ACCEPT THE BARGAIN:
+            the founder's buried Thundergun. His waltz plays you out.        */
+    var KAq = (G.map.kAnim) || {};
+    var questOn = !!(KAq.sigils && KAq.sigils.length);
+    I.quest = { on: questOn, stage: 0, sigilsLit: 0, currents: 0, valves: [], done: false };
     I.ee = { relics: [], activated: 0, box: null, boxMesh: null, glow: null,
              souls: 0, need: 30, done: false };
+
+    // -- stage 0: the sigils (power-gated; silent until then)
+    if (questOn) KAq.sigils.forEach(function (sg, sgi) {
+      add({
+        pos: sg.pos, r: 1.6,
+        prompt: function () {
+          if (!map.power || I.quest.stage > 0 || sg.lit) return null;
+          return "Trace the founder's mark";
+        },
+        use: function () {
+          if (!map.power || sg.lit || I.quest.stage > 0) return;
+          sg.lit = true; I.quest.sigilsLit++;
+          sg.mesh.material.color.setHex(0xd9b8ff);
+          sg.mesh.scale.setScalar(1.35);
+          G.audio.teleportCharge();
+          if (I.quest.sigilsLit >= KAq.sigils.length) {
+            I.quest.stage = 1;
+            G.hud.banner('THE MARKS BURN', '#b790ff', 3.5, 'His treasures wake — find what he hid');
+          } else G.hud.banner('The chalk glows… (' + I.quest.sigilsLit + '/4)', '#b790ff', 1.6);
+        }
+      });
+    });
+
+    // -- stage 1: the relics (3 of 9 authored spots, deterministic per match)
     var relicSpots = (CFG.RELIC_SPOTS || []).slice();
     var relicSeed = G.PU.hashStr((CFG.cur.id || '') + ':relics');
     var chosenRelics = [];
@@ -241,17 +279,106 @@
       I.ee.relics.push(relic);
       add({
         pos: pos, r: 1.8,
-        prompt: function () { return relic.active ? null : 'Activate the relic'; },
+        prompt: function () {
+          if (relic.active) return null;
+          if (questOn && I.quest.stage < 1) return 'A cold pedestal — something must wake it';
+          return 'Activate the relic';
+        },
         use: function () {
           if (relic.active) return;
+          if (questOn && I.quest.stage < 1) { G.audio.deny(); return; }
           relic.active = true; I.ee.activated++;
           if (relic.mesh.userData.activate) relic.mesh.userData.activate();
           G.audio.perkJingle();
-          if (I.ee.activated >= I.ee.relics.length) spawnSoulBox();
-          else G.hud.banner('RELIC ' + I.ee.activated + '/' + I.ee.relics.length, '#7fd', 2, 'Find the others…');
+          if (I.ee.activated >= I.ee.relics.length) {
+            if (questOn) { I.quest.stage = 2; revealCurrents(); }
+            else spawnSoulBox();
+          } else G.hud.banner('RELIC ' + I.ee.activated + '/' + I.ee.relics.length, '#7fd', 2, 'Find the others…');
         }
       });
     });
+
+    // -- stage 2: the four elemental currents, each its own trial
+    function makeValve(name, color, pos, condPrompt, condOk, holdSecs) {
+      var vg = new THREE.Group(); vg.position.copy(pos); vg.visible = false;
+      var vm = new THREE.MeshLambertMaterial({ color: 0x6a6256 });
+      var stub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.8, 8), vm); stub.position.y = 0.4; vg.add(stub);
+      var wheel = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.045, 6, 14), new THREE.MeshLambertMaterial({ color: 0x9a7a3a }));
+      wheel.position.y = 0.85; wheel.rotation.x = Math.PI / 2; vg.add(wheel);
+      var orbM = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.35 });
+      var orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), orbM); orb.position.y = 1.05; vg.add(orb);
+      G.scene.add(vg);
+      var valve = { name: name, pos: pos, attuned: false, mesh: vg, held: 0 };
+      I.quest.valves.push(valve);
+      function attune() {
+        valve.attuned = true; I.quest.currents++;
+        orbM.opacity = 1; orb.scale.setScalar(1.8); wheel.rotation.z = 1.1;
+        G.audio.teleLink();
+        if (I.quest.currents >= 4) {
+          I.quest.stage = 3;
+          G.hud.banner('THE MACHINE HUNGERS', '#b6f', 3.5, 'Feed the heart of the Kurhaus');
+          spawnSoulBox();
+        } else G.hud.banner('CURRENT ATTUNED — ' + I.quest.currents + '/4', '#7fd', 2.2, name);
+      }
+      var item = {
+        pos: new THREE.Vector3(pos.x, 0, pos.z), r: 1.9,
+        prompt: function () {
+          if (I.quest.stage !== 2 || valve.attuned) return null;
+          return condOk() ? (holdSecs ? 'Hold F — thaw the ' + name : 'Attune the ' + name)
+                          : name + ' — ' + condPrompt;
+        },
+        use: function () {
+          if (I.quest.stage !== 2 || valve.attuned || holdSecs) { if (!valve.attuned && !holdSecs) G.audio.deny(); return; }
+          if (!condOk()) { G.audio.deny(); return; }
+          attune();
+        }
+      };
+      if (holdSecs) {
+        item.holdable = true;
+        item.use = function () {};
+        item.hold = function (dt) {
+          if (I.quest.stage !== 2 || valve.attuned || !condOk()) return;
+          valve.held += dt;
+          if (valve.held >= holdSecs) attune();
+        };
+      }
+      add(item);
+      return valve;
+    }
+    function revealCurrents() {
+      I.quest.valves.forEach(function (v) { v.mesh.visible = true; });
+      G.hud.banner('THE CURRENTS STIR', '#7fd', 3.5, 'Attune the four currents of the spa');
+    }
+    if (questOn) {
+      var rms = map.parsed.rooms;
+      var vC = rms.V.center, fC = rms.F.center, bC = rms.B.center;
+      makeValve('molten current', 0xff6a1e, new THREE.Vector3(vC.x + 1.35, 0, vC.z),
+        'the melt sleeps (fire the Molten Pour)', function () {
+          var tr = (map.traps || []).filter(function (t) { return t.type === 'molten'; })[0];
+          return !!(tr && tr.active > 0);
+        });
+      makeValve('frozen current', 0xbfe7f0, new THREE.Vector3(fC.x - 2.8, 0, fC.z - 7.65),
+        'frozen solid', function () { return true; }, 2.5);
+      makeValve('drowned current', 0x3fd0c8, new THREE.Vector3(bC.x, 0, bC.z + 2.35),
+        'kneel in the spring to reach it', function () {
+          return G.player.stance === 'crouch' &&
+                 Math.hypot(G.player.pos.x - bC.x, G.player.pos.z - bC.z) < 2.9;
+        });
+      if (KAq.arch) makeValve('buried current', 0x9c6cf0,
+        new THREE.Vector3(KAq.arch.pos.x, 0, KAq.arch.pos.z - 0.85),
+        'sealed behind brick (force it open)', function () { return !!KAq.arch.cracked; });
+    }
+    // explosions report in so the bricked archway can be FORCED open
+    I.onBoom = function (pos) {
+      if (!questOn || !KAq.arch || KAq.arch.cracked) return;
+      if (I.quest.stage < 2) return;
+      if (Math.hypot(pos.x - KAq.arch.pos.x, pos.z - KAq.arch.pos.z) > 3.4) return;
+      KAq.arch.crack();
+      G.audio.boardTear();
+      G.hud.banner('The seal splits', '#b6f', 2.5, 'The buried current breathes');
+    };
+
+    // -- stage 3: the soul chest (30 kills fed to the machine heart)
     function spawnSoulBox() {
       if (I.ee.box || !CFG.EE_SOULBOX) return;
       var wc = CFG.cellToWorld(CFG.EE_SOULBOX[0], CFG.EE_SOULBOX[1]);
@@ -262,17 +389,14 @@
     }
     function rewardSoulBox() {
       var ee = I.ee; ee.done = true;
-      if (G.awardFeat) G.awardFeat('ee');
       if (ee.boxMesh) G.scene.remove(ee.boxMesh);
       if (ee.glow) G.scene.remove(ee.glow);
-      // a map may bury a SECOND wonder weapon as its quest prize (Kurhaus: the
-      // founder's Thundergun) — the only way to hold two wonders at once
-      if (CFG.cur.eeWonder && CFG.WEAPONS[CFG.cur.eeWonder] && !G.weapons.hasWeapon(CFG.cur.eeWonder)) {
-        G.weapons.giveWeapon(CFG.cur.eeWonder);
-        G.audio.perkJingle();
-        G.hud.banner('THE FOUNDER\'S BARGAIN', '#b6f', 4, 'His buried prize: the ' + CFG.WEAPONS[CFG.cur.eeWonder].name);
+      if (questOn) {                       // stage 4: the bargain awaits upstairs
+        I.quest.stage = 4;
+        G.hud.banner('HE IS LISTENING', '#b790ff', 4, 'Face the founder in his sanctum');
         return;
       }
+      if (G.awardFeat) G.awardFeat('ee');
       var pool = CFG.FIZZ_POOL.filter(function (id) { return !G.player.hasPerk(id); });
       if (pool.length) {
         var pick = pool[(Math.random() * pool.length) | 0];
@@ -293,6 +417,30 @@
       if (ee.souls >= ee.need) rewardSoulBox();
       else if (ee.souls % 5 === 0) G.hud.banner('SOULS ' + ee.souls + '/' + ee.need, '#b6f', 1.1);
     };
+
+    // -- stage 4: accept the bargain at the portrait
+    if (questOn && KAq.voss) add({
+      pos: KAq.voss.pos, r: 2.2,
+      prompt: function () {
+        if (I.quest.done) return null;
+        if (I.quest.stage !== 4) return null;
+        return "Accept the Founder's Bargain";
+      },
+      use: function () {
+        if (I.quest.stage !== 4 || I.quest.done) return;
+        I.quest.done = true; I.quest.stage = 5;
+        if (G.awardFeat) G.awardFeat('ee');
+        if (KAq.face) KAq.face.material.color.setHex(0xffc86a);   // he smiles
+        if (CFG.cur.eeWonder && CFG.WEAPONS[CFG.cur.eeWonder] && !G.weapons.hasWeapon(CFG.cur.eeWonder)) {
+          G.weapons.giveWeapon(CFG.cur.eeWonder);
+          G.hud.banner("THE FOUNDER'S BARGAIN", '#e8c35a', 5, 'His buried prize: the ' + CFG.WEAPONS[CFG.cur.eeWonder].name);
+        } else {
+          G.weapons.maxAmmo(); G.player.addPoints(5000);
+          G.hud.banner("THE FOUNDER'S BARGAIN", '#e8c35a', 5, 'Max Ammo + 5000 points');
+        }
+        G.audio.vossWaltz();
+      }
+    });
 
     // --- musical easter egg (Kurhaus): wind Voss's three gramophone cranks,
     // in any order, and his waltz plays through the halls. Pure secret — no

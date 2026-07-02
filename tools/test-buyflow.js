@@ -39,13 +39,19 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
       }
       function promptAt(pos) {
         // stand a step in FRONT of the machine (toward its room centre) like a
-        // player — teleporting INTO its collider gets pushed out of range
+        // player — teleporting INTO its collider gets pushed out of range. Try a
+        // few stand distances/sides; return the first prompt that shows.
         var rid = map.roomAt(pos.x, pos.z, 0), rm = rid && map.parsed.rooms[rid], c = (rm && rm.center) || pos;
         var dx = c.x - pos.x, dz = c.z - pos.z, dd = Math.hypot(dx, dz) || 1;
-        at(pos, dx / dd * 1.3, dz / dd * 1.3); tick(3);
         var el = document.getElementById('hud-prompt');
         if (!el) return '(missing hud-prompt)';
-        return el.style.display === 'none' ? '(no prompt)' : el.textContent;
+        var tries = [[dx / dd * 1.0, dz / dd * 1.0], [dx / dd * 1.5, dz / dd * 1.5],
+                     [dz / dd * 1.2, -dx / dd * 1.2], [-dz / dd * 1.2, dx / dd * 1.2]];
+        for (var ti = 0; ti < tries.length; ti++) {
+          at(pos, tries[ti][0], tries[ti][1]); tick(3);
+          if (el.style.display !== 'none') return el.textContent;
+        }
+        return '(no prompt)';
       }
       function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
       var map = G.map;
@@ -66,7 +72,11 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
       // -- 3. PaP + perks correctly gated BEFORE power
       var papPrompt = promptAt(map.pap.pos);
       ck(!map.pap.unlocked, 'PaP locked pre-power', papPrompt);
-      ck(/power|teleport|Core/i.test(papPrompt), 'PaP prompt explains the unlock', papPrompt);
+      // some maps wall the locked PaP behind a force field (player can't get in
+      // prompt range) — the field itself communicates the lock; accept either
+      var fieldUp = map.pap.fieldCol && map.pap.fieldCol.on;
+      ck(/power|teleport|Core/i.test(papPrompt) || (papPrompt === '(no prompt)' && fieldUp),
+         'PaP lock is communicated (prompt or force field)', papPrompt + (fieldUp ? ' +field' : ''));
       var jug = map.perkMachines.filter(function (m) { return m.perk === 'jugg'; })[0];
       if (jug) {
         var before = P.points; buyAt(jug.pos);
@@ -139,21 +149,67 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         ck(tr.active > 0, 'trap "' + tr.name + '" activated via [F]', 'active=' + (+tr.active).toFixed(1) + 's');
       }
 
-      // -- 11. EASTER EGG: activate the 3 relics via [F], wake the soul chest,
-      // feed it kills, and claim the reward (on kurhaus: the second wonder)
-      if (CFG.RELIC_SPOTS && CFG.RELIC_SPOTS.length && CFG.EE_SOULBOX) {
-        ck(I.ee.relics.length === 3, '3 relic pedestals spawned (of ' + CFG.RELIC_SPOTS.length + ' authored spots)');
+      // -- 11. THE FOUNDER'S BARGAIN — walk the ENTIRE multi-stage quest chain
+      // through real interact presses (sigils -> relics -> 4 current trials ->
+      // soul chest -> the portrait bargain -> the second wonder)
+      if (I.quest && I.quest.on) {
+        var KA = G.map.kAnim;
+        // stage 0: relics must be cold before the sigils are traced
+        var r0 = I.ee.relics[0]; buyAt(r0.pos);
+        ck(I.ee.activated === 0, 'relics are COLD before the sigils are lit');
+        ck(KA.sigils.length === 4, '4 sigils drawn in the Sanctum');
+        KA.sigils.forEach(function (s3) { buyAt({ x: s3.pos.x, y: 0, z: s3.pos.z }); });
+        ck(I.quest.stage === 1, 'stage 1: all 4 sigils traced', 'lit=' + I.quest.sigilsLit);
+        // stage 1: now the relics wake
+        I.ee.relics.forEach(function (r) { buyAt(r.pos); });
+        ck(I.quest.stage === 2, 'stage 2: 3 relics activated -> the currents stir', I.ee.activated + '/3');
+        ck(I.quest.valves.length === 4, '4 current valves revealed', I.quest.valves.map(function (v) { return v.name.split(' ')[0]; }).join(','));
+        function valve(n) { return I.quest.valves.filter(function (v) { return v.name.indexOf(n) === 0; })[0]; }
+        // MOLTEN: denied while the trap sleeps; attunes while it fires
+        var vm2 = valve('molten');
+        var trM = G.map.traps.filter(function (t) { return t.type === 'molten'; })[0];
+        trM.active = 0; trM.cooldown = 0;     // step 10 fired it — put the melt to sleep first
+        buyAt(vm2.pos);
+        ck(!vm2.attuned, 'molten current DENIED while the trap sleeps');
+        P.points = 50000;
+        buyAt(trM.pos);                       // fire the Molten Pour for real
+        buyAt(vm2.pos);
+        ck(vm2.attuned, 'MOLTEN attuned while the trap fires');
+        // FROZEN: hold F to thaw (real held-key path)
+        var vf = valve('frozen');
+        at(vf.pos); tick(2);
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF' }));
+        G.keys.KeyF = true; tick(60 * 3.2);
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyF' })); G.keys.KeyF = false;
+        ck(vf.attuned, 'FROZEN thawed by holding F');
+        // DROWNED: denied standing; attunes crouched in the spring
+        var vd = valve('drowned');
+        buyAt(vd.pos);
+        ck(!vd.attuned, 'drowned current DENIED while standing');
+        at(vd.pos); G.keys.KeyC = true; tick(8); pressF(); tick(2); G.keys.KeyC = false;
+        ck(vd.attuned, 'DROWNED attuned while crouched in the spring');
+        // BURIED: denied until an explosive cracks the archway
+        var vb = valve('buried');
+        buyAt(vb.pos);
+        ck(!vb.attuned, 'buried current DENIED behind intact brick');
+        G.weapons.explode(new THREE.Vector3(KA.arch.pos.x, 1, KA.arch.pos.z), 100, 4, {});
+        ck(KA.arch.cracked, 'explosive CRACKED the bricked archway');
+        buyAt(vb.pos);
+        ck(vb.attuned, 'BURIED attuned through the crack');
+        ck(I.quest.stage === 3 && !!I.ee.box, 'stage 3: all currents -> soul chest awakened');
+        for (var k2 = 0; k2 < I.ee.need && I.ee.box && !I.ee.done; k2++) I.onKill(I.ee.box);
+        ck(I.ee.done && I.quest.stage === 4, 'stage 4: chest filled -> he is listening');
+        ck(!G.weapons.hasWeapon(CFG.cur.eeWonder), 'no prize before the bargain is accepted');
+        buyAt(KA.voss.pos);                   // face the founder
+        ck(I.quest.done, 'stage 5: bargain ACCEPTED at the portrait');
+        ck(G.weapons.hasWeapon(CFG.cur.eeWonder), 'the buried SECOND WONDER granted: ' + CFG.WEAPONS[CFG.cur.eeWonder].name);
+      } else if (CFG.RELIC_SPOTS && CFG.RELIC_SPOTS.length && CFG.EE_SOULBOX) {
+        // classic mini egg on the other maps
         I.ee.relics.forEach(function (r) { buyAt(r.pos); });
         ck(I.ee.activated === 3, 'all 3 relics activated via [F]', I.ee.activated + '/3');
         ck(!!I.ee.box, 'soul chest awakened in the map');
-        // feed it: kills reported next to the chest
-        for (var k2 = 0; k2 < I.ee.need && I.ee.box && !I.ee.done; k2++) I.onKill(I.ee.box);
+        for (var k3 = 0; k3 < I.ee.need && I.ee.box && !I.ee.done; k3++) I.onKill(I.ee.box);
         ck(I.ee.done, 'soul chest filled (' + I.ee.need + ' kills)');
-        if (CFG.cur.eeWonder) {
-          ck(G.weapons.hasWeapon(CFG.cur.eeWonder), 'EE rewarded the SECOND WONDER: ' + CFG.WEAPONS[CFG.cur.eeWonder].name);
-          var wonders = G.weapons.slots.filter(function (s) { return CFG.WEAPONS[s.id] && CFG.WEAPONS[s.id].wonder; }).map(function (s) { return s.id; });
-          ck(wonders.length >= 1, 'wonder count in inventory', wonders.join('+'));
-        }
       }
 
       return out;
