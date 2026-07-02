@@ -493,8 +493,18 @@
     ],
     EE_SOULBOX: [9, 8],                // the Pump Hall's heart — feed the machine
     eeWonder: 'thunder',               // the founder's prize: the buried Thundergun
-    SHIELD_PARTS: {},
-    SHIELD_BENCH: null
+    // wings eligible for the AETHER SURGE round event (double points inside,
+    // announced by banner + a pulsing floor ring) — not the spawn concourse
+    SURGE_ROOMS: ['V', 'F', 'N', 'B', 'M', 'A'],
+    // Zombie Shield scavenger hunt — frame from the drill scaffolds, plate from
+    // the coolant plant, glass from the bath stalls' mirror. Assemble in the
+    // Foyer. (Walls chosen clear of machines/wallbuys/windows/relics.)
+    SHIELD_PARTS: {
+      frame: { room: 'V', spots: [{ cell: [10, 1], face: 'N' }, { cell: [11, 5], face: 'S' }, { cell: [7, 5], face: 'W' }] },
+      plate: { room: 'F', spots: [{ cell: [13, 3], face: 'W' }, { cell: [16, 5], face: 'S' }, { cell: [17, 1], face: 'E' }] },
+      glass: { room: 'B', spots: [{ cell: [4, 7], face: 'N' }, { cell: [5, 9], face: 'E' }, { cell: [1, 11], face: 'S' }] }
+    },
+    SHIELD_BENCH: { cell: [7, 15], face: 'S' }
   };
   CFG.MAP_IDS = ['nacht', 'derriese', 'wetterjunge', 'kurhaus'];
 

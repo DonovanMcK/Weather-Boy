@@ -476,6 +476,7 @@
     if (!gun.papped) gun.papped = true;
     else if (!gun.dpap) gun.dpap = true;
     else return false;
+    if (G.awardFeat) G.awardFeat('pap');
     var s = W.stats(gun);
     gun.ammo = s.mag;
     gun.reserve = s.reserve;

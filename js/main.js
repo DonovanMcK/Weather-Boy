@@ -85,7 +85,31 @@
       var best = localStorage.getItem('wj_best_' + id);
       var span = document.getElementById('best-' + id);
       if (span && best) span.textContent = 'Best: round ' + best;
+      // challenge stars — earned once per map, forever on the card:
+      // ★ survive to round 15   ★ complete the easter egg   ★ Pack-a-Punch a gun
+      if (card) {
+        var feats = [['r15', 'Survive to round 15'], ['ee', 'Complete the easter egg'], ['pap', 'Pack-a-Punch a weapon']];
+        var row = document.createElement('div');
+        row.style.cssText = 'margin-top:4px;font-size:15px;letter-spacing:5px';
+        feats.forEach(function (f) {
+          var got = localStorage.getItem('wj_feat_' + id + '_' + f[0]) === '1';
+          var s = document.createElement('span');
+          s.textContent = '★';
+          s.title = f[1] + (got ? ' ✓' : '');
+          s.style.color = got ? '#e8c35a' : 'rgba(255,255,255,0.18)';
+          row.appendChild(s);
+        });
+        card.appendChild(row);
+      }
     });
+    // feats are awarded from gameplay code via G.awardFeat(key)
+    G.awardFeat = function (key) {
+      var k = 'wj_feat_' + (G.CFG.cur ? G.CFG.cur.id : '?') + '_' + key;
+      if (localStorage.getItem(k) === '1') return;
+      localStorage.setItem(k, '1');
+      var names = { r15: 'ROUND 15 SURVIVOR', ee: 'EASTER EGG COMPLETE', pap: 'FIRST PACK-A-PUNCH' };
+      G.hud.banner('★ CHALLENGE: ' + (names[key] || key), '#e8c35a', 3, 'Star earned on the map card');
+    };
     G.settings.aimMode = detectAimMode();
     refreshAimButton();
     function toggleAim() {

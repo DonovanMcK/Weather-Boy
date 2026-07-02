@@ -262,6 +262,7 @@
     }
     function rewardSoulBox() {
       var ee = I.ee; ee.done = true;
+      if (G.awardFeat) G.awardFeat('ee');
       if (ee.boxMesh) G.scene.remove(ee.boxMesh);
       if (ee.glow) G.scene.remove(ee.glow);
       // a map may bury a SECOND wonder weapon as its quest prize (Kurhaus: the
@@ -292,6 +293,44 @@
       if (ee.souls >= ee.need) rewardSoulBox();
       else if (ee.souls % 5 === 0) G.hud.banner('SOULS ' + ee.souls + '/' + ee.need, '#b6f', 1.1);
     };
+
+    // --- musical easter egg (Kurhaus): wind Voss's three gramophone cranks,
+    // in any order, and his waltz plays through the halls. Pure secret — no
+    // prompt hints exist anywhere else; you find them or you don't.
+    if (CFG.cur.id === 'kurhaus') {
+      var cranks = { wound: 0, need: 3 };
+      var brassM = new THREE.MeshLambertMaterial({ color: 0x9a7a3a });
+      var darkM = new THREE.MeshLambertMaterial({ color: 0x2e2620 });
+      [{ cell: [11, 15], face: 'S' },     // Foyer, east of the spawn windows
+       { cell: [2, 1],   face: 'N' },     // Sanctum, beside the library
+       { cell: [14, 11], face: 'S' }      // Cold Cellar, by the bricked archway
+      ].forEach(function (loc) {
+        var m = wallMount(loc.cell, loc.face, 0.18, 0);
+        var g = new THREE.Group();
+        g.position.copy(m.pos); g.position.y = 1.05; g.rotation.y = m.yaw;
+        var base = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.34), darkM); g.add(base);
+        var horn = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.34, 10, 1, true), brassM);
+        horn.rotation.x = -Math.PI / 2.6; horn.position.set(0, 0.3, 0.1); g.add(horn);
+        var crank = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.05), brassM);
+        crank.position.set(0.26, 0, 0); g.add(crank);
+        G.scene.add(g);
+        var wound = false;
+        add({
+          pos: new THREE.Vector3(m.pos.x, 0, m.pos.z), r: 1.7,
+          prompt: function () { return wound ? null : 'Wind the gramophone'; },
+          use: function () {
+            if (wound) return;
+            wound = true; cranks.wound++;
+            crank.rotation.z = 1.2;
+            G.audio.buy();
+            if (cranks.wound >= cranks.need) {
+              G.audio.vossWaltz();
+              G.hud.banner("VOSS'S WALTZ", '#e8c35a', 4, 'The house remembers the music');
+            } else G.hud.banner('The mechanism clicks…', '#cba', 1.6);
+          }
+        });
+      });
+    }
 
     // power switch
     add({

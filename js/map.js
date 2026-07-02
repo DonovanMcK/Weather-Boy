@@ -524,6 +524,43 @@
         l.light.intensity = base * fl;
         l.bulb.material.emissiveIntensity = (self.power ? 1.0 : 0.35) * fl;
       });
+
+      // KURHAUS living-map pass — pure mesh/material animation, no light churn
+      var KA = this.kAnim;
+      if (KA) {
+        for (var ei = 0; ei < KA.embers.length; ei++) {      // embers rise + die
+          var e2 = KA.embers[ei], t2 = (G.time * e2.spd + e2.ph) % 3.0;
+          e2.m.position.set(e2.x + Math.sin(G.time * 1.3 + e2.ph) * 0.25, 0.25 + t2, e2.z);
+          e2.m.scale.setScalar(Math.max(0.15, 1 - t2 / 3.0));
+        }
+        for (var si = 0; si < KA.steam.length; si++) {       // steam lifts + fades
+          var s2 = KA.steam[si], ts = (G.time * s2.spd + s2.ph) % 2.4;
+          s2.m.position.y = 0.5 + ts;
+          s2.mat.opacity = 0.24 * (1 - ts / 2.4);
+          s2.m.scale.setScalar(0.8 + ts * 0.5);
+        }
+        for (var ci2 = 0; ci2 < KA.candles.length; ci2++)    // candle flicker
+          KA.candles[ci2].scale.setScalar(0.75 + 0.45 * Math.abs(Math.sin(G.time * 11 + ci2 * 2.7)));
+        if (KA.manifold)                                      // the manifold breathes
+          KA.manifold.mat.opacity = this.power ? 0.3 + 0.18 * Math.sin(G.time * 4)
+                                               : 0.1 + 0.05 * Math.sin(G.time * 1.2);
+        for (var ni = 0; ni < KA.needles.length; ni++)        // gauges twitch on power
+          KA.needles[ni].rotation.z = -0.8 + (this.power ? Math.sin(G.time * 8 + ni * 2) * 0.14 : 0);
+        if (KA.bucket) KA.bucket.position.x += Math.sin(G.time * 0.9) * 0.0012;  // slow sway
+        // Voss notices: once the soul chest wakes, the portrait's face burns aether
+        if (KA.face && !this._vossWoke && G.interact && G.interact.ee && G.interact.ee.box) {
+          this._vossWoke = true;
+          KA.face.material.color.setHex(0x9c6cf0);
+          KA.face.material.emissive && KA.face.material.emissive.setHex(0x6a3ab8);
+        }
+      }
+
+      // AETHER SURGE — pulse the marker ring while a wing is surging
+      if (this.surge && this.surgeRing) {
+        this.surgeRing.visible = true;
+        this.surgeRing.material.opacity = 0.3 + 0.2 * Math.sin(G.time * 5);
+        this.surgeRing.scale.setScalar(1 + 0.06 * Math.sin(G.time * 3));
+      } else if (this.surgeRing) this.surgeRing.visible = false;
     },
 
     setPower: function () {
@@ -1427,6 +1464,9 @@
         };
       }
       var M = TH._m;
+      // living-map registry — map.update animates these every frame (embers rise,
+      // steam drifts, candles flicker, the manifold breathes, Voss reacts)
+      var KA = map.kAnim = map.kAnim || { embers: [], steam: [], candles: [], needles: [], manifold: null, face: null, bucket: null };
       function box(w, h, d, x, y, z, m) { return addBox(w, h, d, x, y, z, m); }
       function cyl(r, h, x, y, z, m, sg) { var e = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, sg || 10), m); e.position.set(x, y, z); S.add(e); return e; }
       function coneM(r, h, x, y, z, m) { var e = new THREE.Mesh(new THREE.ConeGeometry(r, h, 8), m); e.position.set(x, y, z); S.add(e); return e; }
@@ -1477,8 +1517,14 @@
         var crown = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.09, 8, 18), M.iron);
         crown.rotation.x = Math.PI / 2; crown.position.set(cx, WALL_H - 0.55, cz); S.add(crown);
         cyl(0.04, 1.1, cx + 0.55, WALL_H - 1.15, cz, M.steel, 6);         // hanging cable
-        box(0.34, 0.4, 0.34, cx + 0.55, WALL_H - 1.85, cz, M.iron);      // stuck sample bucket
+        KA.bucket = box(0.34, 0.4, 0.34, cx + 0.55, WALL_H - 1.85, cz, M.iron);  // swaying sample bucket
         ring(3.5, 0.07, cx, cz, M.haz, 0.06);                             // painted hazard ring
+        // embers rise off the melt, cool, and die — the pool never sleeps
+        for (var em = 0; em < 6; em++) {
+          var ea = em / 6 * Math.PI * 2, er = 0.8 + (em % 3) * 0.55;
+          var eb = sph(0.07 + (em % 2) * 0.03, cx + Math.cos(ea) * er, 0.3, cz + Math.sin(ea) * er, M.ember);
+          KA.embers.push({ m: eb, x: eb.position.x, z: eb.position.z, spd: 0.55 + (em % 3) * 0.2, ph: em * 1.05 });
+        }
         // core-sample crates along the west wall (the relic hides among them)
         [[x0 + 1.2, cz - 2.2], [x0 + 1.2, cz + 1.4], [x0 + 2.2, cz - 0.6]].forEach(function (c, i) {
           if (!spotOK(c[0], c[1], 1.4)) return;
@@ -1568,13 +1614,14 @@
         [[cx - 1.5, cz + 1.5], [cx + 1.6, cz + 1.4], [cx + 1.5, cz - 1.6]].forEach(function (c) {
           if (!spotOK(c[0], c[1], 1.0)) return;
           for (var cn = 0; cn < 3; cn++) { var ccx = c[0] + (cn - 1) * 0.22, ccz = c[1] + (cn % 2) * 0.2;
-            cyl(0.05, 0.3 + (cn % 3) * 0.12, ccx, 0.18, ccz, M.candle, 6); sph(0.045, ccx, 0.4 + (cn % 3) * 0.12, ccz, M.flame); }
+            cyl(0.05, 0.3 + (cn % 3) * 0.12, ccx, 0.18, ccz, M.candle, 6);
+            KA.candles.push(sph(0.045, ccx, 0.4 + (cn % 3) * 0.12, ccz, M.flame)); }
         });
         // VOSS HIMSELF — the portrait hangs over his font (the PaP wall, east),
         // eyes on the ring. The frame is gold; the face never quite resolves.
         box(1.5, 2.0, 0.1, x1 - 0.3, 2.5, cz + 0.4, M.gold);
         box(1.26, 1.76, 0.06, x1 - 0.34, 2.5, cz + 0.4, M.dark);
-        sph(0.2, x1 - 0.38, 2.72, cz + 0.4, M.face);
+        KA.face = sph(0.2, x1 - 0.38, 2.72, cz + 0.4, M.face.clone());   // wakes with the soul chest
         // hanging censers, still smoking after all these years
         [[cx - 2.2, cz - 2.2], [cx + 2.2, cz + 2.2]].forEach(function (c) {
           cyl(0.03, 1.4, c[0], WALL_H - 0.7, c[1], M.brass, 6); sph(0.16, c[0], WALL_H - 1.5, c[1], M.brass);
@@ -1587,6 +1634,13 @@
         disc(2.8, cx, cz, M.water); ring(2.9, 0.16, cx, cz, M.brass, 0.12);
         ring(3.15, 0.06, cx, cz, M.marble, 0.07);       // mineral crust the water left
         glow(cx, 1.6, cz, 0x3fd0c8, 1.0, 16);
+        // steam still lifts off the spring water
+        for (var sw = 0; sw < 4; sw++) {
+          var sa = sw / 4 * Math.PI * 2 + 0.7, sr = 0.7 + (sw % 2) * 1.0;
+          var sm = new THREE.MeshBasicMaterial({ color: 0xcfeee8, transparent: true, opacity: 0.22, depthWrite: false });
+          var sp2 = sph(0.3 + (sw % 2) * 0.12, cx + Math.cos(sa) * sr, 0.6, cz + Math.sin(sa) * sr, sm);
+          KA.steam.push({ m: sp2, mat: sm, spd: 0.35 + (sw % 3) * 0.12, ph: sw * 1.6 });
+        }
         // a guest who never got out of the water
         box(0.45, 0.22, 1.3, cx + 1.1, 0.16, cz + 0.5, M.bone);
         sph(0.16, cx + 1.1, 0.24, cz + 1.25, M.bone);
@@ -1607,9 +1661,13 @@
         corners.forEach(function (c, i) { cyl(0.16, WALL_H, c[0], WALL_H / 2, c[1], M.brass); if (i % 2) cyl(0.16, WALL_H, c[0] + 0.5, WALL_H / 2, c[1], M.brass); });
 
       } else if (rid === 'A') {                // PUMP HALL — the machine heart of the Kurhaus
-        // the aether manifold: a brass heart in the floor, lines feeding every wing
+        // the aether manifold: a brass heart in the floor, lines feeding every wing.
+        // Its glow BREATHES (slow before power, urgent after) — cloned material so
+        // the Sanctum's shared rune glow doesn't pulse with it.
         ring(2.2, 0.1, cx, cz, M.brass, 0.05);
-        disc(0.9, cx, cz, M.runeF, 0.04);
+        var maniMat = M.runeF.clone();
+        KA.manifold = { mat: maniMat };
+        disc(0.9, cx, cz, maniMat, 0.04);
         for (var mr = 0; mr < 4; mr++) {
           var ma = mr / 4 * Math.PI * 2 + Math.PI / 4;
           var st2 = box(0.3, 0.018, 5.4, cx + Math.cos(ma) * 4.6, 0.05, cz + Math.sin(ma) * 4.6, M.trim);
@@ -1620,6 +1678,7 @@
           var gx2 = cx - 1.6 + gg * 1.6;
           cyl(0.34, 0.1, gx2, 2.2, z0 + 0.32, M.marble, 14).rotation.x = Math.PI / 2;
           var nd = box(0.05, 0.26, 0.03, gx2 + 0.08, 2.28, z0 + 0.24, M.velvet); nd.rotation.z = -0.8;
+          KA.needles.push(nd);
           var vw = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.035, 6, 12), M.brass);
           vw.position.set(gx2, 1.35, z0 + 0.3); S.add(vw);
         }
@@ -2167,6 +2226,16 @@
     }
     (CFG.cur._floors || []).forEach(function (f) { if (f !== CFG.cur._primary) buildExtraFloor(f); });
     _fy = 0;   // anything built after the floor loop defaults back to the ground floor
+
+    // AETHER SURGE marker — one reusable pulsing floor ring, moved to whichever
+    // wing surges (mesh visibility only — no light churn, no per-round allocs)
+    if (CFG.cur.SURGE_ROOMS && CFG.cur.SURGE_ROOMS.length) {
+      var sRing = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.12, 8, 36),
+        new THREE.MeshBasicMaterial({ color: 0xb790ff, transparent: true, opacity: 0.35, depthWrite: false }));
+      sRing.rotation.x = Math.PI / 2; sRing.position.y = 0.09; sRing.visible = false;
+      G.scene.add(sRing);
+      map.surgeRing = sRing; map.surge = null;
+    }
     // record every floor's parsed grid + floorY so roomAt/cellAt can resolve which
     // floor a body at height y is on (Y-aware now that B/2 have real rooms)
     map.floors = (CFG.cur._floors || [{ id: '1', floorY: 0 }]).map(function (f) {

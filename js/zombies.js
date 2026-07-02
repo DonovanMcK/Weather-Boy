@@ -437,6 +437,23 @@
       Z.spawnTimer = 1;
       G.audio.roundSting();
       G.hud.banner('ROUND ' + Z.round, '#c11', 2.5);
+      if (Z.round >= 15 && G.awardFeat) G.awardFeat('r15');
+      // AETHER SURGE — on maps that declare surge rooms, some rounds a random
+      // wing lights up: double points for kills inside it until the round ends.
+      // Pulls players OFF their groove to chase the bonus — per-match variation.
+      G.map.surge = null;
+      var sr = CFG.cur.SURGE_ROOMS;
+      if (sr && sr.length && Z.round >= 4 && Math.random() < 0.4) {
+        var pick2 = sr[(Math.random() * sr.length) | 0];
+        var room2 = G.map.parsed.rooms[pick2];
+        if (room2 && room2.center) {
+          G.map.surge = { room: pick2, center: room2.center };
+          if (G.map.surgeRing) G.map.surgeRing.position.set(room2.center.x, 0.09, room2.center.z);
+          var rname = (CFG.ROOMS[pick2] && CFG.ROOMS[pick2].name) || pick2;
+          G.hud.banner('AETHER SURGE', '#b790ff', 3.2, 'Double points in ' + rname + ' this round');
+          G.audio.powerup();
+        }
+      }
       // boss round: drop one elite into the mix (player-toggleable)
       var bossOn = !G.settings || G.settings.bossRounds !== false;
       if (bossOn && Z.round >= Z.nextBoss && !Z.bossAlive()) {
@@ -450,6 +467,7 @@
     if (Z.mode === 'dogs' && lastPos) {
       G.powerups.spawn('maxammo', lastPos.clone());
     }
+    G.map.surge = null;                     // an aether surge lasts one round
     Z.mode = 'break';
     Z.breakTimer = CFG.ROUND_BREAK;
     G.hud.banner('Round ' + (Z.round + 1) + ' incoming...', '#999', 2);
@@ -559,6 +577,9 @@
     else if (opts.head) pts = CFG.PTS.headKill;
     else if (opts.boom) pts = CFG.PTS.boomKill;
     if (z.isBoss) pts = 1000;
+    // AETHER SURGE: kills inside the surging wing pay double for the round
+    if (G.map.surge && G.map.roomAt &&
+        G.map.roomAt(z.mesh.position.x, z.mesh.position.z, z.mesh.position.y) === G.map.surge.room) pts *= 2;
     if (!opts.silent) G.player.addPoints(pts);
     G.player.kills++;
     G.hud.hitmarker(true);

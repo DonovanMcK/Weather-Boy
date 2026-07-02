@@ -397,6 +397,18 @@
       noise({ dur: 0.1, bp: 2000, q: 1, vol: 0.12, when: 0.02 });
     },
 
+    // "Voss's Waltz" — the founder's music-box piece, unlocked by winding all
+    // three of his gramophone cranks (Kurhaus musical easter egg). A-minor
+    // waltz, oom-pah-pah voiced low-high-high on the plucked music-box sine.
+    vossWaltz: function () {
+      melody([
+        220, 523, 659,  220, 523, 659,  330, 494, 659,  330, 494, 831,
+        220, 523, 698,  220, 523, 659,  330, 587, 494,  220, 440, 0,
+        220, 523, 659,  220, 523, 880,  330, 494, 831,  330, 494, 659,
+        220, 698, 659,  330, 587, 523,  220, 494, 440,  220, 440, 0
+      ], 0.21, 0.09, 0.55);
+    },
+
     perkJingle: function () {
       if (playSample('perk', 0.8, 0)) return;
       melody([523, 659, 784, 1047, 784, 1047], 0.12, 0.13, 0.6);
