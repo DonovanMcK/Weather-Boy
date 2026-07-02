@@ -397,6 +397,13 @@
       noise({ dur: 0.1, bp: 2000, q: 1, vol: 0.12, when: 0.02 });
     },
 
+    // the Aether Lance discharge — a rising skewer-crack with a hard snap
+    lanceFire: function () {
+      tone({ type: 'sawtooth', freq: 180, to: 950, dur: 0.16, vol: 0.16 });
+      tone({ type: 'sine', freq: 1400, to: 500, dur: 0.3, vol: 0.1, when: 0.05, send: 0.5 });
+      noise({ dur: 0.08, bp: 2400, q: 2, vol: 0.18 });
+    },
+
     // the ghost's wail — a falling cry with a cold breath of noise under it
     // (played when Voss's shade appears, flees, and finally sinks)
     ghostWail: function () {

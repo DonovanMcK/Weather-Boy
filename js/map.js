@@ -1466,7 +1466,10 @@
       var M = TH._m;
       // living-map registry — map.update animates these every frame (embers rise,
       // steam drifts, candles flicker, the manifold breathes, Voss reacts)
-      var KA = map.kAnim = map.kAnim || { embers: [], steam: [], candles: [], needles: [], manifold: null, face: null, bucket: null };
+      var KA = map.kAnim = map.kAnim || { embers: [], steam: [], candles: [], needles: [], manifold: null, face: null, bucket: null,
+        // anchors the elemental RITES (interact.js) hook onto — only spots that
+        // actually built (clearOf can skip one) are listed
+        rite: { crates: [], tanks: [], ice: null, hooks: [] } };
       function box(w, h, d, x, y, z, m) { return addBox(w, h, d, x, y, z, m); }
       function cyl(r, h, x, y, z, m, sg) { var e = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, sg || 10), m); e.position.set(x, y, z); S.add(e); return e; }
       function coneM(r, h, x, y, z, m) { var e = new THREE.Mesh(new THREE.ConeGeometry(r, h, 8), m); e.position.set(x, y, z); S.add(e); return e; }
@@ -1537,6 +1540,7 @@
           box(0.94, 0.08, 0.94, c[0], 0.31, c[1], M.rust).rotation.y = cr8.rotation.y;             // rope lashing
           solid(c[0], c[1], 0.55, 0.55, 0.72);
           sph(0.2, c[0] - 0.15, 0.75, c[1] + 0.1, i % 2 ? M.rock : M.lava);
+          KA.rite.crates.push({ x: c[0], z: c[1] });
         });
         corners.forEach(function (c, i) { box(0.5 + (i % 2) * 0.2, 0.45, 0.5, c[0], 0.22, c[1], M.rock); sph(0.22, c[0], 0.5, c[1], i % 2 ? M.lava : M.ember); });
 
@@ -1556,6 +1560,7 @@
           gv.position.set(c[0], 1.2, c[1] - 0.74); S.add(gv);           // hand valve
           if (ti === 1) { var tl = cyl(0.72, 2.6, c[0], 1.3, c[1], M.steel, 12); tl.rotation.z = 0.03; } // one sits off-plumb
           solid(c[0], c[1], 0.85, 0.85, 2.9);
+          KA.rite.tanks.push({ x: c[0], z: c[1] });
         });
         // THE FROZEN ENGINEER — one of Voss's men, entombed mid-stride in the
         // coolant burst that saved the building. He's still reaching for the door.
@@ -1566,6 +1571,7 @@
           box(0.4, 0.14, 0.14, fw[0] + 0.35, 1.35, fw[1], M.dark);        // outstretched arm
           box(1.0, 2.3, 0.9, fw[0], 1.15, fw[1], M.iceGl);                // the ice block
           solid(fw[0], fw[1], 0.55, 0.5, 2.3);
+          KA.rite.ice = { x: fw[0], z: fw[1] };
         }
         // burst coolant main on the east wall — the spray froze mid-air
         var bp = [x1 - 0.55, cz + 3.2];
@@ -1581,6 +1587,7 @@
           var hz = z0 + 1.8 + hi * (bb.d - 3.6) / 2, hx = x0 + 1.2;
           if (!clearOf(new THREE.Vector3(hx, 0, hz), 1.2)) continue;
           cyl(0.05, 1.5, hx, WALL_H - 0.75, hz, M.steel, 6); box(0.45, 1.3, 0.45, hx, WALL_H - 2.05, hz, M.meat); box(0.5, 0.12, 0.5, hx, WALL_H - 1.4, hz, M.bone);
+          KA.rite.hooks.push({ x: hx, z: hz });
         }
         // pantry racks — jars of things that shouldn't be jarred
         [[cx - 2.6, z0 + 0.9], [cx - 0.8, z0 + 0.9]].forEach(function (c) {

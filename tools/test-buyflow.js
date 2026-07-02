@@ -133,6 +133,19 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
       var cur = G.weapons.current();
       ck(cur && cur.papped, 'gun is PACKED after grabbing', cur && CFG.WEAPONS[cur.id].name);
 
+      // -- 8b. the FULL PaP ladder: double-pack (10k) then ASCEND to a variant
+      P.points = 50000;
+      var lgun = G.weapons.current();
+      buyAt(map.pap.pos); tick(60 * 4.5); buyAt(map.pap.pos);      // tier 2
+      ck(lgun.dpap, 'DOUBLE-packed (tier 2, Dead Wire)', G.weapons.stats(lgun).name);
+      var ptsBeforeAsc = P.points;
+      buyAt(map.pap.pos); tick(60 * 4.5); buyAt(map.pap.pos);      // tier 3
+      ck(!!lgun.variant, 'ASCENDED to a tier-3 variant: ' + (lgun.variant || 'none'), G.weapons.stats(lgun).name);
+      ck(ptsBeforeAsc - P.points === CFG.TPAP_COST, 'Ascension charged TPAP_COST', 'paid ' + (ptsBeforeAsc - P.points));
+      var v1 = lgun.variant;
+      buyAt(map.pap.pos); tick(60 * 4.5); buyAt(map.pap.pos);      // re-roll
+      ck(lgun.variant && lgun.variant !== v1, 're-roll landed a DIFFERENT variant', v1 + ' -> ' + lgun.variant);
+
       // -- 9. Wunderfizz (random perk) if this map has one
       var fizz = map.perkMachines.filter(function (m) { return m.perk === 'wonderfizz'; })[0];
       if (fizz) {
@@ -223,8 +236,38 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         buyAt(KA.voss.pos);                   // face the founder
         ck(I.quest.done, 'stage 7: bargain ACCEPTED at the portrait');
         ck(G.weapons.hasWeapon(CFG.cur.eeWonder), 'the buried SECOND WONDER granted: ' + CFG.WEAPONS[CFG.cur.eeWonder].name);
-      } else if (CFG.RELIC_SPOTS && CFG.RELIC_SPOTS.length && CFG.EE_SOULBOX) {
-        // classic mini egg on the other maps
+      }
+
+      // -- 12. ELEMENTAL RITES: run the Molten rite start-to-finish, ignite its
+      // altar, infuse the weapon, and spot-check two element procs
+      if (I.rites) {
+        var KA2 = G.map.kAnim, rrT = G.map.parsed.rooms;
+        ck(!!I.rites.molten && !!I.rites.frozen && !!I.rites.drowned && !!I.rites.grave, 'four elemental rites registered');
+        buyAt({ x: KA2.rite.crates[0].x, y: 0, z: KA2.rite.crates[0].z });        // pluck the cinder
+        ck(I.rites.molten.step === 1, 'molten rite 1/3: cinder plucked');
+        buyAt({ x: rrT.V.center.x + 1.2, y: 0, z: rrT.V.center.z });              // cast into the melt (point-blank of the ring)
+        ck(I.rites.molten.step === 2, 'molten rite 2/3: cast into the melt');
+        for (var mk2 = 0; mk2 < 6; mk2++) {                                       // six kills in the Caldera
+          var zf = { dead: false, hp: 1, hpMax: 1, mesh: { position: new THREE.Vector3(rrT.V.center.x, 0, rrT.V.center.z) }, state: 'chase' };
+          G.zombies.list.push(zf); G.zombies.damageZombie(zf, 999, {});
+        }
+        ck(I.rites.molten.done, 'molten rite 3/3: six Caldera kills -> ALTAR IGNITED');
+        var alt = { x: rrT.V.center.x - 5.0, z: rrT.V.center.z + 7.8 };
+        buyAt({ x: alt.x, y: 0, z: alt.z });
+        var curG = G.weapons.current();
+        ck(curG.element === 'molten', 'weapon INFUSED at the altar', G.weapons.stats(curG).name);
+        // proc spot-checks through the real applyElement
+        var zChill = { dead: false, hp: 1e9, hpMax: 1e9, mesh: { position: new THREE.Vector3(0, 0, 0) }, slowT: 0 };
+        curG.element = 'frozen'; G.weapons.applyElement(zChill);
+        ck(zChill.slowT > 0, 'frozen infusion CHILLS on hit', 'slowT=' + zChill.slowT.toFixed(1));
+        curG.element = 'molten';
+        var burned = false;
+        for (var bt2 = 0; bt2 < 40 && !burned; bt2++) { var zb = { dead: false, hp: 1e9, hpMax: 1e9, mesh: { position: new THREE.Vector3(0, 0, 0) } }; G.weapons.applyElement(zb); burned = zb.burnT > 0; }
+        ck(burned, 'molten infusion IGNITES (30% proc observed within 40 hits)');
+      }
+
+      // classic mini egg on the maps without the full quest
+      if ((!I.quest || !I.quest.on) && CFG.RELIC_SPOTS && CFG.RELIC_SPOTS.length && CFG.EE_SOULBOX) {
         I.ee.relics.forEach(function (r) { buyAt(r.pos); });
         ck(I.ee.activated === 3, 'all 3 relics activated via [F]', I.ee.activated + '/3');
         ck(!!I.ee.box, 'soul chest awakened in the map');

@@ -240,6 +240,22 @@
       cylZ(0.018, 0.018, 0.12, 0, 0.0, -0.48, M.mid);
       box(0.05, 0.14, 0.07, 0, -0.13, 0.02, M.wood, 0.2);
       tipZ = -0.56;
+    } else if (cls === 'storm' && vm.lance) {
+      // Aether Lance: a long tapered rail spear — no orb, no funnel. Brass
+      // haft, three aether coil rings marching up the shaft, a glowing prong
+      // tip. Reads as a couched lance, unlike anything else in the arsenal.
+      box(0.06, 0.1, 0.26, 0, -0.02, 0.14, M.wood);                      // haft grip
+      cylZ(0.028, 0.045, 0.85, 0, 0.01, -0.24, accentMat(0x9a7a3a, papped, dpap), 10);  // tapered rail
+      for (var lr = 0; lr < 3; lr++) {
+        var ringL = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.014, 6, 12),
+          new THREE.MeshPhongMaterial({ color: 0x2a1a3a, emissive: 0xb790ff, emissiveIntensity: 0.95, shininess: 85 }));
+        ringL.position.set(0, 0.01, -0.12 - lr * 0.18); g.add(ringL);
+      }
+      var prong = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.16, 8),
+        new THREE.MeshPhongMaterial({ color: 0x3a2a4a, emissive: 0xe8dcff, emissiveIntensity: 1.0, shininess: 95 }));
+      prong.rotation.x = -Math.PI / 2; prong.position.set(0, 0.01, -0.72); g.add(prong);
+      box(0.05, 0.12, 0.07, 0, -0.11, 0.05, M.poly, 0.25);               // under-grip
+      tipZ = -0.8;
     } else if (cls === 'storm') {
       var st = cylZ(0.06, 0.08, 0.55, 0, 0, -0.18, accentMat(0x4a525c, papped, dpap), 12);
       var orb = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 12),
@@ -400,6 +416,13 @@
       s.dmg = Math.round(s.dmg * 1.6);
       s.name = s.name + ' II';
     }
+    if (gun.variant && CFG.PAP_VARIANTS[gun.variant]) {
+      // tier-3 Ascension: the variant proc rides on top (small extra bite)
+      s.dmg = Math.round(s.dmg * 1.15);
+      s.name = s.name + ' — ' + CFG.PAP_VARIANTS[gun.variant].name;
+    }
+    if (gun.element)   // Kurhaus altar infusion
+      s.name = s.name + ' [' + gun.element.charAt(0).toUpperCase() + gun.element.slice(1) + ']';
     if (G.player.hasPerk('dtap')) { s.dmg *= 2; s.rpm *= 1.33; }
     return s;
   };
@@ -475,13 +498,56 @@
     if (!gun) return false;
     if (!gun.papped) gun.papped = true;
     else if (!gun.dpap) gun.dpap = true;
-    else return false;
+    else {
+      // tier 3 — ASCENSION: roll one of the variants (re-roll always lands a
+      // DIFFERENT one, so paying again is never a dud)
+      var keys = Object.keys(CFG.PAP_VARIANTS).filter(function (k) { return k !== gun.variant; });
+      gun.variant = keys[(Math.random() * keys.length) | 0];
+      gun._variantKills = 0;
+    }
     if (G.awardFeat) G.awardFeat('pap');
     var s = W.stats(gun);
     gun.ammo = s.mag;
     gun.reserve = s.reserve;
     if (gun === W.current()) W.equip(W.cur, true);
     return true;
+  };
+
+  // tier-3 variant procs — killZombie reports every player kill here; the proc
+  // counts kills while the ascended gun is HELD and fires its payload on cadence
+  W.variantKill = function (pos) {
+    var gun = W.current();
+    if (!gun || !gun.variant) return;
+    var vdef = CFG.PAP_VARIANTS[gun.variant];
+    if (!vdef) return;
+    gun._variantKills = (gun._variantKills || 0) + 1;
+    if (gun._variantKills < vdef.every) return;
+    gun._variantKills = 0;
+    if (gun.variant === 'starburst') {
+      // a firework climbs from the kill and bursts over the horde
+      var burst = new THREE.Vector3(pos.x, (pos.y || 0) + 3.2, pos.z);
+      addLine(new THREE.Vector3(pos.x, (pos.y || 0) + 0.5, pos.z), burst, 0xffb84a, 0.12, 0.5);
+      W.explode(burst, 900, 4.5, { color: 0xffb84a });
+      poolFlash(burst, 0xff5aa2, 2.4, 14);
+      G.audio.powerup();
+    } else if (gun.variant === 'soulharvest') {
+      G.player.addPoints(100);
+      G.player.hp = Math.min(G.player.maxHp, G.player.hp + 20);
+      G.hud.banner('SOUL HARVEST +100', '#8aff9a', 1.1);
+      G.audio.buy();
+    } else if (gun.variant === 'concussor') {
+      // a concussive nova at the kill flings everything near it
+      var c2 = new THREE.Vector3(pos.x, pos.y || 0, pos.z);
+      poolFlash(new THREE.Vector3(c2.x, c2.y + 1.5, c2.z), 0x7ac8ff, 2.2, 12);
+      G.zombies.list.slice().forEach(function (z2) {
+        if (z2.dead || z2.state === 'flung') return;
+        var to2 = z2.mesh.position.clone().sub(c2);
+        if (to2.length() > 6) return;
+        to2.y = 0; to2.normalize();
+        G.zombies.fling(z2, to2);
+      });
+      G.audio.thunder ? G.audio.thunder() : G.audio.powerup();
+    }
   };
   W.papCurrent = function () { return W.papGun(W.current()); };
 
@@ -601,6 +667,7 @@
       G.hud.hitmarker();
       W.blood(hit.point, isHead ? 7 : 4);
       G.zombies.damageZombie(z, d, { head: isHead, knife: isKnife });
+      if (!isKnife) W.applyElement(z);       // Kurhaus altar infusions proc per hit
       if (dpap && Math.random() < 0.3) deadWire(z, d);   // electric arc proc
       hitAny = true; end = hit.point;
       if (++struck >= pierce) break;                // round absorbed
@@ -696,6 +763,7 @@
   function discharge(gun, s) {
     if (s.projectile === 'wind') { fireThunder(); return; }
     if (s.projectile === 'chain') { fireWunderwaffe(s); return; }
+    if (s.projectile === 'lance') { fireLance(s); return; }
     if (s.projectile === 'storm') { spawnProjectile('storm', s); return; }
     if (s.projectile === 'ray') { spawnProjectile('ray', s); return; }
     if (s.projectile === 'rocket') { spawnProjectile('rocket', s); return; }
@@ -727,6 +795,71 @@
       if (fl.dot(toFlat) < Math.cos(35 * Math.PI / 180)) return;
       G.zombies.fling(z, toFlat);
     });
+  }
+
+  /* ---------------------- elemental infusions (Kurhaus altar rites) -------
+     A gun carries at most one element (gun.element), swapped at will at any
+     ignited altar. Procs land per bullet hit:
+       molten  30%  ignite — a burn that ticks for 2s
+       frozen 100%  chill  — webbed-speed slow for 1.2s (stacks with nothing)
+       drowned 20%  scald  — a steam burst scalds everything around the target
+       grave   20%  shatter— the legs give out (crawler chance) + rot damage  */
+  W.applyElement = function (z) {
+    var gun = W.current();
+    var el = gun && gun.element;
+    if (!el || !z || z.dead) return;
+    var p = z.mesh.position;
+    if (el === 'molten') {
+      if (Math.random() < 0.3) {
+        z.burnT = 2; z.burnDps = 240;
+        poolFlash(new THREE.Vector3(p.x, p.y + 1.2, p.z), 0xff6a1e, 1.1, 6);
+      }
+    } else if (el === 'frozen') {
+      z.slowT = Math.max(z.slowT || 0, 1.2);
+    } else if (el === 'drowned') {
+      if (Math.random() < 0.2) {
+        G.zombies.aoe({ x: p.x, z: p.z }, 220, 2.6, { y: p.y });
+        poolFlash(new THREE.Vector3(p.x, p.y + 1.4, p.z), 0x3fd0c8, 1.2, 7);
+      }
+    } else if (el === 'grave') {
+      if (Math.random() < 0.2) G.zombies.damageZombie(z, 120, { boom: true, crawlers: true });
+    }
+  };
+
+  /* ------------------------------------------- aether lance (line pierce) */
+  // The founder's weapon: a thrown line of aether that SKEWERS every zombie
+  // along its path — no chaining, no vortex; pure impalement down a corridor.
+  function fireLance(s) {
+    G.player.shake(0.6);
+    _dir.set(0, 0, -1).applyEuler(G.camera.rotation);
+    aimAssist(_dir);
+    // the lance stops at the first wall
+    _ray.set(G.camera.position, _dir);
+    _ray.far = s.lanceRange || 45;
+    var wallHits = _ray.intersectObjects(G.map.solidMeshes, false);
+    var reach = wallHits.length ? wallHits[0].distance : (s.lanceRange || 45);
+    var start = W.muzzle ? W.muzzle.getWorldPosition(new THREE.Vector3())
+                         : G.camera.position.clone();
+    var end = G.camera.position.clone().addScaledVector(_dir, reach);
+    // skewer EVERYTHING within pierceRadius of the line
+    var pr = s.pierceRadius || 1.3, skewered = 0;
+    var _v = new THREE.Vector3();
+    G.zombies.list.slice().forEach(function (z) {
+      if (z.dead) return;
+      _v.copy(z.mesh.position); _v.y += 1.2;
+      _v.sub(G.camera.position);
+      var t = _v.dot(_dir);
+      if (t < 0 || t > reach) return;
+      var perp2 = _v.lengthSq() - t * t;
+      if (perp2 > pr * pr) return;
+      skewered++;
+      G.zombies.damageZombie(z, s.dmg, { boom: true });
+    });
+    addLine(start, end, 0xb790ff, 0.26, 0.9);         // the aether shaft
+    addLine(start, end, 0xf0e8ff, 0.09, 0.7);         // white-hot core
+    poolFlash(end, 0xb790ff, 1.6, 8);
+    G.audio.lanceFire();
+    if (skewered) G.hud.hitmarker(true);
   }
 
   /* --------------------------------------------- wunderwaffe (chain bolt) */

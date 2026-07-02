@@ -592,6 +592,7 @@
       G.powerups.maybeDrop(z.mesh.position);
     }
     if (G.interact && G.interact.onKill) G.interact.onKill(z.mesh.position);
+    if (!opts.silent && G.weapons.variantKill) G.weapons.variantKill(z.mesh.position);  // tier-3 PaP procs
     checkRoundEnd(z);
   }
 
@@ -826,6 +827,12 @@
       z.t += dt;
       z.attackCd -= dt;
       if (z.slowT > 0) z.slowT -= dt;
+      // molten infusion burn — ticks damage for its duration
+      if (z.burnT > 0 && !z.dead) {
+        z.burnT -= dt;
+        z._burnAcc = (z._burnAcc || 0) + dt;
+        if (z._burnAcc >= 0.5) { z._burnAcc = 0; Z.damageZombie(z, (z.burnDps || 200) * 0.5, { boom: true }); }
+      }
       var moving = false;
 
       // void fall: a zombie that walked off a sunk floor / atrium edge has no

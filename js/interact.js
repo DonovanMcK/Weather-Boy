@@ -614,6 +614,185 @@
       });
     }
 
+    /* ================== THE ELEMENTAL RITES (Kurhaus) ======================
+       Four elemental rooms, four rites — each a 3-step side quest, independent
+       of the Founder's Bargain, live once the power is on. Completing a rite
+       IGNITES that room's altar; any ignited altar infuses your CURRENT weapon
+       with its element (visit another altar to swap at will):
+         MOLTEN (Caldera):  pluck a cinder -> cast it into the melt -> 6 kills
+         FROZEN (Frostworks): chip the engineer free (hold F) -> close the
+                              3 tank valves -> 6 kills
+         DROWNED (Baths):   gather 2 mineral salts -> kneel + stir the spring
+                            -> 6 kills
+         GRAVE (Cellar):    read the warding X -> still the 3 hanging
+                            carcasses -> 6 kills
+       Element procs (weapons.applyElement): molten ignites, frozen chills,
+       drowned scalds the crowd, grave shatters legs.                        */
+    if (CFG.cur.id === 'kurhaus' && G.map.kAnim && G.map.kAnim.rite) {
+      var RK = G.map.kAnim.rite, KAr = G.map.kAnim;
+      var rr3 = map.parsed.rooms;
+      var EL = {
+        molten:  { room: 'V', color: 0xff6a1e, label: 'Molten' },
+        frozen:  { room: 'F', color: 0xbfe7f0, label: 'Frozen' },
+        drowned: { room: 'B', color: 0x3fd0c8, label: 'Drowned' },
+        grave:   { room: 'M', color: 0x9c6cf0, label: 'Grave' }
+      };
+      I.rites = {};
+      Object.keys(EL).forEach(function (el) { I.rites[el] = { step: 0, sub: 0, kills: 0, done: false }; });
+      function riteAdvance(el, line) {
+        var r6 = I.rites[el]; r6.step++; r6.sub = 0;
+        G.audio.teleportCharge();
+        if (r6.step === 2) G.hud.banner(EL[el].label.toUpperCase() + ' RITE', '#' + new THREE.Color(EL[el].color).getHexString(), 2.6, line + ' — now feed it six kills in this room');
+        else G.hud.banner(EL[el].label.toUpperCase() + ' RITE', '#' + new THREE.Color(EL[el].color).getHexString(), 2.2, line);
+      }
+      function riteComplete(el) {
+        var r6 = I.rites[el]; r6.done = true;
+        if (r6.altarFx) r6.altarFx();
+        G.audio.perkJingle();
+        G.hud.banner(EL[el].label.toUpperCase() + ' ALTAR IGNITED', '#' + new THREE.Color(EL[el].color).getHexString(), 3.2, 'Infuse your weapon at its altar');
+      }
+      // rite kill counting rides the same kill sink as the soul chest
+      var chestKill = I.onKill;
+      I.onKill = function (pos) {
+        Object.keys(EL).forEach(function (el) {
+          var r6 = I.rites[el];
+          if (r6.done || r6.step !== 2) return;
+          if (map.roomAt(pos.x, pos.z, 0) !== EL[el].room) return;
+          r6.kills++;
+          if (r6.kills >= 6) riteComplete(el);
+          else if (r6.kills % 2 === 0) G.hud.banner(EL[el].label + ' rite — ' + r6.kills + '/6 kills', '#cba', 1.2);
+        });
+        chestKill(pos);
+      };
+
+      // --- MOLTEN: cinder from a crate -> into the melt -> kills
+      if (RK.crates.length) add({
+        pos: new THREE.Vector3(RK.crates[0].x, 0, RK.crates[0].z), r: 1.8,
+        prompt: function () { return (map.power && I.rites.molten.step === 0) ? 'Pluck a live cinder from the core crate' : null; },
+        use: function () { if (map.power && I.rites.molten.step === 0) riteAdvance('molten', 'The cinder sears your palm'); }
+      });
+      add({
+        pos: new THREE.Vector3(rr3.V.center.x, 0, rr3.V.center.z), r: 3.4,
+        prompt: function () { return I.rites.molten.step === 1 ? 'Cast the cinder into the melt' : null; },
+        use: function () { if (I.rites.molten.step === 1) riteAdvance('molten', 'The melt accepts it'); }
+      });
+
+      // --- FROZEN: chip the engineer free (hold) -> close 3 valves -> kills
+      if (RK.ice) add({
+        pos: new THREE.Vector3(RK.ice.x, 0, RK.ice.z), r: 2.0, holdable: true, _h: 0,
+        prompt: function () { return (map.power && I.rites.frozen.step === 0) ? 'Hold F — chip the engineer free' : null; },
+        hold: function (dt) {
+          if (!map.power || I.rites.frozen.step !== 0) return;
+          this._h += dt;
+          if (this._h >= 3) riteAdvance('frozen', 'His frozen hand gives up a valve key');
+        }
+      });
+      RK.tanks.forEach(function (tk) {
+        var closed = false;
+        add({
+          pos: new THREE.Vector3(tk.x, 0, tk.z), r: 2.1,
+          prompt: function () { return (I.rites.frozen.step === 1 && !closed) ? 'Close the coolant valve (' + I.rites.frozen.sub + '/' + RK.tanks.length + ')' : null; },
+          use: function () {
+            if (I.rites.frozen.step !== 1 || closed) return;
+            closed = true; I.rites.frozen.sub++;
+            G.audio.buy();
+            if (I.rites.frozen.sub >= RK.tanks.length) riteAdvance('frozen', 'The coolant stills');
+          }
+        });
+      });
+
+      // --- DROWNED: 2 mineral salts -> kneel + stir the spring -> kills
+      [{ x: rr3.B.center.x + 2.4, z: rr3.B.center.z + 1.6 }, { x: rr3.B.center.x - 2.6, z: rr3.B.center.z - 1.5 }].forEach(function (sp3) {
+        var got = false;
+        var pile = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.2, 8),
+          new THREE.MeshLambertMaterial({ color: 0xe8e4d8 }));
+        pile.position.set(sp3.x, 0.1, sp3.z); G.scene.add(pile);
+        add({
+          pos: new THREE.Vector3(sp3.x, 0, sp3.z), r: 1.7,
+          prompt: function () { return (map.power && I.rites.drowned.step === 0 && !got) ? 'Gather the mineral salt' : null; },
+          use: function () {
+            if (!map.power || I.rites.drowned.step !== 0 || got) return;
+            got = true; I.rites.drowned.sub++; pile.visible = false;
+            G.audio.buy();
+            if (I.rites.drowned.sub >= 2) riteAdvance('drowned', 'Salt for the water');
+          }
+        });
+      });
+      add({
+        pos: new THREE.Vector3(rr3.B.center.x, 0, rr3.B.center.z), r: 2.6,
+        prompt: function () {
+          if (I.rites.drowned.step !== 1) return null;
+          return G.player.stance === 'crouch' ? 'Stir the spring' : 'Kneel in the spring (crouch)';
+        },
+        use: function () {
+          if (I.rites.drowned.step !== 1 || G.player.stance !== 'crouch') { if (I.rites.drowned.step === 1) G.audio.deny(); return; }
+          riteAdvance('drowned', 'The water remembers');
+        }
+      });
+
+      // --- GRAVE: read the warding X -> still the 3 carcasses -> kills
+      if (KAr.arch) add({
+        pos: new THREE.Vector3(KAr.arch.pos.x, 0, KAr.arch.pos.z), r: 2.0,
+        prompt: function () { return (map.power && I.rites.grave.step === 0) ? 'Read the warding X' : null; },
+        use: function () { if (map.power && I.rites.grave.step === 0) riteAdvance('grave', 'The chalk is a name, written backwards'); }
+      });
+      RK.hooks.forEach(function (hk) {
+        var stilled = false;
+        add({
+          pos: new THREE.Vector3(hk.x, 0, hk.z), r: 1.9,
+          prompt: function () { return (I.rites.grave.step === 1 && !stilled) ? 'Still the hanging meat (' + I.rites.grave.sub + '/' + RK.hooks.length + ')' : null; },
+          use: function () {
+            if (I.rites.grave.step !== 1 || stilled) return;
+            stilled = true; I.rites.grave.sub++;
+            G.audio.buy();
+            if (I.rites.grave.sub >= RK.hooks.length) riteAdvance('grave', 'The cellar goes quiet');
+          }
+        });
+      });
+
+      // --- the four ALTARS — cold until their rite completes, then infuse at will
+      var altarSpots = {
+        molten:  { x: rr3.V.center.x - 5.0, z: rr3.V.center.z + 7.8 },
+        frozen:  { x: rr3.F.center.x + 6.5, z: rr3.F.center.z + 2.2 },
+        drowned: { x: rr3.B.center.x + 6.8, z: rr3.B.center.z + 6.8 },
+        grave:   { x: rr3.M.center.x + 6.8, z: rr3.M.center.z + 6.8 }
+      };
+      Object.keys(EL).forEach(function (el) {
+        var spot4 = altarSpots[el], def4 = EL[el];
+        var ag = new THREE.Group(); ag.position.set(spot4.x, 0, spot4.z);
+        var stone4 = new THREE.MeshLambertMaterial({ color: 0x4a4442 });
+        var base4 = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.9, 8), stone4); base4.position.y = 0.45; ag.add(base4);
+        var bowl4 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.2, 0.16, 10), stone4); bowl4.position.y = 0.98; ag.add(bowl4);
+        var orbM4 = new THREE.MeshBasicMaterial({ color: def4.color, transparent: true, opacity: 0.18 });
+        var orb4 = new THREE.Mesh(new THREE.SphereGeometry(0.14, 9, 9), orbM4); orb4.position.y = 1.18; ag.add(orb4);
+        var flame4 = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 8),
+          new THREE.MeshBasicMaterial({ color: def4.color, transparent: true, opacity: 0.65 }));
+        flame4.position.y = 1.35; flame4.visible = false; ag.add(flame4);
+        G.scene.add(ag);
+        I.rites[el].altarFx = function () { orbM4.opacity = 0.95; flame4.visible = true; };
+        add({
+          pos: new THREE.Vector3(spot4.x, 0, spot4.z), r: 2.0,
+          prompt: function () {
+            if (!I.rites[el].done) return map.power ? 'A cold altar' : null;
+            var gun6 = G.weapons.current();
+            if (!gun6) return null;
+            if (gun6.element === el) return CFG.WEAPONS[gun6.id].name + ' is ' + def4.label + '-bound';
+            return 'Infuse weapon — ' + def4.label;
+          },
+          use: function () {
+            if (!I.rites[el].done) { G.audio.deny(); return; }
+            var gun6 = G.weapons.current();
+            if (!gun6 || gun6.element === el) return;
+            gun6.element = el;
+            G.audio.perkJingle();
+            G.hud.setAmmo && G.hud.setAmmo();
+            G.hud.banner(def4.label.toUpperCase() + '-BOUND', '#' + new THREE.Color(def4.color).getHexString(), 2.6,
+              CFG.WEAPONS[gun6.id].name + ' carries the ' + def4.label.toLowerCase() + ' current');
+          }
+        });
+      });
+    }
+
     // power switch
     add({
       pos: map.powerSwitch.pos, r: 2.4,
@@ -703,7 +882,8 @@
         if (I.pap.packT > 0) return 'Upgrading…';
         var gun = G.weapons.current();
         if (!gun) return null;
-        if (gun.dpap) return CFG.WEAPONS[gun.id].pap.name + ' is fully upgraded';
+        if (gun.dpap) return (gun.variant ? 'Re-roll Ascension' : 'ASCEND') + ' ' +
+          CFG.WEAPONS[gun.id].pap.name + ' — ' + CFG.TPAP_COST + ' (variant)';
         if (gun.papped) return 'Double Pack-a-Punch ' + CFG.WEAPONS[gun.id].pap.name + ' — ' + CFG.DPAP_COST;
         return 'Pack-a-Punch ' + CFG.WEAPONS[gun.id].name + ' — ' + CFG.PAP_COST;
       },
@@ -714,24 +894,27 @@
           var collected = G.weapons.slots.indexOf(I.pap.ready) >= 0 && G.weapons.papGun(I.pap.ready);
           if (collected) {
             G.audio.perkJingle();
-            G.hud.banner(I.pap.name, '#fb5', 2.5,
-              I.pap.dbl ? 'Double-packed — Dead Wire electric rounds' : 'Upgraded — storm camo');
+            var vdef2 = I.pap.ready.variant && CFG.PAP_VARIANTS[I.pap.ready.variant];
+            G.hud.banner(vdef2 ? I.pap.ready && G.weapons.stats(I.pap.ready).name : I.pap.name, '#fb5', 3,
+              vdef2 ? 'ASCENDED — ' + vdef2.desc
+                    : I.pap.dbl ? 'Double-packed — Dead Wire electric rounds' : 'Upgraded — storm camo');
           }
           clearPapOffer();
           return;
         }
         if (I.pap.packT > 0) { G.audio.deny(); return; }   // still in the machine
         var gun = G.weapons.current();
-        if (!gun || gun.dpap) { G.audio.deny(); return; }
-        var dbl = gun.papped;                              // second pass = double-pack
-        if (!G.player.spend(dbl ? CFG.DPAP_COST : CFG.PAP_COST)) return;
+        if (!gun) { G.audio.deny(); return; }
+        var asc = gun.dpap;                                // third+ pass = Ascension variant
+        var dbl = gun.papped && !asc;                      // second pass = double-pack
+        if (!G.player.spend(asc ? CFG.TPAP_COST : dbl ? CFG.DPAP_COST : CFG.PAP_COST)) return;
         G.audio.papChug();
         // you keep moving (and firing) while it cooks — no lock
         I.pap.packT = 3.5;
         I.pap.pending = gun;
         I.pap.dbl = dbl;
-        I.pap.name = CFG.WEAPONS[gun.id].pap.name + (dbl ? ' II' : '');
-        G.hud.banner(dbl ? 'DOUBLE-PACKING…' : 'UPGRADING…', '#fb5', 2, 'Grab it from the machine');
+        I.pap.name = CFG.WEAPONS[gun.id].pap.name + (asc ? ' — ASCENDED' : dbl ? ' II' : '');
+        G.hud.banner(asc ? 'ASCENDING…' : dbl ? 'DOUBLE-PACKING…' : 'UPGRADING…', '#fb5', 2, 'Grab it from the machine');
       }
     });
 

@@ -492,7 +492,7 @@
       { cell: [13, 11], face: 'S' }    // Cold Cellar, by the bricked-up archway
     ],
     EE_SOULBOX: [9, 8],                // the Pump Hall's heart — feed the machine
-    eeWonder: 'thunder',               // the founder's prize: the buried Thundergun
+    eeWonder: 'aetherlance',           // the founder's prize: his own Aether Lance
     // wings eligible for the AETHER SURGE round event (double points inside,
     // announced by banner + a pulsing floor ring) — not the spawn concourse
     SURGE_ROOMS: ['V', 'F', 'N', 'B', 'M', 'A'],
@@ -560,7 +560,19 @@
   CFG.TELE_LINK_WINDOW = 30;
   CFG.TELE_USE_COST = 500;
   CFG.PAP_COST = 5000;
-  CFG.DPAP_COST = 2500;   // re-Pack-a-Punch an upgraded gun for the Dead-Wire tier
+  CFG.DPAP_COST = 10000;  // re-Pack-a-Punch an upgraded gun for the Dead-Wire tier
+  CFG.TPAP_COST = 10000;  // ASCEND a double-packed gun: rolls one of the three
+                          // tier-3 variants below (pap again to re-roll a new one)
+  // tier-3 PaP variants — each a kill-driven proc layered on top of Dead Wire.
+  // 'every' = kills between procs while the gun is held.
+  CFG.PAP_VARIANTS = {
+    starburst:  { name: 'Starburst',    every: 5, color: 0xffb84a,
+                  desc: 'every 5th kill launches a firework that bursts over the horde' },
+    soulharvest:{ name: 'Soul Harvest', every: 8, color: 0x8aff9a,
+                  desc: 'every 8th kill pays +100 points and knits 20 health' },
+    concussor:  { name: 'Concussor',    every: 6, color: 0x7ac8ff,
+                  desc: 'every 6th kill detonates a concussive nova that flings the horde' }
+  };
 
   /* ---------------------------------------------------------------- perks */
   CFG.PERKS = {
@@ -1006,6 +1018,18 @@
       projectile: 'storm', wonder: true, stormDur: 4, stormRadius: 5.5,
       pap: { name: 'Maelstrom Driver — Overcharged', dmg: 5200, mag: 8, reserve: 24,
              stormDur: 6.5, stormRadius: 7.5 }
+    },
+    // Kurhaus's SECOND wonder — the founder's own weapon, granted ONLY by
+    // completing the Founder's Bargain quest (never rolls in any box: wonder
+    // weapons roll only where they're the map wonder, and no map claims it).
+    // A piercing aether lance: skewers every zombie along its line.
+    aetherlance: {
+      name: 'Aether Lance', cls: 'storm', dmg: 4200, head: 1, rpm: 55,
+      mag: 3, reserve: 15, reload: 2.8, mode: 'semi', spread: 0, box: 0,
+      vm: { lance: 1 },
+      projectile: 'lance', wonder: true, lanceRange: 45, pierceRadius: 1.3,
+      pap: { name: "Voss's Judgement", dmg: 9500, mag: 5, reserve: 25,
+             lanceRange: 60, pierceRadius: 2.1 }
     }
   };
   // Mystery box also rolls monkey bombs as a pseudo-weapon entry.
