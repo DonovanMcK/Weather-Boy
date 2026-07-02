@@ -397,6 +397,14 @@
       noise({ dur: 0.1, bp: 2000, q: 1, vol: 0.12, when: 0.02 });
     },
 
+    // the ghost's wail — a falling cry with a cold breath of noise under it
+    // (played when Voss's shade appears, flees, and finally sinks)
+    ghostWail: function () {
+      tone({ type: 'sine', freq: 720, to: 160, dur: 1.3, vol: 0.11, send: 0.75 });
+      tone({ type: 'sine', freq: 540, to: 120, dur: 1.5, vol: 0.07, when: 0.12, send: 0.75 });
+      noise({ dur: 0.5, bp: 800, q: 2.2, vol: 0.07 });
+    },
+
     // "Voss's Waltz" — the founder's music-box piece, unlocked by winding all
     // three of his gramophone cranks (Kurhaus musical easter egg). A-minor
     // waltz, oom-pah-pah voiced low-high-high on the plucked music-box sine.

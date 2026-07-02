@@ -196,12 +196,32 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         ck(KA.arch.cracked, 'explosive CRACKED the bricked archway');
         buyAt(vb.pos);
         ck(vb.attuned, 'BURIED attuned through the crack');
-        ck(I.quest.stage === 3 && !!I.ee.box, 'stage 3: all currents -> soul chest awakened');
+        // stage 3: the currents leave offerings — collect all four
+        ck(I.quest.stage === 3 && I.quest.offeringItems.length === 4, 'stage 3: currents recede -> 4 offerings revealed',
+           I.quest.offeringItems.map(function (o) { return o.name.split(' ')[0]; }).join(','));
+        I.quest.offeringItems.forEach(function (o) { buyAt({ x: o.pos.x, y: 0, z: o.pos.z }); });
+        ck(I.quest.offerings === 4, 'all 4 offerings gathered', I.quest.offerings + '/4');
+        // stage 4: raise the effigy on the Sanctum ring (real held-F path)
+        var effItem = I.list.filter(function (it) { return it.holdable && it.prompt && it.prompt() === 'Hold F — raise the effigy'; })[0];
+        ck(!!effItem, 'effigy prompt live on the founder\'s ring');
+        at(effItem.pos); tick(2);
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF' }));
+        G.keys.KeyF = true; tick(60 * 2.6);
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyF' })); G.keys.KeyF = false;
+        ck(I.quest.stage === 4 && !!I.quest.ghost, 'stage 4: EFFIGY raised -> the ghost walks', 'ghost in ' + (I.quest.ghost && I.quest.ghost.room));
+        // the hide-and-seek: corner him three times (proximity via real I.update)
+        var visited = [];
+        for (var gseek = 0; gseek < 3 && I.quest.ghost; gseek++) {
+          visited.push(I.quest.ghost.room);
+          at({ x: I.quest.ghost.pos.x, y: 0, z: I.quest.ghost.pos.z }); tick(4);
+        }
+        ck(I.quest.ghostFinds === 3 && !I.quest.ghost, 'ghost CORNERED 3 times (hide-and-seek)', 'rooms: ' + visited.join('->'));
+        ck(I.quest.stage === 5 && !!I.ee.box, 'stage 5: soul chest wakes where he fell');
         for (var k2 = 0; k2 < I.ee.need && I.ee.box && !I.ee.done; k2++) I.onKill(I.ee.box);
-        ck(I.ee.done && I.quest.stage === 4, 'stage 4: chest filled -> he is listening');
+        ck(I.ee.done && I.quest.stage === 6, 'stage 6: chest filled -> he is listening');
         ck(!G.weapons.hasWeapon(CFG.cur.eeWonder), 'no prize before the bargain is accepted');
         buyAt(KA.voss.pos);                   // face the founder
-        ck(I.quest.done, 'stage 5: bargain ACCEPTED at the portrait');
+        ck(I.quest.done, 'stage 7: bargain ACCEPTED at the portrait');
         ck(G.weapons.hasWeapon(CFG.cur.eeWonder), 'the buried SECOND WONDER granted: ' + CFG.WEAPONS[CFG.cur.eeWonder].name);
       } else if (CFG.RELIC_SPOTS && CFG.RELIC_SPOTS.length && CFG.EE_SOULBOX) {
         // classic mini egg on the other maps

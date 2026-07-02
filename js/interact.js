@@ -223,7 +223,7 @@
 
     /* ============== THE FOUNDER'S BARGAIN — the full quest chain ==============
        On Kurhaus (any map whose dressing registers kAnim.sigils) the easter egg
-       is a five-stage chain; other maps keep the classic mini egg (relics ->
+       is a seven-stage chain; other maps keep the classic mini egg (relics ->
        soul chest -> free perk). Stages, each gated on the last:
          0. POWER, then trace Voss's four chalk SIGILS in the Sanctum
          1. the marks burn -> his three hidden RELICS can now be woken
@@ -232,12 +232,18 @@
               FROZEN  (Frostworks) hold F and thaw the valve free
               DROWNED (Baths)      kneel (crouch) in the spring to reach it
               BURIED  (Cellar)     crack the bricked archway with an explosive
-         3. the machine hungers — the SOUL CHEST wakes; feed it 30 kills
-         4. he is listening — face the portrait and ACCEPT THE BARGAIN:
+         3. the currents leave OFFERINGS behind — collect all four (emberstone,
+            frostcore, spring pearl, grave brick; spawn spots seeded per match)
+         4. raise the EFFIGY on the Sanctum ring (hold F) -> VOSS'S GHOST walks:
+            hide-and-seek — corner him and he flees to another wing; find him
+            THREE times
+         5. where he falls, the SOUL CHEST wakes — feed it 30 kills
+         6. he is listening — face the portrait and ACCEPT THE BARGAIN:
             the founder's buried Thundergun. His waltz plays you out.        */
     var KAq = (G.map.kAnim) || {};
     var questOn = !!(KAq.sigils && KAq.sigils.length);
-    I.quest = { on: questOn, stage: 0, sigilsLit: 0, currents: 0, valves: [], done: false };
+    I.quest = { on: questOn, stage: 0, sigilsLit: 0, currents: 0, valves: [],
+                offerings: 0, offeringItems: [], effigy: null, ghost: null, ghostFinds: 0, done: false };
     I.ee = { relics: [], activated: 0, box: null, boxMesh: null, glow: null,
              souls: 0, need: 30, done: false };
 
@@ -316,8 +322,8 @@
         G.audio.teleLink();
         if (I.quest.currents >= 4) {
           I.quest.stage = 3;
-          G.hud.banner('THE MACHINE HUNGERS', '#b6f', 3.5, 'Feed the heart of the Kurhaus');
-          spawnSoulBox();
+          revealOfferings();
+          G.hud.banner('THE CURRENTS RECEDE', '#7fd', 3.5, 'They left something behind — gather the offerings');
         } else G.hud.banner('CURRENT ATTUNED — ' + I.quest.currents + '/4', '#7fd', 2.2, name);
       }
       var item = {
@@ -378,11 +384,139 @@
       G.hud.banner('The seal splits', '#b6f', 2.5, 'The buried current breathes');
     };
 
-    // -- stage 3: the soul chest (30 kills fed to the machine heart)
-    function spawnSoulBox() {
-      if (I.ee.box || !CFG.EE_SOULBOX) return;
-      var wc = CFG.cellToWorld(CFG.EE_SOULBOX[0], CFG.EE_SOULBOX[1]);
-      I.ee.box = new THREE.Vector3(wc.x, 0, wc.z);
+    // -- stage 3: the offerings — one keepsake per current, spawn spot seeded
+    // per match (2 candidates each), invisible until the currents recede
+    function makeOffering(name, color, spots, buildMesh) {
+      var pick3 = spots[G.PU.hashStr(CFG.cur.id + ':off:' + name) % spots.length];
+      var og = new THREE.Group(); og.position.set(pick3.x, 0, pick3.z); og.visible = false;
+      buildMesh(og);
+      var haloM = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.4, depthWrite: false });
+      var halo = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 8), haloM); halo.position.y = 0.45; og.add(halo);
+      G.scene.add(og);
+      var off = { name: name, pos: og.position, mesh: og, taken: false };
+      I.quest.offeringItems.push(off);
+      add({
+        pos: new THREE.Vector3(pick3.x, 0, pick3.z), r: 1.8,
+        prompt: function () { return (I.quest.stage === 3 && !off.taken) ? 'Take the ' + name : null; },
+        use: function () {
+          if (I.quest.stage !== 3 || off.taken) return;
+          off.taken = true; I.quest.offerings++;
+          og.visible = false;
+          G.audio.buy();
+          if (I.quest.offerings >= 4)
+            G.hud.banner('THE OFFERINGS ARE GATHERED', '#b790ff', 3.5, 'Raise the effigy on the founder\'s ring');
+          else G.hud.banner('OFFERING ' + I.quest.offerings + '/4', '#7fd', 2, name);
+        }
+      });
+      return off;
+    }
+    function revealOfferings() { I.quest.offeringItems.forEach(function (o) { if (!o.taken) o.mesh.visible = true; }); }
+    var effigyPos = null;
+    if (questOn) {
+      var rms2 = map.parsed.rooms;
+      var vC2 = rms2.V.center, fC2 = rms2.F.center, bC2 = rms2.B.center, mC2 = rms2.M.center, nC2 = rms2.N.center;
+      effigyPos = new THREE.Vector3(nC2.x, 0, nC2.z);
+      makeOffering('emberstone', 0xff6a1e,
+        [{ x: vC2.x - 7.6, z: vC2.z + 3.4 }, { x: vC2.x + 7.4, z: vC2.z - 3.6 }],
+        function (g2) { var r3 = new THREE.Mesh(new THREE.SphereGeometry(0.2, 7, 7), new THREE.MeshLambertMaterial({ color: 0x2a1c16 })); r3.position.y = 0.2; r3.scale.y = 0.7; g2.add(r3); });
+      makeOffering('frostcore', 0xbfe7f0,
+        [{ x: fC2.x - 3.7, z: fC2.z - 6.4 }, { x: fC2.x + 6.2, z: fC2.z + 7.2 }],
+        function (g2) { var c4 = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 7), new THREE.MeshLambertMaterial({ color: 0xbfe7f0 })); c4.position.y = 0.25; g2.add(c4); });
+      makeOffering('spring pearl', 0x3fd0c8,
+        [{ x: bC2.x - 2.2, z: bC2.z + 1.3 }, { x: bC2.x - 8.2, z: bC2.z - 7.0 }],
+        function (g2) { var p4 = new THREE.Mesh(new THREE.SphereGeometry(0.16, 9, 9), new THREE.MeshLambertMaterial({ color: 0xe8e4d8 })); p4.position.y = 0.18; g2.add(p4); });
+      makeOffering('grave brick', 0x9c6cf0,
+        [{ x: (KAq.arch ? KAq.arch.pos.x : mC2.x) - 1.6, z: mC2.z + 8.2 }, { x: mC2.x + 3.2, z: mC2.z - 7.2 }],
+        function (g2) { var b4 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.24, 0.2), new THREE.MeshLambertMaterial({ color: 0x5a2e26 })); b4.position.y = 0.15; b4.rotation.y = 0.5; g2.add(b4); });
+
+      // -- stage 4: raise the effigy on the Sanctum ring (hold F), then the GHOST
+      var effigyG = null;
+      add({
+        pos: effigyPos, r: 2.2, holdable: true, _held: 0,
+        prompt: function () {
+          if (I.quest.stage !== 3 || I.quest.offerings < 4) return null;
+          return 'Hold F — raise the effigy';
+        },
+        hold: function (dt) {
+          if (I.quest.stage !== 3 || I.quest.offerings < 4) return;
+          this._held += dt;
+          if (this._held < 2.0) return;
+          I.quest.stage = 4;
+          // the effigy: plinth, tapered totem, the four offerings set at its feet
+          effigyG = new THREE.Group(); effigyG.position.copy(effigyPos);
+          var stone = new THREE.MeshLambertMaterial({ color: 0x4a4442 });
+          [[1.0, 0.3, 0], [0.62, 0.7, 0.62], [0.4, 0.9, 1.35], [0.24, 0.5, 2.1]].forEach(function (t4) {
+            var seg = new THREE.Mesh(new THREE.BoxGeometry(t4[0], t4[1], t4[0]), stone);
+            seg.position.y = t4[2] + t4[1] / 2; effigyG.add(seg);
+          });
+          var crownO = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8),
+            new THREE.MeshBasicMaterial({ color: 0xb790ff })); crownO.position.y = 2.85; effigyG.add(crownO);
+          [0xff6a1e, 0xbfe7f0, 0x3fd0c8, 0x9c6cf0].forEach(function (oc, oi) {
+            var oo = new THREE.Mesh(new THREE.SphereGeometry(0.09, 7, 7), new THREE.MeshBasicMaterial({ color: oc }));
+            var oa = oi / 4 * Math.PI * 2; oo.position.set(Math.cos(oa) * 0.65, 0.36, Math.sin(oa) * 0.65); effigyG.add(oo);
+          });
+          G.scene.add(effigyG);
+          G.map.addCollider(effigyPos.x - 0.55, effigyPos.z - 0.55, effigyPos.x + 0.55, effigyPos.z + 0.55, 0, 2.6);
+          spawnGhost(true);
+          G.audio.ghostWail();
+          G.hud.banner('THE EFFIGY STANDS', '#b790ff', 4, 'Something walks the halls — corner him, three times');
+        }
+      });
+
+      // -- the ghost hunt: he stands in a random wing; get close and he flees.
+      // Corner him three times and the soul chest wakes where he fell.
+      var ghostRooms = (CFG.cur.SURGE_ROOMS || ['V', 'F', 'N', 'B', 'M', 'A']);
+      function ghostSpot(exclude) {
+        var pRoom = map.roomAt(G.player.pos.x, G.player.pos.z, 0);
+        var pool2 = ghostRooms.filter(function (r5) { return r5 !== exclude && r5 !== pRoom; });
+        var pick4 = pool2[(Math.random() * pool2.length) | 0] || ghostRooms[0];
+        return { room: pick4, c: map.parsed.rooms[pick4].center };
+      }
+      function buildGhostMesh() {
+        var gg = new THREE.Group();
+        var gm = new THREE.MeshBasicMaterial({ color: 0xb790ff, transparent: true, opacity: 0.38, depthWrite: false });
+        var body = new THREE.Mesh(new THREE.SphereGeometry(0.42, 10, 10), gm);
+        body.scale.set(0.7, 1.6, 0.7); body.position.y = 1.0; gg.add(body);
+        var head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 9, 9), gm.clone()); head.material.opacity = 0.5;
+        head.position.y = 1.85; gg.add(head);
+        var core = new THREE.Mesh(new THREE.SphereGeometry(0.1, 7, 7), new THREE.MeshBasicMaterial({ color: 0xe8dcff }));
+        core.position.y = 1.15; gg.add(core);
+        return gg;
+      }
+      function spawnGhost(first) {
+        var spot2 = ghostSpot(I.quest.ghost ? I.quest.ghost.room : null);
+        if (!I.quest.ghost) {
+          I.quest.ghost = { mesh: buildGhostMesh(), room: spot2.room, pos: new THREE.Vector3() };
+          G.scene.add(I.quest.ghost.mesh);
+        }
+        I.quest.ghost.room = spot2.room;
+        I.quest.ghost.pos.set(spot2.c.x, 0, spot2.c.z);
+        I.quest.ghost.mesh.position.copy(I.quest.ghost.pos);
+        if (!first) G.audio.ghostWail();
+      }
+      I.foundGhost = function () {
+        var q2 = I.quest;
+        q2.ghostFinds++;
+        if (q2.ghostFinds >= 3) {
+          var lastPos = q2.ghost.pos.clone();
+          G.scene.remove(q2.ghost.mesh); q2.ghost = null;
+          q2.stage = 5;
+          G.audio.ghostWail();
+          G.hud.banner('CORNERED', '#b790ff', 3.5, 'He sinks into the floor — something wakes where he fell');
+          spawnSoulBox(lastPos);
+        } else {
+          G.hud.banner('FOUND HIM — ' + q2.ghostFinds + '/3', '#b790ff', 2.5, 'He flees…');
+          spawnGhost(false);
+        }
+      };
+    }
+
+    // -- stage 5: the soul chest (30 kills fed to the machine heart). The quest
+    // spawns it where the ghost fell; the classic egg uses the authored cell.
+    function spawnSoulBox(atPos) {
+      if (I.ee.box || (!atPos && !CFG.EE_SOULBOX)) return;
+      if (atPos) I.ee.box = atPos.clone();
+      else { var wc = CFG.cellToWorld(CFG.EE_SOULBOX[0], CFG.EE_SOULBOX[1]); I.ee.box = new THREE.Vector3(wc.x, 0, wc.z); }
       I.ee.boxMesh = G.Props.create('soul_chest', { position: I.ee.box });
       I.ee.glow = null;   // the chest carries its own internal glow light
       G.hud.banner('SOUL CHEST AWAKENED', '#b6f', 3, 'Feed it kills nearby');
@@ -391,8 +525,8 @@
       var ee = I.ee; ee.done = true;
       if (ee.boxMesh) G.scene.remove(ee.boxMesh);
       if (ee.glow) G.scene.remove(ee.glow);
-      if (questOn) {                       // stage 4: the bargain awaits upstairs
-        I.quest.stage = 4;
+      if (questOn) {                       // stage 6: the bargain awaits upstairs
+        I.quest.stage = 6;
         G.hud.banner('HE IS LISTENING', '#b790ff', 4, 'Face the founder in his sanctum');
         return;
       }
@@ -423,11 +557,11 @@
       pos: KAq.voss.pos, r: 2.2,
       prompt: function () {
         if (I.quest.done) return null;
-        if (I.quest.stage !== 4) return null;
+        if (I.quest.stage !== 6) return null;
         return "Accept the Founder's Bargain";
       },
       use: function () {
-        if (I.quest.stage !== 4 || I.quest.done) return;
+        if (I.quest.stage !== 6 || I.quest.done) return;
         I.quest.done = true; I.quest.stage = 5;
         if (G.awardFeat) G.awardFeat('ee');
         if (KAq.face) KAq.face.material.color.setHex(0xffc86a);   // he smiles
@@ -811,6 +945,18 @@
 
   I.update = function (dt) {
     if (G.state !== 'playing') { G.player.consumeInteract(); return; }
+
+    // the ghost hunt: he hovers and sways where he stands; corner him (get
+    // close) and he wails away to another wing — I.foundGhost counts it
+    if (I.quest && I.quest.ghost) {
+      var gh = I.quest.ghost;
+      gh.mesh.position.y = 0.15 + Math.sin(G.time * 1.7) * 0.12;
+      gh.mesh.rotation.y = Math.sin(G.time * 0.6) * 0.5;
+      // he always faces the player — you're being watched
+      var gdx = G.player.pos.x - gh.pos.x, gdz = G.player.pos.z - gh.pos.z;
+      gh.mesh.rotation.y = Math.atan2(gdx, gdz);
+      if (Math.hypot(gdx, gdz) < 4.0) I.foundGhost();
+    }
 
     // traps: while active, damage zombies in the zone (on this floor only, via the
     // aoe Y-band) every 0.25s; then a cooldown before it can fire again
