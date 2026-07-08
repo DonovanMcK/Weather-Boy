@@ -253,9 +253,21 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         }
         ck(I.rites.molten.done, 'molten rite 3/3: six Caldera kills -> ALTAR IGNITED');
         var alt = { x: rrT.V.center.x - 5.0, z: rrT.V.center.z + 7.8 };
+        // the altar refuses mortal steel — try a normal gun first
+        var lanceIdx = -1, normIdx = -1;
+        G.weapons.slots.forEach(function (s5, i5) {
+          if (s5.id === CFG.cur.eeWonder) lanceIdx = i5;
+          else if (normIdx < 0 && !CFG.WEAPONS[s5.id].wonder) normIdx = i5;
+        });
+        if (normIdx >= 0) {
+          G.weapons.equip(normIdx, true);
+          buyAt({ x: alt.x, y: 0, z: alt.z });
+          ck(!G.weapons.current().element, 'altar REFUSES mortal steel', CFG.WEAPONS[G.weapons.current().id].name);
+        }
+        G.weapons.equip(lanceIdx, true);
         buyAt({ x: alt.x, y: 0, z: alt.z });
         var curG = G.weapons.current();
-        ck(curG.element === 'molten', 'weapon INFUSED at the altar', G.weapons.stats(curG).name);
+        ck(curG.element === 'molten', 'map WONDER infused at the altar', G.weapons.stats(curG).name);
         // proc spot-checks through the real applyElement
         var zChill = { dead: false, hp: 1e9, hpMax: 1e9, mesh: { position: new THREE.Vector3(0, 0, 0) }, slowT: 0 };
         curG.element = 'frozen'; G.weapons.applyElement(zChill);

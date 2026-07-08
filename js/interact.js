@@ -770,19 +770,25 @@
         flame4.position.y = 1.35; flame4.visible = false; ag.add(flame4);
         G.scene.add(ag);
         I.rites[el].altarFx = function () { orbM4.opacity = 0.95; flame4.visible = true; };
+        // the altars answer ONLY to the founder's own weapons — this map's two
+        // wonders (the box Maelstrom and the quest Aether Lance). Mortal steel
+        // is refused.
+        function isMapWonder(g6) { return !!g6 && (g6.id === CFG.cur.wonder || g6.id === CFG.cur.eeWonder); }
         add({
           pos: new THREE.Vector3(spot4.x, 0, spot4.z), r: 2.0,
           prompt: function () {
             if (!I.rites[el].done) return map.power ? 'A cold altar' : null;
             var gun6 = G.weapons.current();
             if (!gun6) return null;
+            if (!isMapWonder(gun6)) return 'The altar refuses mortal steel — bring a wonder of this house';
             if (gun6.element === el) return CFG.WEAPONS[gun6.id].name + ' is ' + def4.label + '-bound';
-            return 'Infuse weapon — ' + def4.label;
+            return 'Infuse ' + CFG.WEAPONS[gun6.id].name + ' — ' + def4.label;
           },
           use: function () {
             if (!I.rites[el].done) { G.audio.deny(); return; }
             var gun6 = G.weapons.current();
             if (!gun6 || gun6.element === el) return;
+            if (!isMapWonder(gun6)) { G.audio.deny(); return; }
             gun6.element = el;
             G.audio.perkJingle();
             G.hud.setAmmo && G.hud.setAmmo();

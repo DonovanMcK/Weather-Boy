@@ -854,6 +854,7 @@
       if (perp2 > pr * pr) return;
       skewered++;
       G.zombies.damageZombie(z, s.dmg, { boom: true });
+      W.applyElement(z);            // an infused lance carries its element down the line
     });
     addLine(start, end, 0xb790ff, 0.26, 0.9);         // the aether shaft
     addLine(start, end, 0xf0e8ff, 0.09, 0.7);         // white-hot core
@@ -971,6 +972,7 @@
             var b = z.mesh.position.clone(); b.y += 1.3;
             addLine(a, b, 0xaaeeff, 0.15, 0.9);
             G.zombies.damageZombie(z, v.dmg, { boom: true });
+            W.applyElement(z);      // an infused Maelstrom's storm carries its element
           }
         });
       }
