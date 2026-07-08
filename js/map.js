@@ -1281,8 +1281,11 @@
       var all = avg(cells);
       P.rooms[roomId].center = new THREE.Vector3(all.x, rfy, all.z);
       // scale lamp count with floor area so big rooms aren't left with a dark,
-      // under-lit ceiling/void — roughly one lamp per ~6 cells (1..4)
-      var nL = Math.max(1, Math.min(4, Math.round(cells.length / 6)));
+      // under-lit ceiling/void — roughly one lamp per ~6 cells (1..4). Kurhaus
+      // caps at 3: its wings carry their own accent glows, and forward-rendered
+      // point lights are the map's main per-pixel cost (audit: 57 -> ~46)
+      var lampCap = CFG.cur.id === 'kurhaus' ? 3 : 4;
+      var nL = Math.max(1, Math.min(lampCap, Math.round(cells.length / 6)));
       // sort cells along the room's longer axis, then split into nL contiguous
       // groups and light each group's centre — spreads the lamps evenly
       var w0 = 1e9, w1 = -1e9, d0 = 1e9, d1 = -1e9;
@@ -1704,8 +1707,10 @@
           cyl(0.03, 1.4, c[0], WALL_H - 0.7, c[1], M.brass, 6); sph(0.16, c[0], WALL_H - 1.5, c[1], M.brass);
           coneM(0.12, 0.5, c[0], WALL_H - 1.1, c[1], M.iceGl);
         });
-        corners.forEach(function (c) { cyl(0.22, 1.2, c[0], 0.6, c[1], M.brass); sph(0.3, c[0], 1.4, c[1], M.aether); glow(c[0], 1.6, c[1], 0x9c6cf0, 0.7, 10); solid(c[0], c[1], 0.35, 0.35, 1.5); });
-        glow(cx, 2.4, cz, 0x9c6cf0, 1.0, 15);
+        // braziers glow from their emissive orbs alone — four extra PointLights
+        // here were the map's single biggest light-count hotspot (audit)
+        corners.forEach(function (c) { cyl(0.22, 1.2, c[0], 0.6, c[1], M.brass); sph(0.3, c[0], 1.4, c[1], M.aether); solid(c[0], c[1], 0.35, 0.35, 1.5); });
+        glow(cx, 2.4, cz, 0x9c6cf0, 1.2, 16);
 
       } else if (rid === 'B') {                // MINERAL BATHS — the source, still warm
         disc(2.8, cx, cz, M.water); ring(2.9, 0.16, cx, cz, M.brass, 0.12);

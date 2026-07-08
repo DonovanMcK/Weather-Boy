@@ -457,7 +457,8 @@
       { cell: [15, 8], off: [0, 0] },    // Cold Cellar
       { cell: [9, 4],  off: [0, 0] },    // Caldera
       { cell: [12, 14], off: [0, 0] },   // Foyer concourse — col 12, NOT 11 (the [11,14] cell is a zombie riser)
-      { cell: [3, 10], off: [0, 0] }     // Baths
+      { cell: [4, 8], off: [0, 0] }      // Baths — biases to the E wall; authored at
+                                         // [3,10] it wall-flushed onto the POWER SWITCH segment
     ],
     TRAPS: [
       { type: 'molten', name: 'Molten Pour', cell: [11, 2], cost: 1000, radius: 5.5, dur: 6, dps: 320, color: 0xe8821e },  // Caldera

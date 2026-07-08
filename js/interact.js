@@ -417,7 +417,7 @@
       var vC2 = rms2.V.center, fC2 = rms2.F.center, bC2 = rms2.B.center, mC2 = rms2.M.center, nC2 = rms2.N.center;
       effigyPos = new THREE.Vector3(nC2.x, 0, nC2.z);
       makeOffering('emberstone', 0xff6a1e,
-        [{ x: vC2.x - 7.6, z: vC2.z + 3.4 }, { x: vC2.x + 7.4, z: vC2.z - 3.6 }],
+        [{ x: vC2.x - 7.6, z: vC2.z + 3.4 }, { x: vC2.x + 7.4, z: vC2.z + 3.4 }],   // 2nd spot moved off the trap console (audit)
         function (g2) { var r3 = new THREE.Mesh(new THREE.SphereGeometry(0.2, 7, 7), new THREE.MeshLambertMaterial({ color: 0x2a1c16 })); r3.position.y = 0.2; r3.scale.y = 0.7; g2.add(r3); });
       makeOffering('frostcore', 0xbfe7f0,
         [{ x: fC2.x - 3.7, z: fC2.z - 6.4 }, { x: fC2.x + 6.2, z: fC2.z + 7.2 }],
@@ -426,7 +426,7 @@
         [{ x: bC2.x - 2.2, z: bC2.z + 1.3 }, { x: bC2.x - 8.2, z: bC2.z - 7.0 }],
         function (g2) { var p4 = new THREE.Mesh(new THREE.SphereGeometry(0.16, 9, 9), new THREE.MeshLambertMaterial({ color: 0xe8e4d8 })); p4.position.y = 0.18; g2.add(p4); });
       makeOffering('grave brick', 0x9c6cf0,
-        [{ x: (KAq.arch ? KAq.arch.pos.x : mC2.x) - 1.6, z: mC2.z + 8.2 }, { x: mC2.x + 3.2, z: mC2.z - 7.2 }],
+        [{ x: (KAq.arch ? KAq.arch.pos.x : mC2.x) - 3.4, z: mC2.z + 8.2 }, { x: mC2.x - 6.5, z: mC2.z - 5.0 }],   // clear of the buried valve + Mule Kick (audit)
         function (g2) { var b4 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.24, 0.2), new THREE.MeshLambertMaterial({ color: 0x5a2e26 })); b4.position.y = 0.15; b4.rotation.y = 0.5; g2.add(b4); });
 
       // -- stage 4: raise the effigy on the Sanctum ring (hold F), then the GHOST
@@ -731,8 +731,10 @@
       });
 
       // --- GRAVE: read the warding X -> still the 3 carcasses -> kills
+      // (offset EAST of the arch centre — the relic pedestal and the buried
+      // valve own the centre ground; audit flagged a 0.13m prompt collision)
       if (KAr.arch) add({
-        pos: new THREE.Vector3(KAr.arch.pos.x, 0, KAr.arch.pos.z), r: 2.0,
+        pos: new THREE.Vector3(KAr.arch.pos.x + 2.2, 0, KAr.arch.pos.z - 0.5), r: 1.6,
         prompt: function () { return (map.power && I.rites.grave.step === 0) ? 'Read the warding X' : null; },
         use: function () { if (map.power && I.rites.grave.step === 0) riteAdvance('grave', 'The chalk is a name, written backwards'); }
       });
