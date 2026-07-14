@@ -32,9 +32,9 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         return { calls: G.renderer.info.render.calls, tris: G.renderer.info.render.triangles, lights: lights, meshes: meshes };
       });
       console.log('   ' + mapId + ': ' + perf.calls + ' calls, ' + (perf.tris / 1000).toFixed(0) + 'k tris, ' + perf.lights + ' lights, ' + perf.meshes + ' meshes');
-      // wetterjunge (42 lights) is the proven-playable benchmark; kurhaus is a
-      // larger map, so parity-plus-margin is the bar
-      if (mapId === 'kurhaus' && perf.lights > 50) issues.push('kurhaus light count high: ' + perf.lights);
+      // Kurhaus perk cabinets are emissive-only; the authored room/altar lights
+      // should now keep the full map below the proven Wetterjunge benchmark.
+      if (mapId === 'kurhaus' && perf.lights > 40) issues.push('kurhaus light count high: ' + perf.lights);
       await pg.close();
     }
 

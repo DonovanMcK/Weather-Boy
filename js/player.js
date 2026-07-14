@@ -24,7 +24,8 @@
     regenTimer: 0,
     onGround: true,
     downed: false, downTimer: 0, invuln: 0, _hb: 0, _widowCd: 0,
-    shield: { has: false, hp: 0, max: 5 },
+    shield: { has: false, owned: false, hp: 0, max: 5 },
+    heart: { has: false, ready: false },
     kickPitch: 0,
     shakeAmt: 0,
     bobT: 0, bobX: 0, bobY: 0, vmBobX: 0, vmBobY: 0,
@@ -49,7 +50,8 @@
     P.yaw = 0; // face -z, into the map (spawn rooms sit on the south edge)
     P.maxHp = G.CFG.PLAYER_HP;
     P.hp = P.maxHp;
-    P.shield = { has: false, hp: 0, max: 5 };
+    P.shield = { has: false, owned: false, hp: 0, max: 5 };
+    P.heart = { has: false, ready: false };
   };
 
   // a hit from behind is eaten by the carried shield until it shatters
@@ -113,6 +115,18 @@
 
   P.damage = function (dmg, fromX, fromZ) {
     if (P.downed || P.invuln > 0 || G.state !== 'playing') return;
+    // Heart of the Giant: one lethal hit per round is caught at one health and
+    // converted into a factory-wide electrical stun. It is a full-quest reward,
+    // not a hidden extra hit baked into the normal health model.
+    if (P.heart && P.heart.has && P.heart.ready && P.hp - dmg <= 0) {
+      P.heart.ready = false;
+      P.hp = 1; P.invuln = Math.max(P.invuln, 2.5); P.regenTimer = 0;
+      if (G.zombies && G.zombies.aoe) G.zombies.aoe(P.pos, 0, 18, { slow: 4, boom: true, y: P.pos.y || 0 });
+      if (G.weapons && G.weapons.heartBurst) G.weapons.heartBurst(P.pos);
+      G.hud.banner('HEART OF THE GIANT', '#7fffd4', 3, 'Fatal damage denied — emergency discharge spent');
+      if (G.hud.setHeart) G.hud.setHeart(P.heart);
+      return;
+    }
     P.hp -= dmg;
     P.regenTimer = 0;
     G.audio.hurt();
@@ -126,6 +140,24 @@
       G.weapons.boom(P.pos, 400, 4.5, 0x9a3cea, { slow: 4 });
     }
     if (P.hp <= 0) P.down();
+  };
+
+  P.grantGiantHeart = function () {
+    P.heart = { has: true, ready: true };
+    if (G.hud.setHeart) G.hud.setHeart(P.heart);
+  };
+
+  P.giantHeartRoundStart = function () {
+    if (!P.heart || !P.heart.has) return;
+    P.heart.ready = true;
+    // The heart repairs a shield the player has actually assembled; it never
+    // grants the buildable for free.
+    if (P.shield && P.shield.owned) {
+      P.shield.has = true;
+      P.shield.hp = P.shield.max;
+      if (G.hud.setShield) G.hud.setShield(P.shield);
+    }
+    if (G.hud.setHeart) G.hud.setHeart(P.heart);
   };
 
   // shove the player (boss charge impact). Direct positional knockback resolved

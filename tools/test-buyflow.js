@@ -89,6 +89,13 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
       buyAt(map.powerSwitch.pos);
       ck(map.power, 'power switch turned on via [F]');
       ck(map.pap.unlocked || CFG.cur.papRule !== 'power', 'PaP unlocked by power (papRule=power)');
+      if (CFG.cur.papRule === 'teleporters') {
+        map.teleporters.forEach(function (t) {
+          buyAt(t.pos); ck(t.linking, 'teleporter ' + t.id + ' activated');
+          buyAt(map.mainframe.pos); ck(t.linked, 'teleporter ' + t.id + ' linked');
+        });
+        ck(map.pap.unlocked, 'PaP unlocked after all three teleporter links');
+      }
 
       // -- 5. perks after power
       if (jug) { buyAt(jug.pos); ck(P.hasPerk('jugg'), 'Juggernog bought after power'); }
@@ -232,10 +239,11 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         ck(I.quest.stage === 5 && !!I.ee.box, 'stage 5: soul chest wakes where he fell');
         for (var k2 = 0; k2 < I.ee.need && I.ee.box && !I.ee.done; k2++) I.onKill(I.ee.box);
         ck(I.ee.done && I.quest.stage === 6, 'stage 6: chest filled -> he is listening');
-        ck(!G.weapons.hasWeapon(CFG.cur.eeWonder), 'no prize before the bargain is accepted');
+        ck(!CFG.cur.eeRewards.some(function (id) { return G.weapons.hasWeapon(id); }), 'no prize before the bargain is accepted');
         buyAt(KA.voss.pos);                   // face the founder
         ck(I.quest.done, 'stage 7: bargain ACCEPTED at the portrait');
-        ck(G.weapons.hasWeapon(CFG.cur.eeWonder), 'the buried SECOND WONDER granted: ' + CFG.WEAPONS[CFG.cur.eeWonder].name);
+        ck(CFG.cur.eeRewards.some(function (id) { return G.weapons.hasWeapon(id); }),
+           'one of the two buried SECOND WONDERS granted', I.ee.reward);
       }
 
       // -- 12. ELEMENTAL RITES: run the Molten rite start-to-finish, ignite its
@@ -278,13 +286,53 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         ck(burned, 'molten infusion IGNITES (30% proc observed within 40 hits)');
       }
 
-      // classic mini egg on the maps without the full quest
+      // guided classic-map quest: find the labelled briefing, then follow the
+      // three numbered room objectives to the marked final defense device.
       if ((!I.quest || !I.quest.on) && CFG.RELIC_SPOTS && CFG.RELIC_SPOTS.length && CFG.EE_SOULBOX) {
-        I.ee.relics.forEach(function (r) { buyAt(r.pos); });
-        ck(I.ee.activated === 3, 'all 3 relics activated via [F]', I.ee.activated + '/3');
-        ck(!!I.ee.box, 'soul chest awakened in the map');
+        var briefing = I.list.filter(function (it) { return it.prompt && it.prompt() === CFG.cur.EE_START.prompt; })[0];
+        ck(!!briefing, 'the named Easter-egg briefing is visible');
+        if (briefing) buyAt(briefing.pos);
+        ck(I.ee.started, 'briefing starts ' + CFG.cur.eeName, I.ee.objective);
+        I.ee.relics.slice().sort(function (a, b) { return a.order - b.order; }).forEach(function (r, si) {
+          buyAt(r.pos);
+          ck(I.ee.activated === si + 1, 'guided step ' + (si + 1) + ' completed in ' + r.room,
+             si + 1 < CFG.cur.EE_STEPS.length ? I.ee.objective : 'final device awake');
+        });
+        ck(!!I.ee.box, 'marked final defense device awakened in the map');
         for (var k3 = 0; k3 < I.ee.need && I.ee.box && !I.ee.done; k3++) I.onKill(I.ee.box);
-        ck(I.ee.done, 'soul chest filled (' + I.ee.need + ' kills)');
+        ck(I.ee.done, 'final defense filled (' + I.ee.need + ' kills)');
+
+        // Der Riese's optional prestige branch is exercised in the rendered
+        // browser too, including the actual teleporter interaction priority.
+        if (CFG.cur.id === 'derriese') {
+          var oc = I.overclock;
+          ck(oc.available && !!oc.reward, 'base reward reveals Overclock the Giant', oc.reward);
+          buyAt(oc.regulatorPos);
+          ck(oc.stage === 1, 'optional continuation accepted at Upper Assembly');
+          oc.conduits.forEach(function (c4) {
+            var origin = c4.pos.clone(); origin.z += 3; origin.y += 1;
+            I.onWonderFire(oc.reward, origin, new THREE.Vector3(0, 0, -1), 8);
+          });
+          ck(oc.stage === 2 && oc.exposed === 3, 'awarded weapon exposes the three 935 conduits');
+          for (var ci = 0; ci < 3; ci++) {
+            buyAt(oc.cells[ci].pos);
+            ck(oc.carrying === oc.cells[ci], 'unstable cell ' + (ci + 1) + ' collected in ' + oc.cells[ci].room);
+            var tp4 = G.map.teleporters.filter(function (t4) { return t4.id === oc.cells[ci].teleporter; })[0];
+            buyAt(tp4.pos);
+            ck(oc.carrying && oc.carrying.primed, 'cell ' + (ci + 1) + ' phase-primed at Teleporter ' + tp4.id);
+            buyAt(oc.regulatorPos);
+          }
+          ck(oc.stage === 3 && oc.installed === 3, 'all three phase-routed cells installed');
+          buyAt(oc.regulatorPos);
+          for (var lk = 0; lk < 24; lk++) I.onKill(new THREE.Vector3(0, oc.lockdownUpper ? 4 : 0, 0), { dead: true });
+          ck(oc.stage === 5 && oc.boss && oc.boss.questBoss, 'two-floor lockdown awakens the Iron Subject');
+          for (var ah = 0; ah < 6; ah++) G.zombies.damageZombie(oc.boss, 1000, { boom: true, weaponId: oc.reward });
+          G.zombies.damageZombie(oc.boss, 1e9, { boom: true, weaponId: oc.reward });
+          ck(oc.stage === 6, 'awarded weapon breaks and defeats the Iron Subject');
+          buyAt(oc.regulatorPos);
+          ck(oc.done && G.player.heart.has, 'prestige ending grants the super variant and Heart of the Giant',
+             G.weapons.stats(G.weapons.current()).name);
+        }
       }
 
       return out;

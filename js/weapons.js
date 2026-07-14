@@ -15,6 +15,7 @@
     mouseDown: false, semiLatch: false, adsHeld: false,
     burstQueue: 0, burstCd: 0,
     projectiles: [], tracers: [], flashes: [], vortices: [], particles: [],
+    eeHazards: [], rods: [], iceSlides: [],
     vmRoot: null, muzzle: null, camoTex: null
   };
 
@@ -228,6 +229,15 @@
       box(0.06, 0.14, 0.08, 0, -0.12, 0.08, furniture, 0.25);
       tipZ = -0.62;
       void t1;
+    } else if (id === 'seelenmotor') {
+      box(0.16, 0.16, 0.48, 0, 0, -0.14, accentMat(0x384b52, papped, dpap));
+      for (var sm = 0; sm < 3; sm++) cylZ(0.055, 0.055, 0.16, (sm - 1) * 0.07, 0.09, -0.38, accentMat(0x9fe8ff, papped, dpap), 10);
+      box(0.07, 0.18, 0.09, 0, -0.14, 0.02, M.wood, 0.2); tipZ = -0.55;
+    } else if (id === 'nachbildner115') {
+      box(0.11, 0.14, 0.5, 0, 0, -0.16, accentMat(0x4a315d, papped, dpap));
+      var prism = new THREE.Mesh(new THREE.OctahedronGeometry(0.1, 0), accentMat(0xb78cff, papped, dpap));
+      prism.position.set(0, 0.11, -0.28); prism.scale.z = 1.5; g.add(prism);
+      cylZ(0.025, 0.05, 0.25, 0, 0, -0.52, M.mid, 8); tipZ = -0.68;
     } else if (cls === 'wunder') {
       box(0.07, 0.12, 0.3, 0, -0.03, 0.12, M.wood);                       // stock
       box(0.08, 0.1, 0.44, 0, 0, -0.2, body);                             // body
@@ -240,6 +250,20 @@
       cylZ(0.018, 0.018, 0.12, 0, 0.0, -0.48, M.mid);
       box(0.05, 0.14, 0.07, 0, -0.13, 0.02, M.wood, 0.2);
       tipZ = -0.56;
+    } else if (id === 'blitzfanger') {
+      box(0.13, 0.13, 0.4, 0, 0, -0.12, accentMat(0x28566b, papped, dpap));
+      [-0.055, 0.055].forEach(function (rx) { cylZ(0.018, 0.025, 0.62, rx, 0.04, -0.4, accentMat(0x66ddff, papped, dpap), 8); });
+      box(0.05, 0.16, 0.07, 0, -0.13, 0.02, M.poly, 0.2); tipZ = -0.74;
+    } else if (id === 'kryolithwerfer') {
+      cylZ(0.1, 0.13, 0.52, 0, 0, -0.2, accentMat(0x7bbdcc, papped, dpap), 12);
+      var cry = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), accentMat(0xd8f8ff, papped, dpap));
+      cry.position.set(0, 0.12, -0.25); g.add(cry);
+      cylZ(0.04, 0.075, 0.28, 0, 0, -0.58, M.mid, 10); tipZ = -0.75;
+    } else if (id === 'vosssiphon') {
+      box(0.14, 0.17, 0.42, 0, 0, -0.1, accentMat(0x94733e, papped, dpap));
+      cylZ(0.07, 0.09, 0.38, 0, 0.1, -0.18, accentMat(0x76f2ba, papped, dpap), 12);
+      cylZ(0.035, 0.06, 0.34, 0, 0, -0.48, M.mid, 10);
+      box(0.06, 0.17, 0.08, 0, -0.14, 0.03, M.wood, 0.25); tipZ = -0.68;
     } else if (cls === 'storm' && vm.lance) {
       // Aether Lance: a long tapered rail spear — no orb, no funnel. Brass
       // haft, three aether coil rings marching up the shaft, a glowing prong
@@ -256,6 +280,21 @@
       prong.rotation.x = -Math.PI / 2; prong.position.set(0, 0.01, -0.72); g.add(prong);
       box(0.05, 0.12, 0.07, 0, -0.11, 0.05, M.poly, 0.25);               // under-grip
       tipZ = -0.8;
+    } else if (cls === 'storm' && vm.driver) {
+      // Maelstrom Driver: a compact industrial bore, built around a visible
+      // spinning pressure wheel rather than the Wettermacher's orb/funnel.
+      box(0.13, 0.13, 0.42, 0, 0, -0.16, accentMat(0x3f3430, papped, dpap));
+      var wheel = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.025, 7, 18),
+        new THREE.MeshPhongMaterial({ color: 0x8b6434, emissive: 0xff6a1e, emissiveIntensity: 0.65, shininess: 80 }));
+      wheel.rotation.x = Math.PI / 2; wheel.position.set(0, 0.105, -0.18); g.add(wheel);
+      for (var dr = 0; dr < 3; dr++) {
+        var spoke = box(0.025, 0.025, 0.18, 0, 0.105, -0.18, M.mid);
+        spoke.rotation.y = dr * Math.PI / 3;
+      }
+      cylZ(0.045, 0.09, 0.38, 0, 0, -0.48, accentMat(0xb07cff, papped, dpap), 10);
+      cylZ(0.12, 0.07, 0.11, 0, 0, -0.69, M.mid, 12);
+      box(0.06, 0.15, 0.09, 0, -0.13, 0.04, M.poly, 0.25);
+      tipZ = -0.76;
     } else if (cls === 'storm') {
       var st = cylZ(0.06, 0.08, 0.55, 0, 0, -0.18, accentMat(0x4a525c, papped, dpap), 12);
       var orb = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 12),
@@ -265,15 +304,6 @@
       box(0.05, 0.14, 0.08, 0, -0.12, 0.06, M.poly, 0.25);
       box(0.04, 0.05, 0.18, 0, -0.07, -0.25, M.poly);
       tipZ = -0.56;
-      if (vm.driver) {
-        // Maelstrom Driver: twin thermal canisters (ember + rime) flank the
-        // receiver and a heavier reinforced muzzle — its own silhouette so it
-        // reads distinct from the Wettermacher storm-orb launcher
-        cylZ(0.05, 0.05, 0.26, 0.085, 0.01, -0.16, accentMat(0xe8821e, papped, dpap), 12);  // ember canister
-        cylZ(0.05, 0.05, 0.26, -0.085, 0.01, -0.16, accentMat(0xbfe7f0, papped, dpap), 12); // rime canister
-        cylZ(0.11, 0.05, 0.1, 0, 0, -0.58, M.mid, 12);                   // reinforced muzzle ring
-        tipZ = -0.63;
-      }
       void st;
     } else {
       /* ------------------ generic long gun: smg / rifle / shotgun / lmg / sniper */
@@ -423,6 +453,15 @@
     }
     if (gun.element)   // Kurhaus altar infusion
       s.name = s.name + ' [' + gun.element.charAt(0).toUpperCase() + gun.element.slice(1) + ']';
+    if (gun.overclocked && gun.id === 'seelenmotor') {
+      s.name = 'Seelenmotor Überdruck'; s.dmg = Math.max(s.dmg, 6500);
+      s.mag = Math.max(s.mag, 6); s.reserve = Math.max(s.reserve, 24);
+      s.pistonDur = 7; s.pistonWidth = 2.8; s.pistonRange = 22; s.superVariant = 'piston';
+    } else if (gun.overclocked && gun.id === 'nachbildner115') {
+      s.name = 'Nachbildner Paradox'; s.dmg = Math.max(s.dmg, 7200);
+      s.mag = Math.max(s.mag, 4); s.reserve = Math.max(s.reserve, 20);
+      s.echoPulses = 6; s.echoRange = 60; s.echoWidth = 1.15; s.superVariant = 'echo';
+    }
     if (G.player.hasPerk('dtap')) { s.dmg *= 2; s.rpm *= 1.33; }
     return s;
   };
@@ -480,6 +519,13 @@
     while (W.vmRoot.children.length) W.vmRoot.remove(W.vmRoot.children[0]);
     var gun = W.slots[i];
     gun.model = buildModel(gun.id, gun.papped, gun.dpap);
+    if (gun.overclocked) {
+      var oc = gun.id === 'seelenmotor' ? 0x79ffe0 : 0xd8a6ff;
+      var halo = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.018, 6, 18),
+        new THREE.MeshBasicMaterial({ color: oc, transparent: true, opacity: 0.9 }));
+      halo.position.set(0, 0.1, -0.3); halo.rotation.x = Math.PI / 2;
+      gun.model.add(halo); gun.model.userData.overclockHalo = halo;
+    }
     W.vmRoot.add(gun.model);
     W.muzzle = gun.model.userData.tip;
     W.switching = instant ? 0 : 0.3;
@@ -727,6 +773,22 @@
     G.audio.explosion();
   };
 
+  W.heartBurst = function (pos) {
+    var c = new THREE.Vector3(pos.x, (pos.y || 0) + 0.8, pos.z);
+    for (var i = 0; i < 16; i++) {
+      var a = i / 16 * Math.PI * 2;
+      addLine(c, new THREE.Vector3(c.x + Math.cos(a) * 18, c.y, c.z + Math.sin(a) * 18),
+        0x79ffe0, 0.35, 0.9);
+    }
+    poolFlash(c, 0x79ffe0, 3.0, 20); G.audio.zap(); G.player.shake(0.6);
+  };
+
+  W.superKill = function () {
+    var gun = W.current();
+    if (!gun || !gun.overclocked || gun.id !== 'seelenmotor') return;
+    gun.soulCharges = Math.min(3, (gun.soulCharges || 0) + 1);
+  };
+
   function muzzleFlash() {
     if (!W.muzzle) return;
     var p = W.muzzle.getWorldPosition(new THREE.Vector3());
@@ -764,6 +826,14 @@
     if (s.projectile === 'wind') { fireThunder(); return; }
     if (s.projectile === 'chain') { fireWunderwaffe(s); return; }
     if (s.projectile === 'lance') { fireLance(s); return; }
+    if (s.projectile === 'bore') { spawnProjectile('bore', s); return; }
+    if (s.projectile === 'flare') { spawnProjectile('flare', s); return; }
+    if (s.projectile === 'soulmine') { spawnProjectile('soulmine', s); return; }
+    if (s.projectile === 'piston') { firePiston(s, gun); return; }
+    if (s.projectile === 'echo') { fireEcho(s, gun); return; }
+    if (s.projectile === 'rod') { fireRod(s); return; }
+    if (s.projectile === 'kryolith') { fireKryolith(s); return; }
+    if (s.projectile === 'siphon') { fireSiphon(s); return; }
     if (s.projectile === 'storm') { spawnProjectile('storm', s); return; }
     if (s.projectile === 'ray') { spawnProjectile('ray', s); return; }
     if (s.projectile === 'rocket') { spawnProjectile('rocket', s); return; }
@@ -861,6 +931,118 @@
     poolFlash(end, 0xb790ff, 1.6, 8);
     G.audio.lanceFire();
     if (skewered) G.hud.hitmarker(true);
+  }
+
+  // Quest-only wonder weapons deliberately use different spatial verbs: a
+  // crushing lane, delayed echoes, a player-drawn fence, a launched frozen
+  // body and a close-range life drain. None reuse the map's box wonder.
+  function lineReach(origin, dir, range) {
+    _ray.set(origin, dir); _ray.far = range;
+    var wh = _ray.intersectObjects(G.map.solidMeshes, false);
+    return wh.length ? wh[0].distance : range;
+  }
+  function damageLine(origin, dir, range, width, dmg, color, weaponId) {
+    var reach = lineReach(origin, dir, range), end = origin.clone().addScaledVector(dir, reach);
+    addLine(origin, end, color, Math.max(0.08, width * 0.12), 0.8);
+    var hit = false, v = new THREE.Vector3();
+    G.zombies.list.slice().forEach(function (z) {
+      if (z.dead || Math.abs(z.mesh.position.y - origin.y) > 2.5) return;
+      v.copy(z.mesh.position).sub(origin); var t = v.x * dir.x + v.z * dir.z;
+      if (t < 0 || t > reach) return;
+      var qx = origin.x + dir.x * t, qz = origin.z + dir.z * t;
+      if (Math.hypot(z.mesh.position.x - qx, z.mesh.position.z - qz) > width) return;
+      hit = true; G.zombies.damageZombie(z, dmg, { boom: true, crawlers: true, weaponId: weaponId });
+    });
+    if (hit) G.hud.hitmarker(true);
+  }
+  function reportOverclockShot(gun, dir, range) {
+    if (G.interact && G.interact.onWonderFire)
+      G.interact.onWonderFire(gun.id, G.camera.position.clone(), dir.clone(), range);
+  }
+  function firePiston(s, gun) {
+    var dir = new THREE.Vector3(0, 0, -1).applyEuler(G.camera.rotation); dir.y = 0; dir.normalize();
+    reportOverclockShot(gun, dir, s.pistonRange);
+    var charges = gun.overclocked ? (gun.soulCharges || 0) : 0;
+    if (charges) { gun.soulCharges = 0; G.hud.banner('SOUL PRESSURE ×' + charges, '#79ffe0', 1.2); }
+    W.eeHazards.push({ type: 'piston', pos: G.player.pos.clone(), dir: dir,
+      t: s.pistonDur, tick: 0, dmg: s.dmg * (1 + charges * 0.4), width: s.pistonWidth,
+      range: s.pistonRange, weaponId: gun.id, super: !!gun.overclocked });
+    G.hud.banner(gun.overclocked ? 'ÜBERDRUCK ASSEMBLY LINE' : 'SOUL ASSEMBLY LINE', '#9fe8ff', 1.2);
+  }
+  function fireEcho(s, gun) {
+    var dir = new THREE.Vector3(0, 0, -1).applyEuler(G.camera.rotation); dir.y = 0; dir.normalize();
+    reportOverclockShot(gun, dir, s.echoRange);
+    var angles = gun.overclocked ? [-0.24, 0, 0.24] : [0];
+    angles.forEach(function (a, ai) {
+      var d = dir.clone(); var x = d.x * Math.cos(a) - d.z * Math.sin(a);
+      d.z = d.x * Math.sin(a) + d.z * Math.cos(a); d.x = x;
+      W.eeHazards.push({ type: 'echo', pos: G.camera.position.clone(), dir: d,
+        t: 3.4, tick: 0.3 + ai * 0.1, pulses: s.echoPulses, dmg: s.dmg,
+        width: s.echoWidth || 0.8, range: s.echoRange, weaponId: gun.id,
+        super: !!gun.overclocked, superCore: !!gun.overclocked && ai === 1 });
+    });
+    if (gun.overclocked) G.hud.banner('PARADOX ECHO', '#d8a6ff', 1.3, 'The echoes draw the horde inward');
+    poolFlash(G.camera.position.clone().addScaledVector(dir, 2.5), 0xb78cff, 1.2, 8);
+  }
+  function fireRod(s) {
+    var dir = new THREE.Vector3(0, 0, -1).applyEuler(G.camera.rotation); dir.y = 0; dir.normalize();
+    var reach = lineReach(G.camera.position, dir, 16);
+    var p = G.camera.position.clone().addScaledVector(dir, Math.max(2, reach - 0.25));
+    p.y = G.map.supportAt(p.x, p.z, p.y, 0);
+    W.rods.push({ pos: p, dmg: s.dmg, dur: s.rodDur, radius: s.rodRadius });
+    poolFlash(new THREE.Vector3(p.x, p.y + 0.8, p.z), 0x66ddff, 1.4, 8);
+    if (W.rods.length >= 2) {
+      var b = W.rods.pop(), a = W.rods.pop();
+      W.eeHazards.push({ type: 'fence', a: a.pos, b: b.pos, t: s.rodDur,
+        tick: 0, dmg: s.dmg, width: s.rodRadius });
+      G.hud.banner('LIGHTNING FENCE ACTIVE', '#66ddff', 1.5);
+    } else G.hud.banner('FIRST ROD PLANTED', '#66ddff', 1.2, 'Place the second rod');
+  }
+  function fireKryolith(s) {
+    var dir = new THREE.Vector3(0, 0, -1).applyEuler(G.camera.rotation); aimAssist(dir);
+    _ray.set(G.camera.position, dir); _ray.far = 45;
+    var hits = _ray.intersectObjects(G.zombies.shootables().concat(G.map.solidMeshes), false);
+    var z = null;
+    for (var i = 0; i < hits.length; i++) {
+      if (!hits[i].object.userData.zombie) break;
+      z = hits[i].object.userData.zombie; if (!z.dead) break;
+    }
+    if (!z || z.dead) return;
+    if (!z.wwFrozen) {
+      z.wwFrozen = true; z.wwFrozenT = 9;
+      z.mesh.traverse(function (o) { if (o.material && o.material.color) o.material.color.offsetHSL(0.5, 0.1, 0.18); });
+      poolFlash(z.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)), 0xbfefff, 1.4, 7);
+      G.hud.hitmarker(true);
+    } else {
+      z.wwFrozenT = 3;
+      var flat = dir.clone(); flat.y = 0; flat.normalize();
+      W.iceSlides.push({ z: z, dir: flat, speed: s.iceSpeed, dmg: s.dmg,
+        radius: s.iceRadius, t: 2.5, hit: [] });
+    }
+  }
+  function fireSiphon(s) {
+    var dir = new THREE.Vector3(0, 0, -1).applyEuler(G.camera.rotation); aimAssist(dir);
+    _ray.set(G.camera.position, dir); _ray.far = 18;
+    var hits = _ray.intersectObjects(G.zombies.shootables().concat(G.map.solidMeshes), false);
+    var first = null;
+    for (var i = 0; i < hits.length; i++) {
+      if (!hits[i].object.userData.zombie) break;
+      if (!hits[i].object.userData.zombie.dead) { first = hits[i].object.userData.zombie; break; }
+    }
+    if (!first) return;
+    var targets = [first];
+    G.zombies.list.forEach(function (z) {
+      if (targets.length >= s.siphonTargets || z.dead || z === first) return;
+      if (z.mesh.position.distanceTo(first.mesh.position) < 4) targets.push(z);
+    });
+    var start = W.muzzle.getWorldPosition(new THREE.Vector3());
+    targets.forEach(function (z) {
+      var end = z.mesh.position.clone().add(new THREE.Vector3(0, 1.1, 0));
+      addLine(start, end, 0x76f2ba, 0.11, 0.9);
+      G.zombies.damageZombie(z, s.dmg, { boom: true });
+    });
+    G.player.hp = Math.min(G.player.maxHp + 50, G.player.hp + s.siphonHeal * targets.length);
+    G.hud.hitmarker(true);
   }
 
   /* --------------------------------------------- wunderwaffe (chain bolt) */
@@ -1006,10 +1188,32 @@
       vel = dir.multiplyScalar(24).add(new THREE.Vector3(0, 0.5, 0));
       opts = { dmg: s.dmg, radius: 2.5, gravity: 1.5, fuse: 3, color: 0x66ccff,
                storm: { dur: s.stormDur, radius: s.stormRadius } };
+    } else if (type === 'bore') {
+      // A razor-thin pressure wheel: no blast, no pull, no lightning. It keeps
+      // its energy through bodies and rebounds from the room shell.
+      mesh = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.065, 7, 18),
+        new THREE.MeshBasicMaterial({ color: 0xc78cff }));
+      mesh.rotation.x = Math.PI / 2;
+      vel = dir.multiplyScalar(s.boreSpeed || 38);
+      opts = { dmg: s.dmg, radius: 0, gravity: 0, fuse: s.boreLife || 2.8,
+               color: 0xc78cff, bounces: s.boreBounces || 3 };
+    } else if (type === 'flare') {
+      mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.24, 8),
+        new THREE.MeshBasicMaterial({ color: 0xff5522 }));
+      mesh.rotation.x = Math.PI / 2;
+      vel = dir.multiplyScalar(15).add(new THREE.Vector3(0, 2.2, 0));
+      opts = { dmg: s.dmg, radius: 4.5, gravity: 7, fuse: 99, color: 0xff5522,
+               bounce: true, flareDur: s.flareDur, flareRadius: s.flareRadius };
+    } else if (type === 'soulmine') {
+      mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.1, 10),
+        new THREE.MeshLambertMaterial({ color: 0x384633, emissive: 0x273311 }));
+      vel = dir.multiplyScalar(12).add(new THREE.Vector3(0, 3.0, 0));
+      opts = { dmg: s.dmg, radius: s.mineRadius, gravity: 9, fuse: 99, color: 0x9cff72,
+               bounce: true, mineNeed: s.mineNeed };
     }
     mesh.position.copy(pos);
     G.scene.add(mesh);
-    W.projectiles.push({ type: type, mesh: mesh, vel: vel, t: 0, opts: opts });
+    W.projectiles.push({ type: type, mesh: mesh, vel: vel, t: 0, opts: opts, hit: [] });
   }
 
   W.throwFrag = function () {
@@ -1109,20 +1313,113 @@
       var hitFloor = ny <= floorH + 0.1;
       var detonate = false;
 
-      if (p.type === 'monkey' && p.landed) {
+      if (p.type === 'bore') {
+        p.mesh.rotation.z += dt * 24;
+
+        // The bore is fast enough to cross a thin wall between rendered
+        // frames. Sweep the whole travelled segment in small increments so a
+        // ricochet can never tunnel through architecture. Keep the last clear
+        // point for both the bounce and the zombie hit test below.
+        var ox = p.mesh.position.x, oy = p.mesh.position.y, oz = p.mesh.position.z;
+        var dx = nx - ox, dy = ny - oy, dz = nz - oz;
+        var sweepSteps = Math.max(1, Math.ceil(Math.hypot(dx, dy, dz) / 0.1));
+        var wallX = nx, wallY = ny, wallZ = nz;
+        var safeX = ox, safeY = oy, safeZ = oz;
+        hitWall = false; hitFloor = false;
+        for (var ss = 1; ss <= sweepSteps; ss++) {
+          var st = ss / sweepSteps;
+          var sx = ox + dx * st, sy = oy + dy * st, sz = oz + dz * st;
+          var sweepFloor = G.map.supportAt(sx, sz, sy, 0);
+          var sweepWall = pointBlocked(sx, sy, sz, 0.1);
+          if (sweepWall || sy <= sweepFloor + 0.1) {
+            wallX = sx; wallY = sy; wallZ = sz;
+            hitWall = !!sweepWall;
+            hitFloor = sy <= sweepFloor + 0.1;
+            floorH = sweepFloor;
+            break;
+          }
+          safeX = sx; safeY = sy; safeZ = sz;
+        }
+        nx = safeX; ny = safeY; nz = safeZ;
+        p.mesh.position.set(nx, ny, nz);
+
+        // Sweep through zombie body columns as well. Otherwise a disk that can
+        // no longer cross walls could still skip a zombie between two frames.
+        var segDX = nx - ox, segDY = ny - oy, segDZ = nz - oz;
+        var segLen2 = segDX * segDX + segDZ * segDZ;
+        for (var bz = 0; bz < G.zombies.list.length; bz++) {
+          var boreZ = G.zombies.list[bz];
+          if (boreZ.dead || p.hit.indexOf(boreZ) >= 0) continue;
+          var bp = boreZ.mesh.position;
+          var along = segLen2 > 0.0001
+            ? ((bp.x - ox) * segDX + (bp.z - oz) * segDZ) / segLen2 : 0;
+          along = Math.max(0, Math.min(1, along));
+          var contactX = ox + segDX * along;
+          var contactY = oy + segDY * along;
+          var contactZ = oz + segDZ * along;
+          if (Math.hypot(bp.x - contactX, bp.z - contactZ) < 0.95 &&
+              contactY > bp.y - 0.3 && contactY < bp.y + 2.4) {
+            p.hit.push(boreZ);
+            G.zombies.damageZombie(boreZ, p.opts.dmg, { boom: true });
+            W.applyElement(boreZ);
+            G.hud.hitmarker(true);
+          }
+        }
+
+        if (hitWall || hitFloor) {
+          p.opts.bounces--;
+          if (p.opts.bounces < 0) detonate = true;
+          else {
+            // Probe each horizontal axis independently for a stable reflection.
+            // Corners flip both axes; floor/ceiling flips vertical travel.
+            if (hitFloor) p.vel.y = Math.abs(p.vel.y || 1);
+            if (hitWall) {
+              var blockX = pointBlocked(wallX, safeY, safeZ, 0.1);
+              var blockZ = pointBlocked(safeX, safeY, wallZ, 0.1);
+              if (blockX || !blockZ) p.vel.x *= -1;
+              if (blockZ || !blockX) p.vel.z *= -1;
+            }
+            poolFlash(p.mesh.position, 0xc78cff, 0.55, 4);
+          }
+        }
+      } else
+
+      if (p.type === 'flare' && p.landed) {
+        if (p.stuckZ && !p.stuckZ.dead) {
+          p.mesh.position.copy(p.stuckZ.mesh.position); p.mesh.position.y += 1.0;
+        }
+        p.lure -= dt;
+        G.zombies.lure = { pos: p.mesh.position, proj: p };
+        if (Math.floor(p.lure * 3) !== Math.floor((p.lure + dt) * 3))
+          poolFlash(p.mesh.position.clone().add(new THREE.Vector3(0, 0.4, 0)), 0xff5522, 1.0, p.opts.flareRadius);
+        if (p.lure <= 0) detonate = true;
+      } else if (p.type === 'soulmine' && p.landed) {
+        var standing = 0;
+        G.zombies.list.forEach(function (mz) {
+          if (!mz.dead && Math.abs(mz.mesh.position.y - p.mesh.position.y) < 2.2 &&
+              Math.hypot(mz.mesh.position.x - p.mesh.position.x, mz.mesh.position.z - p.mesh.position.z) < p.opts.radius)
+            standing++;
+        });
+        if (standing >= p.opts.mineNeed) detonate = true;
+      } else if (p.type === 'monkey' && p.landed) {
         p.lure -= dt;
         if (Math.floor(p.lure * 2) !== Math.floor((p.lure + dt) * 2)) G.audio.monkeyJingle();
         if (p.lure <= 0) detonate = true;
+      } else if (p.type === 'flare' && (hitWall || hitFloor)) {
+        p.landed = true; p.lure = p.opts.flareDur; p.vel.set(0, 0, 0);
+        if (hitFloor) p.mesh.position.y = floorH + 0.1;
       } else if (hitWall || hitFloor) {
         if (p.opts.bounce) {
           if (hitFloor && Math.abs(p.vel.y) < 1.2) {
             p.mesh.position.y = floorH + 0.1;
             p.vel.set(0, 0, 0);
-            if (p.type === 'monkey' && !p.landed) {
+            if ((p.type === 'monkey' || p.type === 'flare' || p.type === 'soulmine') && !p.landed) {
               p.landed = true;
-              p.lure = 3.2;
-              G.audio.monkeyJingle();
-              G.zombies.lure = { pos: p.mesh.position.clone(), proj: p };
+              p.lure = p.type === 'flare' ? p.opts.flareDur : 3.2;
+              if (p.type === 'monkey') {
+                G.audio.monkeyJingle();
+                G.zombies.lure = { pos: p.mesh.position.clone(), proj: p };
+              }
             }
           } else {
             if (hitFloor) { p.mesh.position.y = floorH + 0.12; p.vel.y *= -0.4; p.vel.x *= 0.6; p.vel.z *= 0.6; }
@@ -1149,15 +1446,83 @@
           }
         }
       }
+      if (!detonate && p.type === 'flare' && !p.landed) {
+        for (var fj = 0; fj < G.zombies.list.length; fj++) {
+          var fz = G.zombies.list[fj]; if (fz.dead) continue;
+          if (Math.hypot(fz.mesh.position.x - p.mesh.position.x, fz.mesh.position.z - p.mesh.position.z) < 0.8 &&
+              p.mesh.position.y > fz.mesh.position.y && p.mesh.position.y < fz.mesh.position.y + 2.2) {
+            p.landed = true; p.stuckZ = fz; p.lure = p.opts.flareDur; p.vel.set(0, 0, 0); break;
+          }
+        }
+      }
       if (p.t > p.opts.fuse) detonate = true;
 
       if (detonate) {
-        if (p.type === 'monkey' && G.zombies.lure && G.zombies.lure.proj === p) G.zombies.lure = null;
-        if (p.opts.storm) spawnVortex(p.mesh.position, p.opts);
+        if ((p.type === 'monkey' || p.type === 'flare') && G.zombies.lure && G.zombies.lure.proj === p) G.zombies.lure = null;
+        if (p.type === 'bore') poolFlash(p.mesh.position, 0xc78cff, 0.75, 5);
+        else if (p.opts.storm) spawnVortex(p.mesh.position, p.opts);
         else W.explode(p.mesh.position, p.opts.dmg, p.opts.radius, p.opts);
         G.scene.remove(p.mesh);
         W.projectiles.splice(i, 1);
       }
+    }
+  }
+
+  function updateEeHazards(dt) {
+    for (var i = W.eeHazards.length - 1; i >= 0; i--) {
+      var h = W.eeHazards[i]; h.t -= dt; h.tick -= dt;
+      if (h.type === 'piston' && h.tick <= 0) {
+        h.tick = 0.48;
+        damageLine(h.pos, h.dir, h.range, h.width, h.dmg, 0x9fe8ff, h.weaponId);
+        G.player.shake(0.18);
+      } else if (h.type === 'echo' && h.tick <= 0 && h.pulses > 0) {
+        h.tick = 0.42; h.pulses--;
+        damageLine(h.pos, h.dir, h.range, h.width, h.dmg, 0xb78cff, h.weaponId);
+        if (h.superCore) {
+          var lurePos = h.pos.clone().addScaledVector(h.dir, Math.min(12, h.range * 0.35));
+          lurePos.y = h.pos.y - 1.2;
+          G.zombies.lure = { pos: lurePos, proj: h };
+          if (h.pulses <= 0) {
+            G.zombies.lure = null;
+            W.boom(lurePos, h.dmg * 0.8, 6, 0xd8a6ff, { boom: true, y: lurePos.y });
+          }
+        }
+      } else if (h.type === 'fence') {
+        addLine(h.a.clone().add(new THREE.Vector3(0, 0.7, 0)),
+                h.b.clone().add(new THREE.Vector3(0, 0.7, 0)), 0x66ddff, 0.09, 0.45);
+        if (h.tick <= 0) {
+          h.tick = 0.4;
+          var dx = h.b.x - h.a.x, dz = h.b.z - h.a.z, len2 = dx * dx + dz * dz;
+          G.zombies.list.slice().forEach(function (z) {
+            if (z.dead || Math.abs(z.mesh.position.y - h.a.y) > 2.2) return;
+            var q = len2 ? ((z.mesh.position.x - h.a.x) * dx + (z.mesh.position.z - h.a.z) * dz) / len2 : 0;
+            q = Math.max(0, Math.min(1, q));
+            if (Math.hypot(z.mesh.position.x - (h.a.x + dx * q), z.mesh.position.z - (h.a.z + dz * q)) <= h.width) {
+              G.zombies.damageZombie(z, h.dmg, { boom: true }); z.slowT = Math.max(z.slowT || 0, 0.8);
+            }
+          });
+        }
+      }
+      if (h.t <= 0 || (h.type === 'echo' && h.pulses <= 0)) W.eeHazards.splice(i, 1);
+    }
+
+    for (var j = W.iceSlides.length - 1; j >= 0; j--) {
+      var s = W.iceSlides[j], iz = s.z; s.t -= dt;
+      if (!iz || iz.dead) { W.iceSlides.splice(j, 1); continue; }
+      var nx = iz.mesh.position.x + s.dir.x * s.speed * dt;
+      var nz = iz.mesh.position.z + s.dir.z * s.speed * dt;
+      if (pointBlocked(nx, iz.mesh.position.y + 0.8, nz, 0.4) || s.t <= 0) {
+        W.explode(iz.mesh.position.clone(), s.dmg, s.radius + 1.2, { color: 0xbfefff });
+        iz.wwFrozen = false; G.zombies.damageZombie(iz, s.dmg, { boom: true });
+        W.iceSlides.splice(j, 1); continue;
+      }
+      iz.mesh.position.x = nx; iz.mesh.position.z = nz;
+      G.zombies.list.slice().forEach(function (other) {
+        if (other.dead || other === iz || s.hit.indexOf(other) >= 0) return;
+        if (other.mesh.position.distanceTo(iz.mesh.position) < s.radius) {
+          s.hit.push(other); G.zombies.damageZombie(other, s.dmg, { boom: true, crawlers: true });
+        }
+      });
     }
   }
 
@@ -1249,6 +1614,7 @@
 
     updateProjectiles(dt);
     updateVortices(dt);
+    updateEeHazards(dt);
 
     for (var i = W.tracers.length - 1; i >= 0; i--) {
       var t = W.tracers[i];

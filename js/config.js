@@ -19,7 +19,7 @@
   CFG.MAPS.nacht = {
     id: 'nacht',
     name: 'NACHT DER UNTOTEN',
-    sub: 'Where it all began — a bombed-out bunker. Wonder weapon: Thundergun.',
+    sub: 'Bombed-out bunker. Complete Dead Air for the Nachtlicht or Minenwerfer 115.',
     wonder: 'thunder',
     papRule: 'power',          // Pack-a-Punch unlocks when the power goes on
     atmos: { sky: 0x14110c, fog: 0x16130d, density: 0.02,
@@ -98,6 +98,20 @@
     // 9 authored wall-adjacent relic spots; 3 distinct are chosen per match
     RELIC_SPOTS: [{ cell: [5, 0], face: 'N' }, { cell: [0, 4], face: 'W' }, { cell: [5, 4], face: 'N' }, { cell: [10, 4], face: 'N' }, { cell: [4, 9], face: 'N' }, { cell: [6, 0], face: 'N' }, { cell: [2, 4], face: 'N' }, { cell: [7, 4], face: 'N' }, { cell: [12, 4], face: 'E' }],
     EE_SOULBOX: [6, 5],
+    eeName: 'DEAD AIR',
+    eeNode: 'field radio',
+    eeRewards: ['nachtlicht', 'minenwerfer115'],
+    EE_START: { cell: [4, 9], face: 'N', title: 'USAAF EMERGENCY FREQUENCY',
+      prompt: 'Play the damaged emergency broadcast',
+      intro: 'HELP ROOM — Find the radio answering this signal' },
+    EE_STEPS: [
+      { cell: [0, 4], face: 'W', room: 'Help Room', kind: 'field radio',
+        prompt: 'Tune the Help Room field radio', clue: 'GENERATOR — Follow the cable to the second receiver' },
+      { cell: [12, 4], face: 'E', room: 'Generator Room', kind: 'vacuum receiver',
+        prompt: 'Install the live vacuum receiver', clue: 'CRASH SITE — Align the broken field antenna' },
+      { cell: [6, 0], face: 'N', room: 'Crash Site', kind: 'field antenna',
+        prompt: 'Align the crash-site field antenna', clue: 'SPAWN — The central transmitter is calling' }
+    ],
     // authored shield-part spawns — 3 wall-adjacent maintenance spots per part
     // each shield component lives in its OWN room (3 authored wall spots each);
     // one is picked per match. Rooms: frame=Crash Site, plate=Lower Bunker,
@@ -111,120 +125,193 @@
   };
 
   /* ------------------------------------------------------- DER RIESE --- */
-  // The giant's factory, rebuilt around a real MAINFRAME COURTYARD (C) main
-  // room with the link pad + Pack-a-Punch in the middle. Three teleporters
-  // live in their own rooms — Animal Lab (L, W), Furnace (F, E), Garage (G, N)
-  // — joined to the courtyard and to upper catwalks (T/P) for looping flow.
+  // Blueprint-led rebuild: recognizable Der Riese circulation at 120% movement
+  // scale. The Mainframe yard anchors the east side, Teleporter C owns the west
+  // cooling yard, B sits in the north furnace, and A terminates the south-east
+  // laboratory wing. Upper rooms are deliberately partial and always sit over
+  // believable ground-floor buildings; the courtyards remain open to the sky.
   CFG.MAPS.derriese = {
     id: 'derriese',
     name: 'DER RIESE',
-    sub: "The giant's factory — link all three teleporters at the mainframe. Wonder weapon: Wunderwaffe DG-2.",
+    sub: "The giant's factory — rebuilt courtyards, supported upper departments, and The Giant's Heart quest.",
     wonder: 'wunderwaffe',
     papRule: 'teleporters',
     atmos: { sky: 0x12140f, fog: 0x15170f, density: 0.016,
              amb: 0x3e4642, ambI: 0.5, hemiSky: 0x90a096, hemiGround: 0x252e28 },
-    // surface palette — cold industrial factory (blued steel, grey concrete,
-    // oxidised green-grey machinery).
-    palette: { wallA: 0xa7adac, wallB: 0x979d9c, wood: 0xb4a384, plank: 0xc6b596,
-               metal: 0x848d92, beam: 0x4e565a, rust: 0x7d6238, conc: 0x8b908a,
-               deck: 0x646b70, ceil: 0x69706b, accent: 0x4fd6c0, lampTint: 0xdfeae8 },
-    OUTDOOR: ['C'],
+    // dark wartime masonry rather than the rejected clean modular panels.
+    palette: { wallA: 0x71594d, wallB: 0x5f5149, wood: 0x876b4c, plank: 0xa1835d,
+               metal: 0x626a69, beam: 0x303638, rust: 0x70452d, conc: 0x696862,
+               deck: 0x454c4e, ceil: 0x3e403d, accent: 0x43b99f, lampTint: 0xffc982 },
+    OUTDOOR: ['S', 'C'],
     GRID: [
-      'TT.GGGGGGGGGG.PP', // T=W Catwalk  G=Garage(Tele C)  P=E Catwalk
-      'TT7GGGGGGGGGG8PP', // 7:T↔G  8:G↔P
-      'TT.GGGGGGGGGG.PP',
-      'TT.GGGGGGGGGG.PP',
-      '.4.....6......5.', // 4:T↔L  6:G↔Courtyard  5:P↔F
-      'LL.CCCCCCCCCC.FF', // L=Animal Lab(Tele A)  C=COURTYARD  F=Furnace(Tele B)
-      'LL.CCCCCCCCCC.FF',
-      'LL2CCCCCCCCCC3FF', // 2:L↔C  3:C↔F
-      'LL.CCCCCCCCCC.FF',
-      'LL.CCCCCCCCCC.FF',
-      '.......1........', // 1:Courtyard↔Spawn
-      '.....SSSSSS.....', // S=Spawn
-      '.....SSSSSS.....',
-      '.....SSSSSS.....'
+      '.....FFFFFFF............',
+      '....FFFFFFFF............',
+      '....FFFFFFFF.GGGGGG.....',
+      '....FFFFFFFF5GGGGGG.....',
+      '....FFFFFFFF.GGGGGG.....',
+      '.......1....GGGGGGG.....',
+      'CCCCCCCC.GGGGGGGGG......',
+      'CCCCCCCC.GGGGGGGG6SSSSSS',
+      'CCCCCCCC2GGGGGGG.SSSSSS.',
+      'CCCCCCCC.GGGGGGG.SSSSSS.',
+      'CCCCCCCC.........SSSSSS.',
+      'CCCCCCC3LLLLLLLL9SSSSSS.',
+      'CCCCCCC.LLLLLLLL.SSSSSS.',
+      '.......LLLLLLLLL.SSSSSS.',
+      '.......LLLLLLLLLL...4...',
+      '.......LLLLLLLLLL7AAAAAA',
+      '.......LLLLLLLLLL.AAAAAA',
+      '.......LLLLLLLLLL.AAAAAA',
+      '........LLLLLLLLL.AAAAAA',
+      '........LLLLLLLLL.AAAAAA'
     ],
     ROOMS: {
-      S: { name: 'Spawn',                  floor: 0x33352e, light: 0x99aa88 },
-      C: { name: 'Teleporter-C Courtyard', floor: 0x36382f, light: 0xa8b890 },
-      L: { name: 'Animal Testing',         floor: 0x2e3640, light: 0x66bbcc },
-      F: { name: 'Furnace Room',           floor: 0x3b2c24, light: 0xff7733 },
-      G: { name: 'Auto Garage',            floor: 0x30322e, light: 0x88aa99 },
-      T: { name: 'West Passage',           floor: 0x2f3338, light: 0x7788aa },
-      P: { name: 'East Passage',           floor: 0x33302f, light: 0xaa9977 }
+      S: { name: 'Mainframe Yard',          floor: 0x33352e, light: 0xa5b28e },
+      C: { name: 'Teleporter-C Courtyard',  floor: 0x37382f, light: 0xa8b890 },
+      L: { name: 'Animal Testing',          floor: 0x2e3640, light: 0x66bbcc },
+      A: { name: 'Teleporter-A Laboratory', floor: 0x29343b, light: 0x6fb8ce },
+      F: { name: 'Furnace and Teleporter B',floor: 0x3b2c24, light: 0xff7733 },
+      G: { name: 'Auto Garage and Power',   floor: 0x30322e, light: 0x88aa99 }
     },
     DOORS: {
-      1: { cost: 750,  name: 'Mainframe Courtyard' },
-      2: { cost: 1000, name: 'Animal Lab' },
-      3: { cost: 1000, name: 'Furnace' },
-      4: { cost: 1250, name: 'West Passage' },
-      5: { cost: 1250, name: 'East Passage' },
-      6: { cost: 1000, name: 'Garage' },
-      7: { cost: 1250, name: 'West Passage' },
-      8: { cost: 1250, name: 'East Passage' }
+      1: { cost: 1000, name: 'Furnace Courtyard Stair Hall' },
+      2: { cost: 750,  name: 'West Garage Shutter' },
+      3: { cost: 1000, name: 'Animal Testing West' },
+      4: { cost: 1250, name: 'Mainframe Laboratory Gate' },
+      5: { cost: 1250, name: 'Furnace Power Passage' },
+      6: { cost: 1000, name: 'Mainframe Garage Shutter' },
+      7: { cost: 1000, name: 'Teleporter A Laboratory' },
+      9: { cost: 1000, name: 'Animal Testing East' }
     },
     WINDOWS: [
-      { cell: [0, 1],  dir: 'W' },   // West Catwalk
-      { cell: [1, 0],  dir: 'N' },
-      { cell: [5, 0],  dir: 'N' },   // Garage
-      { cell: [10, 0], dir: 'N' },
-      { cell: [15, 1], dir: 'E' },   // East Catwalk
-      { cell: [14, 0], dir: 'N' },
-      { cell: [0, 6],  dir: 'W' },   // Animal Lab
-      { cell: [15, 6], dir: 'E' },   // Furnace
-      { cell: [4, 9],  dir: 'S' },   // Courtyard
-      { cell: [11, 9], dir: 'S' },
-      { cell: [7, 13], dir: 'S' }    // Spawn
+      { cell: [5, 0],  dir: 'N' }, { cell: [10, 0], dir: 'N' },
+      { cell: [4, 2],  dir: 'W' }, { cell: [18, 5], dir: 'E' },
+      { cell: [0, 8],  dir: 'W' }, { cell: [3, 6],  dir: 'N' },
+      { cell: [22, 8], dir: 'E' }, { cell: [22, 13],dir: 'S' },
+      { cell: [7, 14], dir: 'W' }, { cell: [12, 19],dir: 'S' },
+      { cell: [23, 16],dir: 'E' }, { cell: [21, 19],dir: 'S' }
     ],
-    RISERS: [[8, 8], [10, 8]],
+    RISERS: [[3, 10], [22, 10]],
     PERK_MACHINES: [
-      { perk: 'revive', cell: [6, 12], off: [0, 0] },
-      { perk: 'jugg',   cell: [5, 8],  off: [0, 0] },
-      { perk: 'speed',  cell: [5, 5],  off: [0, 0.4] },   // Courtyard, north edge
-      { perk: 'dtap',   cell: [14, 8], off: [0, 0] },
-      { perk: 'wonderfizz', cell: [0, 3],  off: [0, 0] },
-      { perk: 'stamin', cell: [15, 3], off: [0, 0] }
+      { perk: 'revive', cell: [22, 12], off: [0, 0] },
+      { perk: 'jugg',   cell: [7, 16],  off: [0, 0] },
+      { perk: 'speed',  cell: [18, 2],  off: [0, 0] },
+      { perk: 'dtap',   cell: [0, 9],   off: [0, 0] },
+      { perk: 'wonderfizz', cell: [6, 0], off: [0, 0], y: 4.0 },
+      { perk: 'stamin', cell: [23, 18], off: [0, 0], y: 4.0 }
     ],
     WALLBUYS: [
-      { gun: 'm14',      cell: [6, 13], off: [0, 1.6],  face: 'S' },
-      { gun: 'olympia',  cell: [9, 13], off: [0, 1.6],  face: 'S' },
-      { gun: 'mp5k',     cell: [0, 5],  off: [-1.6, 0], face: 'W' },
-      { gun: 'mp40',     cell: [15, 5], off: [1.6, 0],  face: 'E' },
-      { gun: 'ak74u',    cell: [4, 0],  off: [0, -1.6], face: 'N' },
-      { gun: 'm16',      cell: [11, 0], off: [0, -1.6], face: 'N' },
-      { gun: 'stakeout', cell: [3, 5],  off: [-1.6, 0], face: 'W' },
-      { gun: 'frags',    cell: [12, 5], off: [1.6, 0],  face: 'E' }
+      { gun: 'm14',      cell: [22, 13], off: [0, 1.6], face: 'S' },
+      { gun: 'olympia',  cell: [20, 7], off: [0, -1.6], face: 'N' },
+      { gun: 'mp5k',     cell: [0, 10], off: [-1.6, 0], face: 'W' },
+      { gun: 'mp40',     cell: [23, 17], off: [1.6, 0], face: 'E' },
+      { gun: 'ak74u',    cell: [6, 0], off: [0, -1.6], face: 'N' },
+      { gun: 'm16',      cell: [18, 3], off: [1.6, 0], face: 'E' },
+      { gun: 'stakeout', cell: [7, 14], off: [-1.6, 0], face: 'W' },
+      { gun: 'frags',    cell: [12, 19], off: [0, 1.6], face: 'S' }
     ],
     BOX_SPOTS: [
-      { cell: [1, 2],  off: [0, 0] },
-      { cell: [14, 2], off: [0, 0] },
-      { cell: [1, 6],  off: [0, 0] },
-      { cell: [14, 6], off: [0, 0] },
-      { cell: [7, 2],  off: [0, 0] },
-      { cell: [9, 11], off: [0, 0] },
-      { cell: [6, 8],  off: [0, 0] },
-      { cell: [10, 5], off: [0, 0.4] }   // Courtyard, north edge
+      { cell: [9, 1], off: [0, 0] }, { cell: [16, 5], off: [0, 0] },
+      { cell: [2, 11],off: [0, 0] }, { cell: [20, 12],off: [0, 0] },
+      { cell: [9, 17],off: [0, 0] }, { cell: [21, 17],off: [0, 0] },
+      { cell: [17, 5],off: [0, 0], y: 4.0 }, { cell: [13, 15],off: [0, 0], y: 4.0 }
     ],
     TELEPORTERS: [
-      { id: 'A', cell: [0, 7],  off: [0, 0] },
-      { id: 'B', cell: [15, 7], off: [0, 0] },
-      { id: 'C', cell: [7, 1],  off: [0, 0] }
+      { id: 'A', cell: [21, 18], off: [0, 0] },
+      { id: 'B', cell: [7, 1],   off: [0, 0] },
+      { id: 'C', cell: [2, 9],   off: [0, 0] }
     ],
-    MAINFRAME: { cell: [7, 5], off: [0, -0.8] },   // Courtyard, against the north wall
-    PAP: { cell: [9, 7], off: [0, 0] },
-    POWER: { cell: [10, 2], off: [0, 0] },
-    PLAYER_SPAWN: { cell: [7, 12], off: [0, 0.5] },
-    RELIC_SPOTS: [{ cell: [0, 0], face: 'W' }, { cell: [3, 0], face: 'N' }, { cell: [15, 0], face: 'E' }, { cell: [4, 5], face: 'N' }, { cell: [0, 7], face: 'W' }, { cell: [15, 7], face: 'E' }, { cell: [5, 11], face: 'N' }, { cell: [0, 2], face: 'W' }, { cell: [6, 0], face: 'N' }],
-    EE_SOULBOX: [8, 8],
-    // frame=Auto Garage, plate=Teleporter-C Courtyard, glass=Animal Testing.
-    SHIELD_PARTS: {
-      frame: { room: 'G', spots: [{ cell: [4, 3], face: 'S' }, { cell: [8, 3], face: 'S' }, { cell: [11, 3], face: 'S' }] },
-      plate: { room: 'C', spots: [{ cell: [8, 5], face: 'N' }, { cell: [3, 8], face: 'W' }, { cell: [9, 9], face: 'S' }] },
-      glass: { room: 'L', spots: [{ cell: [0, 8], face: 'W' }, { cell: [1, 8], face: 'E' }, { cell: [0, 9], face: 'S' }] }
+    MAINFRAME: { cell: [20, 9], off: [0, 0] },
+    PAP: { cell: [22, 9], off: [0, 0] },
+    POWER: { cell: [18, 4], off: [0, 0] },
+    PLAYER_SPAWN: { cell: [20, 12], off: [0, 0.5] },
+    RELIC_SPOTS: [{ cell: [5, 0], face: 'N' }, { cell: [4, 3], face: 'W' }, { cell: [18, 3], face: 'E' }, { cell: [0, 8], face: 'W' }, { cell: [3, 6], face: 'N' }, { cell: [7, 14], face: 'W' }, { cell: [12, 19], face: 'S' }, { cell: [23, 16], face: 'E' }, { cell: [21, 19], face: 'S' }],
+    EE_SOULBOX: [13, 16],
+    eeName: "THE GIANT'S HEART",
+    eeNode: 'factory identification card',
+    eeRewards: ['seelenmotor', 'nachbildner115'],
+    EE_START: { cell: [23, 11], face: 'E', title: 'GRUPPE 935 SHUTDOWN ORDER',
+      prompt: "Read the Giant's shutdown order",
+      intro: 'SUBJECT RECORDS — Begin in Animal Testing' },
+    EE_STEPS: [
+      { cell: [7, 15], face: 'W', room: 'Animal Testing', kind: 'subject tag',
+        prompt: 'Recover the marked subject tag', clue: 'FURNACE — Temper the tag in Teleporter B' },
+      { cell: [7, 0], face: 'N', room: 'Furnace Room', kind: 'heat stamp',
+        prompt: 'Temper the tag in the furnace stamp', clue: 'UPPER ASSEMBLY — Carry it to the regulator above' },
+      { cell: [18, 4], face: 'E', y: 4, room: 'Assembly Control', kind: 'heart regulator',
+        prompt: "Install the tag in the Giant's regulator", clue: 'COURTYARD — The buried reactor is awake' }
+    ],
+    // Optional prestige continuation after the normal Giant's Heart reward.
+    // It deliberately revisits both floors and all three teleporter wings.
+    OVERCLOCK: {
+      regulator: { cell: [18, 4], face: 'E', y: 4 },
+      conduits: [
+        { cell: [12, 19], face: 'S', y: 0, room: 'Animal Testing' },
+        { cell: [4, 3], face: 'W', y: 0, room: 'Furnace Room' },
+        { cell: [23, 17], face: 'E', y: 4, room: 'A-Lab Observation' }
+      ],
+      cells: [
+        { cell: [21, 18], y: 0, room: 'Teleporter A Laboratory', teleporter: 'A' },
+        { cell: [7, 1], y: 0, room: 'Furnace Room', teleporter: 'B' },
+        { cell: [2, 9], y: 0, room: 'West Courtyard', teleporter: 'C' }
+      ],
+      lockdownKills: 24,
+      cellTime: 60
     },
-    SHIELD_BENCH: { cell: [1, 9], face: 'S' }
+    // All parts are on genuine perimeter walls and clear of the three stairs.
+    SHIELD_PARTS: {
+      frame: { room: 'G', spots: [{ cell: [18, 3], face: 'E' }, { cell: [16, 9], face: 'S' }, { cell: [9, 7], face: 'W' }] },
+      plate: { room: 'C', spots: [{ cell: [0, 9], face: 'W' }, { cell: [3, 6], face: 'N' }, { cell: [4, 12], face: 'S' }] },
+      glass: { room: 'L', spots: [{ cell: [7, 15], face: 'W' }, { cell: [12, 19], face: 'S' }, { cell: [16, 17], face: 'E' }] }
+    },
+    SHIELD_BENCH: { cell: [16, 16], face: 'E' }
   };
+
+  // Authentic partial verticality: four self-contained upper departments sit
+  // directly on their supporting buildings. A narrow, supported service bridge
+  // extends from Upper Assembly toward the Mainframe; the yards never receive a
+  // second building stacked over them.
+  CFG.MAPS.derriese.FLOORS = [
+    { id: '1', floorY: 0, primary: true, GRID: CFG.MAPS.derriese.GRID,
+      ROOMS: CFG.MAPS.derriese.ROOMS, OUTDOOR: CFG.MAPS.derriese.OUTDOOR,
+      WINDOWS: CFG.MAPS.derriese.WINDOWS, RISERS: CFG.MAPS.derriese.RISERS },
+    { id: '2', floorY: 4,
+      FLOOR_OMIT: [[9, 1], [10, 1], [9, 2], [10, 2], [9, 3], [10, 3], [9, 4], [10, 4],
+        [13, 3], [14, 3], [13, 4], [14, 4], [13, 5], [14, 5], [13, 6], [14, 6],
+        [8, 13], [9, 13], [8, 14], [9, 14], [8, 15], [9, 15], [8, 16], [9, 16],
+        [18, 15], [19, 15], [18, 16], [19, 16], [18, 17], [19, 17], [18, 18], [19, 18]], GRID: [
+      '.....BBBBBBB............',
+      '.....BBBBBBB............',
+      '.....BBBBBBB.WWWWWW.....',
+      '.....BBBBBBB.WWWWWW.....',
+      '.....BBBBBBB.WWWWWW.....',
+      '.............WWWWWW.....',
+      '.............WWWWWW.....',
+      '........................',
+      '........................',
+      '........................',
+      '........................',
+      '........................',
+      '........HHHHHHHH........',
+      '........HHHHHHHH........',
+      '........HHHHHHHH........',
+      '........HHHHHHHH..KKKKKK',
+      '........HHHHHHHH..KKKKKK',
+      '........HHHHHHHH..KKKKKK',
+      '..................KKKKKK',
+      '..................KKKKKK'
+    ], ROOMS: {
+      B: { name: 'Furnace Offices', floor: 0x343536, light: 0xb88962 },
+      W: { name: 'Upper Assembly', floor: 0x303a39, light: 0x80b09c },
+      H: { name: 'Animal Testing Balcony', floor: 0x303842, light: 0x78a9bc },
+      K: { name: 'A-Lab Observation', floor: 0x29343c, light: 0x72bbce }
+    }, DOORS: {}, WINDOWS: [
+      { cell: [5, 0], dir: 'N' }, { cell: [11, 1], dir: 'E' },
+      { cell: [18, 3], dir: 'E' }, { cell: [13, 6], dir: 'S' },
+      { cell: [8, 14], dir: 'W' }, { cell: [15, 17], dir: 'S' },
+      { cell: [23, 16], dir: 'E' }, { cell: [20, 19], dir: 'S' }
+    ] }
+  ];
 
   /* -------------------------------------------------- DER WETTERJUNGE --- */
   // Showpiece custom map: a huge OUTDOOR courtyard hub (C) ringed by indoor
@@ -234,7 +321,7 @@
   CFG.MAPS.wetterjunge = {
     id: 'wetterjunge',
     name: 'DER WETTERJUNGE',
-    sub: 'Storm research station — custom map. Wonder weapon: the Wettermacher.',
+    sub: 'Storm station with a dual-access radar weather deck and the Eye of the Storm quest.',
     wonder: 'stormcaller',
     papRule: 'teleporters',
     atmos: { sky: 0x10131f, fog: 0x121726, density: 0.014,
@@ -245,12 +332,13 @@
                metal: 0x8a9098, beam: 0x515861, rust: 0x6f6a5e, conc: 0x95999f,
                deck: 0x666c74, ceil: 0x6c727d, accent: 0x5fcfe6, lampTint: 0xc6dcf4 },
     OUTDOOR: ['C'],
+    OPEN_CEIL: ['D'],              // open radar aperture beneath the weather deck
     GRID: [
       'AAAA.DDDDD.BBBB', // A=Generator  D=Radar Dome  B=Comms Tower
       'AAAA6DDDDD8BBBB', // 6: Gen↔Dome catwalk   8: Dome↔Comms catwalk
       'AAAA.DDDDD.BBBB',
       'AAAA.DDDDD.BBBB',
-      '..2....7....5..', // 2: Gen↔Lab   7: Dome↔Courtyard   5: Comms↔Storage
+      '..2....79...5..', // broad 7+9 Dome stair hall entry
       'LLLL.CCCCC.RRRR', // L=Laboratory  C=COURTYARD (outdoor)  R=Storage
       'LLLL.CCCCC.RRRR',
       'LLLL3CCCCC4RRRR', // 3: Lab↔Courtyard   4: Courtyard↔Storage
@@ -279,7 +367,8 @@
       5: { cost: 1000, name: 'Storage' },
       6: { cost: 1250, name: 'Radar Dome' },
       7: { cost: 1500, name: 'Radar Dome' },
-      8: { cost: 1250, name: 'Radar Dome' }
+      8: { cost: 1250, name: 'Radar Dome' },
+      9: { cost: 1500, name: 'Radar Stair Hall' }
     },
     WINDOWS: [
       { cell: [0, 1],  dir: 'W' },   // Generator
@@ -294,14 +383,14 @@
       { cell: [5, 13], dir: 'S' },   // Spawn
       { cell: [9, 13], dir: 'S' }
     ],
-    RISERS: [[6, 8], [8, 8]],
+    RISERS: [[7, 7], [9, 7]],
     PERK_MACHINES: [
       { perk: 'revive', cell: [6, 12], off: [-1.0, 0] },
       { perk: 'jugg',   cell: [13, 7], off: [1.0, 0] },
       { perk: 'speed',  cell: [1, 7],  off: [-1.0, 0] },
       { perk: 'dtap',   cell: [12, 5], off: [0, 0.5] },   // Storage
-      { perk: 'stamin', cell: [2, 1],  off: [0, 0] },
-      { perk: 'wonderfizz', cell: [13, 2], off: [0, 1.0] }
+      { perk: 'stamin', cell: [1, 3],  off: [0, 0], y: 4 },
+      { perk: 'wonderfizz', cell: [13, 2], off: [0, 1.0], y: 4 }
     ],
     WALLBUYS: [
       { gun: 'm14',      cell: [6, 13], off: [0, 1.6],  face: 'S' },
@@ -315,25 +404,39 @@
       { gun: 'rpk',      cell: [13, 5], off: [0, -1.6], face: 'N' }   // Storage, north wall
     ],
     BOX_SPOTS: [
-      { cell: [2, 2],  off: [0, 0] },
-      { cell: [12, 2], off: [0, 0] },
+      { cell: [1, 2],  off: [0, 0] },
+      { cell: [13, 3], off: [0, 0] },
       { cell: [2, 8],  off: [0, 0] },
       { cell: [13, 8], off: [0, 0] },
-      { cell: [7, 2],  off: [0, 0.6] },
+      { cell: [9, 3],  off: [0, 0.6], y: 4 },
       { cell: [7, 12], off: [0, 0] },
       { cell: [7, 8],  off: [0, 0] }
     ],
     TELEPORTERS: [
       { id: 'A', cell: [1, 8],  off: [0, 0] },
       { id: 'B', cell: [13, 6], off: [0, 0] },
-      { id: 'C', cell: [8, 1],  off: [0, 0] }
+      { id: 'C', cell: [6, 2],  off: [0, 0] }
     ],
     MAINFRAME: { cell: [6, 6], off: [0, 0] },
     PAP: { cell: [8, 6], off: [0, 0] },
-    POWER: { cell: [12, 1], off: [0, 0] },
+    POWER: { cell: [13, 1], off: [0, 0] },
     PLAYER_SPAWN: { cell: [7, 11], off: [0, 0.5] },
     RELIC_SPOTS: [{ cell: [0, 0], face: 'W' }, { cell: [6, 0], face: 'N' }, { cell: [11, 0], face: 'N' }, { cell: [1, 5], face: 'N' }, { cell: [5, 5], face: 'N' }, { cell: [11, 5], face: 'N' }, { cell: [5, 11], face: 'N' }, { cell: [1, 0], face: 'W' }, { cell: [8, 0], face: 'N' }],
     EE_SOULBOX: [7, 7],
+    eeName: 'EYE OF THE STORM',
+    eeNode: 'weather probe',
+    eeRewards: ['blitzfanger', 'kryolithwerfer'],
+    EE_START: { cell: [0, 6], face: 'W', title: 'PROJECT TEMPEST PROTOCOL',
+      prompt: 'Read the emergency storm protocol',
+      intro: 'GENERATOR — Restore the blue capacitor bank' },
+    EE_STEPS: [
+      { cell: [0, 2], face: 'W', room: 'Generator', kind: 'storm capacitor',
+        prompt: 'Charge the blue storm capacitor', clue: 'COMMS — Match the emergency frequency' },
+      { cell: [14, 2], face: 'E', room: 'Comms Tower', kind: 'frequency dial',
+        prompt: 'Tune the emergency storm frequency', clue: 'WEATHER DECK — Align the rooftop probe' },
+      { cell: [9, 2], face: 'N', y: 4, room: 'Eye Observation Deck', kind: 'weather probe',
+        prompt: 'Align the rooftop weather probe', clue: 'COURTYARD — Enter the Eye of the Storm' }
+    ],
     // frame=Radar Dome, plate=Laboratory, glass=Storage. Bench in the Generator.
     SHIELD_PARTS: {
       frame: { room: 'D', spots: [{ cell: [5, 3], face: 'S' }, { cell: [8, 3], face: 'S' }, { cell: [9, 3], face: 'S' }] },
@@ -342,6 +445,49 @@
     },
     SHIELD_BENCH: { cell: [3, 3], face: 'S' }
   };
+
+  // The weather station's upper level spans the Generator annex, central Eye
+  // deck and Comms control room, then projects south over the courtyard as a
+  // broad observation terrace. Two open-frame stairs join that terrace below.
+  CFG.MAPS.wetterjunge.FLOORS = [
+    { id: '1', floorY: 0, primary: true, GRID: CFG.MAPS.wetterjunge.GRID,
+      ROOMS: CFG.MAPS.wetterjunge.ROOMS, OUTDOOR: CFG.MAPS.wetterjunge.OUTDOOR,
+      OPEN_CEIL: CFG.MAPS.wetterjunge.OPEN_CEIL, WINDOWS: CFG.MAPS.wetterjunge.WINDOWS,
+      RISERS: CFG.MAPS.wetterjunge.RISERS },
+    { id: '2', floorY: 4, OUTDOOR: [],
+      FLOOR_OMIT: [[2, 1], [2, 2], [2, 3],
+        [7, 1], [8, 1], [7, 2], [8, 2], [7, 3], [8, 3],
+        [12, 1], [12, 2], [12, 3]], GRID: [
+      'JJJJ.KKKKK.OOOO',
+      'JJJJ2KKKKK3OOOO',
+      'JJJJ.KKKKK.OOOO',
+      'JJJJ.KKKKK.OOOO',
+      'JJJJ.KKKKK.OOOO',
+      'JJJJ4KKKKK5OOOO',
+      '....KKKKKKK....',
+      '....KKKKKKK....',
+      '...............',
+      '...............',
+      '...............',
+      '...............',
+      '...............',
+      '...............',
+      '...............',
+      '...............'
+    ], ROOMS: {
+      J: { name: 'Upper Climate Lab', floor: 0x303b45, light: 0x77c8df },
+      K: { name: 'Eye Observation Deck', floor: 0x333947, light: 0x94b8df },
+      O: { name: 'Lightning Control', floor: 0x303b3d, light: 0x74d6c8 }
+    }, DOORS: {
+      2: { cost: 750, name: 'Climate Lab — North' },
+      3: { cost: 750, name: 'Lightning Control — North' },
+      4: { cost: 750, name: 'Climate Lab — South' },
+      5: { cost: 750, name: 'Lightning Control — South' }
+    }, WINDOWS: [
+      { cell: [0, 3], dir: 'W' }, { cell: [14, 3], dir: 'E' },
+      { cell: [6, 0], dir: 'N' }, { cell: [8, 0], dir: 'N' }
+    ] }
+  ];
 
   /* ===================================================================
      KURHAUS — "The Aether Baths"  (single flat floor, no verticality)
@@ -360,7 +506,7 @@
   CFG.MAPS.kurhaus = {
     id: 'kurhaus',
     name: 'KURHAUS',
-    sub: 'The Aether Baths — the spa that drilled too deep. Wonder weapon: the Maelstrom Driver… and the founder buried a second.',
+    sub: 'The Aether Baths — complete the Founder’s Bargain for one of two buried weapons.',
     wonder: 'maelstrom',
     papRule: 'power',
     atmos: { sky: 0x2a2620, fog: 0x241f18, density: 0.01,
@@ -493,7 +639,9 @@
       { cell: [13, 11], face: 'S' }    // Cold Cellar, by the bricked-up archway
     ],
     EE_SOULBOX: [9, 8],                // the Pump Hall's heart — feed the machine
-    eeWonder: 'aetherlance',           // the founder's prize: his own Aether Lance
+    eeName: "THE FOUNDER'S BARGAIN",
+    eeRewards: ['aetherlance', 'vosssiphon'],
+    eeWonder: 'aetherlance',           // legacy alias; reward now comes from eeRewards
     // wings eligible for the AETHER SURGE round event (double points inside,
     // announced by banner + a pulsing floor ring) — not the spawn concourse
     SURGE_ROOMS: ['V', 'F', 'N', 'B', 'M', 'A'],
@@ -1009,16 +1157,16 @@
       pap: { name: 'Auge des Sturms', dmg: 5000, mag: 8, reserve: 24,
              stormDur: 6.5, stormRadius: 7.5 }
     },
-    // Kurhaus wonder weapon (placeholder behaviour reuses the storm-vortex
-    // projectile until the bespoke Maelstrom Driver model + thermal FX are
-    // authored in a later stage). Flagged wonder:true so it only rolls on Kurhaus.
+    // Kurhaus wonder weapon: a high-speed aether bore that pierces a horde and
+    // ricochets off architecture. It deliberately shares no tornado/pull/zap
+    // behaviour with the Wettermacher.
     maelstrom: {
-      name: 'Maelstrom Driver', cls: 'storm', dmg: 2600, head: 1, rpm: 75,
+      name: 'Maelstrom Driver', cls: 'storm', dmg: 3400, head: 1, rpm: 75,
       mag: 4, reserve: 16, reload: 3.2, mode: 'semi', spread: 0, box: 2.5,
       vm: { driver: 1 },
-      projectile: 'storm', wonder: true, stormDur: 4, stormRadius: 5.5,
-      pap: { name: 'Maelstrom Driver — Overcharged', dmg: 5200, mag: 8, reserve: 24,
-             stormDur: 6.5, stormRadius: 7.5 }
+      projectile: 'bore', wonder: true, boreSpeed: 38, boreBounces: 3, boreLife: 2.8,
+      pap: { name: 'Maelstrom Driver — Overcharged', dmg: 7200, mag: 8, reserve: 24,
+             boreSpeed: 48, boreBounces: 6, boreLife: 4.0 }
     },
     // Kurhaus's SECOND wonder — the founder's own weapon, granted ONLY by
     // completing the Founder's Bargain quest (never rolls in any box: wonder
@@ -1026,11 +1174,60 @@
     // A piercing aether lance: skewers every zombie along its line.
     aetherlance: {
       name: 'Aether Lance', cls: 'storm', dmg: 4200, head: 1, rpm: 55,
-      mag: 3, reserve: 15, reload: 2.8, mode: 'semi', spread: 0, box: 0,
+      mag: 2, reserve: 8, reload: 2.8, mode: 'semi', spread: 0, box: 0,
       vm: { lance: 1 },
       projectile: 'lance', wonder: true, lanceRange: 45, pierceRadius: 1.3,
-      pap: { name: "Voss's Judgement", dmg: 9500, mag: 5, reserve: 25,
+      pap: { name: "Voss's Judgement", dmg: 9500, mag: 3, reserve: 12,
              lanceRange: 60, pierceRadius: 2.1 }
+    },
+    nachtlicht: {
+      name: 'Nachtlicht', cls: 'launcher', dmg: 2400, head: 1, rpm: 45,
+      mag: 1, reserve: 5, reload: 2.5, mode: 'semi', spread: 0, box: 0,
+      vm: { len: 0.72, col: 0x7a2d18 }, projectile: 'flare', wonder: true,
+      flareDur: 7, flareRadius: 13,
+      pap: { name: 'Letztes Signal', dmg: 5200, mag: 2, reserve: 8, flareDur: 9, flareRadius: 16 }
+    },
+    minenwerfer115: {
+      name: 'Minenwerfer 115', cls: 'launcher', dmg: 3600, head: 1, rpm: 50,
+      mag: 2, reserve: 8, reload: 2.8, mode: 'semi', spread: 0, box: 0,
+      vm: { len: 0.88, drum: 1, col: 0x3f4a35 }, projectile: 'soulmine', wonder: true,
+      mineNeed: 5, mineRadius: 4.5,
+      pap: { name: 'Totenfeld', dmg: 7600, mag: 3, reserve: 12, mineNeed: 4, mineRadius: 6 }
+    },
+    seelenmotor: {
+      name: 'Seelenmotor', cls: 'wunder', dmg: 1900, head: 1, rpm: 55,
+      mag: 3, reserve: 12, reload: 3.0, mode: 'semi', spread: 0, box: 0,
+      vm: { motor: 1, len: 0.95 }, projectile: 'piston', wonder: true,
+      pistonDur: 4, pistonWidth: 1.5, pistonRange: 16,
+      pap: { name: 'Ewige Schicht', dmg: 3900, mag: 5, reserve: 20, pistonDur: 6, pistonWidth: 2.2 }
+    },
+    nachbildner115: {
+      name: 'Nachbildner 115', cls: 'wunder', dmg: 2600, head: 1, rpm: 50,
+      mag: 2, reserve: 10, reload: 2.8, mode: 'semi', spread: 0, box: 0,
+      vm: { prism: 1, len: 0.8 }, projectile: 'echo', wonder: true,
+      echoPulses: 2, echoRange: 38,
+      pap: { name: 'Massenkopie', dmg: 5200, mag: 3, reserve: 15, echoPulses: 4, echoRange: 50 }
+    },
+    blitzfanger: {
+      name: 'Blitzfänger', cls: 'storm', dmg: 1100, head: 1, rpm: 70,
+      mag: 2, reserve: 10, reload: 2.6, mode: 'semi', spread: 0, box: 0,
+      vm: { rods: 1, len: 0.84 }, projectile: 'rod', wonder: true,
+      rodDur: 12, rodRadius: 1.0,
+      pap: { name: 'Himmelszaun', dmg: 2400, mag: 4, reserve: 16, rodDur: 18, rodRadius: 1.4 }
+    },
+    kryolithwerfer: {
+      name: 'Kryolithwerfer', cls: 'storm', dmg: 2800, head: 1, rpm: 65,
+      mag: 4, reserve: 16, reload: 2.8, mode: 'semi', spread: 0, box: 0,
+      vm: { cryo: 1, len: 0.9 }, projectile: 'kryolith', wonder: true,
+      iceSpeed: 18, iceRadius: 1.3,
+      pap: { name: 'Absoluter Nullpunkt', dmg: 5900, mag: 6, reserve: 24, iceSpeed: 24, iceRadius: 2.0 }
+    },
+    vosssiphon: {
+      name: "Voss's Siphon", cls: 'storm', dmg: 900, head: 1, rpm: 240,
+      mag: 12, reserve: 48, reload: 2.6, mode: 'auto', spread: 0, box: 0,
+      vm: { siphon: 1, len: 0.78 }, projectile: 'siphon', wonder: true,
+      siphonHeal: 18, siphonTargets: 1,
+      pap: { name: 'Fountain of Voss', dmg: 1900, mag: 20, reserve: 80, siphonHeal: 28, siphonTargets: 3 }
     }
   };
   // Mystery box also rolls monkey bombs as a pseudo-weapon entry.

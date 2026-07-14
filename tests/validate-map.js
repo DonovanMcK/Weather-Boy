@@ -143,6 +143,11 @@ CFG.MAP_IDS.forEach(function (mapId) {
   ok(pool.indexOf('raygun') >= 0, 'ray gun in the box pool');
   ok(pool.indexOf(M.wonder) >= 0, 'wonder weapon in the box pool');
   ok(pool.length >= 8, 'box pool has ' + pool.length + ' guns');
+  ok(M.eeRewards && M.eeRewards.length === 2, 'map has exactly two Easter-egg wonder rewards');
+  M.eeRewards.forEach(function (id) {
+    ok(!!CFG.WEAPONS[id] && CFG.WEAPONS[id].wonder && !CFG.WEAPONS[id].box,
+       'quest reward ' + id + ' exists, is a wonder weapon, and is excluded from the box');
+  });
   CFG.MAP_IDS.forEach(function (other) {
     if (other === mapId) return;
     var ow = CFG.MAPS[other].wonder;
@@ -175,6 +180,10 @@ ids.forEach(function (id) { dmgs[CFG.WEAPONS[id].dmg] = true; });
 ok(Object.keys(dmgs).length >= 15, 'damage values are varied (' + Object.keys(dmgs).length + ' distinct)');
 ok(new Set(CFG.MAP_IDS.map(function (id) { return CFG.MAPS[id].wonder; })).size === CFG.MAP_IDS.length,
    'each map has a distinct wonder weapon');
+ok(CFG.WEAPONS.aetherlance.mag === 2 && CFG.WEAPONS.aetherlance.reserve === 8,
+   'quest-only Aether Lance has restrained base ammo (2 + 8)');
+ok(CFG.WEAPONS.aetherlance.pap.mag === 3 && CFG.WEAPONS.aetherlance.pap.reserve === 12,
+   "Voss's Judgement has restrained upgraded ammo (3 + 12)");
 
 // ---- damage profiles: shots-to-kill follows the COD archetypes ----
 console.log('\n=== damage profiles ===');

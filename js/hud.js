@@ -33,6 +33,7 @@
     H.downedEl = el('hud-downed');
     H.health = el('hud-health');
     H.shield = el('hud-shield');
+    H.heart = el('hud-heart');
     H.bannerTimer = 0;
   };
 
@@ -110,6 +111,14 @@
     var pips = '';
     for (var i = 0; i < sh.max; i++) pips += '<i' + (i < sh.hp ? '' : ' class="spent"') + '></i>';
     H.shield.innerHTML = '<span class="sh-label">SHIELD</span>' + pips;
+  };
+
+  H.setHeart = function (heart) {
+    if (!H.heart) return;
+    if (!heart || !heart.has) { H.heart.style.display = 'none'; return; }
+    H.heart.style.display = 'block';
+    H.heart.className = heart.ready ? '' : 'spent';
+    H.heart.textContent = (heart.ready ? '♥ ' : '♡ ') + 'HEART OF THE GIANT';
   };
 
   H.setPrompt = function (text) {
