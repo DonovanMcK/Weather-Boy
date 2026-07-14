@@ -3011,6 +3011,124 @@
         label('A-LAB OBSERVATION', 21, 17, 6.75, '#82d4e5');
         screenBank(23, 17, 4, 2, cyan, true);
 
+        /* ---- STORYTELLING + EASTER-EGG INSINUATION ----
+           Every quest stop shares one recurring mark — an amber triangle on a
+           dark plaque — and the world physically points at each step: a blood
+           trail leaves the briefing toward Animal Testing, the wrecked cage
+           foreshadows the Iron Subject, heat + a tag-shaped recess flag the
+           furnace stamp, cable bundles climb to the regulator, and three
+           color-coded conduits (A cyan / B amber / C green) cross the yard
+           and converge on the buried soul device. No floating text. */
+        var bloodM = new THREE.MeshLambertMaterial({ color: 0x4a1010 });
+        var glassM = new THREE.MeshLambertMaterial({ color: 0x7fd4c8, transparent: true, opacity: 0.35 });
+        var glowAmber = new THREE.MeshBasicMaterial({ color: 0xffb35a });
+        var glowRed = new THREE.MeshBasicMaterial({ color: 0xff4a3a });
+        function symbolPlaque(x, y, z, rotY) {
+          // the recurring Gruppe-935 mark: amber triangle on a dark plate
+          var g = new THREE.Group();
+          var plate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.05), dark); g.add(plate);
+          var tri = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.34, 3), glowAmber);
+          tri.position.z = 0.05; tri.rotation.x = Math.PI / 2; tri.rotation.z = Math.PI; g.add(tri);
+          g.position.set(x, y, z); g.rotation.y = rotY || 0; G.scene.add(g);
+          return g;
+        }
+        function floorCable(x1, z1, x2, z2, mat, w) {
+          var dxc = x2 - x1, dzc = z2 - z1, lenC = Math.hypot(dxc, dzc);
+          var cb = addBox(w || 0.16, 0.05, lenC, (x1 + x2) / 2, 0.05, (z1 + z2) / 2, mat);
+          cb.rotation.y = Math.atan2(dxc, dzc);
+          return cb;
+        }
+        // MAINFRAME YARD — the three wing conduits converge on the device cell
+        // [13,16]-adjacent yard route via the mainframe; warning paint squares
+        // the return pad. (Also the Overclock color key: A cyan, B amber, C green.)
+        var mfW = map.mainframe ? map.mainframe.pos : wc(20, 9);
+        var sbW = wc(13, 16);                                  // soul-device cell
+        floorCable(wc(20, 13).x, wc(20, 13).z, mfW.x, mfW.z + 1.2, cyan, 0.14);    // Tel-A wing
+        floorCable(wc(17, 7).x + 1.5, wc(17, 7).z, mfW.x - 1.0, mfW.z, amber, 0.14); // Tel-B via garage door
+        floorCable(wc(16, 10).x, wc(16, 10).z, mfW.x - 0.5, mfW.z + 0.8, green, 0.14); // Tel-C via L east door
+        [cyan, amber, green].forEach(function (cm, ci) {       // then on to the device
+          floorCable(mfW.x + (ci - 1) * 0.35, mfW.z + 1.4, sbW.x + (ci - 1) * 0.35, sbW.z - 0.8, cm, 0.12);
+        });
+        for (var wp2 = 0; wp2 < 4; wp2++) {                    // warning paint ring
+          var wpA = [[-2.2, 0, 4.4, 0.16], [2.2, 0, 4.4, 0.16], [0, -2.2, 0.16, 4.4], [0, 2.2, 0.16, 4.4]][wp2];
+          addBox(wpA[2], 0.03, wpA[3], mfW.x + wpA[0], 0.045, mfW.z + wpA[1], amber);
+        }
+        symbolPlaque(mfW.x, 2.2, mfW.z - 1.9, 0);
+        // BRIEFING [23,11]E: spotlight cone + dropped ID card + blood trail
+        // heading for Animal Testing's east door [16,10]
+        var brf = wc(23, 11);
+        addBox(0.5, 0.34, 0.05, brf.x + 1.7, 2.6, brf.z, glowAmber);        // lit order sheet
+        symbolPlaque(brf.x + 1.7, 1.6, brf.z + 0.75, -Math.PI / 2);
+        addBox(0.24, 0.02, 0.36, brf.x + 0.8, 0.05, brf.z + 0.7, paper);    // dropped ID card
+        for (var bt3 = 0; bt3 < 6; bt3++) {                                 // spatter trail west
+          var btT = bt3 / 5;
+          var btX = brf.x + 0.6 + (wc(16, 10).x + 1.5 - brf.x - 0.6) * btT;
+          var btZ = brf.z + 0.5 + (wc(16, 10).z - brf.z - 0.5) * btT;
+          var sp3 = addBox(0.34 - bt3 * 0.03, 0.02, 0.26 - bt3 * 0.02, btX, 0.04, btZ, bloodM);
+          sp3.rotation.y = bt3 * 0.9;
+        }
+        // FURNACE — iron door, glow slit, scorch plume, coal, and the tempering
+        // station: heat-stained tray with a TAG-SHAPED recess under the mark
+        var fdo = wc(6, 0);
+        addBox(2.2, 2.6, 0.3, fdo.x, 1.3, fdo.z - 1.55, dark);              // furnace door
+        addBox(1.5, 0.22, 0.1, fdo.x, 0.9, fdo.z - 1.38, glowAmber);        // glow slit
+        addBox(2.6, 1.4, 0.06, fdo.x, 3.2, fdo.z - 1.62, new THREE.MeshLambertMaterial({ color: 0x141414 })); // scorch plume
+        for (var cl2 = 0; cl2 < 5; cl2++) {                                 // coal spill
+          var clA = cl2 * 1.3;
+          addBox(0.34, 0.22, 0.3, fdo.x - 1.8 + Math.cos(clA) * 0.5, 0.11, fdo.z - 1.1 + Math.sin(clA) * 0.35, dark);
+        }
+        var stampW = wc(7, 0);
+        addBox(1.1, 0.9, 0.55, stampW.x, 0.45, stampW.z - 1.5, steel);      // stamp bench
+        addBox(0.5, 0.05, 0.36, stampW.x - 0.1, 0.93, stampW.z - 1.5, new THREE.MeshLambertMaterial({ color: 0x6e4a2a })); // heat-stained tray
+        addBox(0.16, 0.03, 0.26, stampW.x + 0.28, 0.92, stampW.z - 1.5, dark); // tag-shaped recess
+        symbolPlaque(stampW.x, 2.1, stampW.z - 1.72, 0);
+        // ANIMAL TESTING — numbered cages (plaques), the MARKED gurney, subject
+        // records, and one WRECKED containment cage: the Iron Subject was here
+        for (var cg2 = 0; cg2 < 3; cg2++) {
+          var cgW = wc(8 + cg2 * 3, 14);
+          addBox(0.3, 0.3, 0.04, cgW.x, 2.5, cgW.z - 1.7, paper);           // cage number plate
+        }
+        symbolPlaque(wc(11, 14).x, 2.95, wc(11, 14).z - 1.7, 0);            // the marked cage
+        var gur = wc(13, 14);                                               // marked gurney, wall-flush
+        addBox(1.7, 0.08, 0.62, gur.x, 0.82, gur.z - 1.3, steel);
+        [[-0.7, 0], [0.7, 0]].forEach(function (gw) {
+          addBox(0.08, 0.78, 0.08, gur.x + gw[0], 0.4, gur.z - 1.1, dark);
+          addBox(0.08, 0.78, 0.08, gur.x + gw[0], 0.4, gur.z - 1.5, dark);
+        });
+        addBox(0.5, 0.03, 0.5, gur.x - 0.2, 0.88, gur.z - 1.3, bloodM);     // stained sheet
+        symbolPlaque(gur.x + 0.55, 1.35, gur.z - 1.3, 0);
+        var wrk = wc(14, 17);                                               // wrecked containment cage
+        var wCage = addBox(1.6, 2.1, 0.65, wrk.x, 1.05, wrk.z + 1.32, steel);
+        wCage.rotation.z = 0.08;
+        for (var wb2 = -1; wb2 <= 1; wb2++) {
+          var bar2 = addBox(0.05, 1.9, 0.05, wrk.x + wb2 * 0.45, 1.0, wrk.z + 0.95, dark);
+          bar2.rotation.x = 0.3 + Math.abs(wb2) * 0.25;                     // bars bent OUTWARD
+        }
+        addBox(1.9, 0.14, 0.1, wrk.x, 0.07, wrk.z + 0.6, amber);     // warning stripe
+        addBox(0.44, 0.3, 0.04, wrk.x - 1.1, 1.7, wrk.z + 1.5, glowRed);    // red warning record
+        // A-LAB — specimen tanks flanking the observation corner
+        [[19, 18], [22, 14]].forEach(function (tk2) {
+          var tkW = wc(tk2[0], tk2[1]);
+          var tank2 = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.7, 12), glassM);
+          tank2.position.set(tkW.x, 1.15, tkW.z + 1.45); G.scene.add(tank2);
+          addBox(0.5, 0.3, 0.5, tkW.x, 0.15, tkW.z + 1.45, steel);
+          var mass2 = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 8), dark);
+          mass2.scale.y = 1.5; mass2.position.set(tkW.x, 1.0, tkW.z + 1.45); G.scene.add(mass2);
+        });
+        // UPPER ASSEMBLY — cable bundles CLIMB the garage stair wall to the
+        // regulator; pulsing indicators (bright emissives) mark the console
+        var regW = wc(18, 4);
+        for (var cb2 = 0; cb2 < 3; cb2++)
+          addBox(0.12, 4.2, 0.12, regW.x + 1.7, 2.1, regW.z - 0.5 + cb2 * 0.35, [cyan, amber, green][cb2]);
+        for (var il2 = 0; il2 < 3; il2++)
+          addBox(0.14, 0.14, 0.06, regW.x + 1.55, 5.1 + il2 * 0.3, regW.z, il2 === 1 ? glowRed : glowAmber);
+        symbolPlaque(regW.x + 1.4, 5.9, regW.z + 0.7, -Math.PI / 2);
+        // COOLING YARD — drainage channel running from the tower line to a
+        // grate, plus a dripping condensate pipe and an abandoned toolbox
+        var drA = wc(1, 9), drB = wc(6, 9);
+        addBox(drB.x - drA.x, 0.04, 0.7, (drA.x + drB.x) / 2, 0.02, drA.z + 1.6, dark);
+        addBox(0.9, 0.06, 0.9, drB.x + 0.6, 0.04, drA.z + 1.6, steel);      // grate
+        addBox(0.55, 0.3, 0.32, drA.x + 1.2, 0.16, drA.z - 1.4, steel); // toolbox
         // Real roof mass: uncovered ground cells receive a thick tar/concrete
         // cap, while every upper department receives a pitched industrial roof.
         // The roof volumes complete the building silhouette without adding any
