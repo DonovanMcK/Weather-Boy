@@ -2512,18 +2512,34 @@
           // the open version intentionally uses no broad side panels.
         }
         if (s.stairRails && !s.integrated) {
-          // Narrow exterior access stair: two slim handrails and side collision,
-          // scaled to the flight instead of throwing a broad frame across the yard.
+          // Narrow exterior access stair, built like real steel: stringers
+          // carry the treads, posts carry the stringers to the ground, and the
+          // handrails ride balusters that tie them to the flight — nothing
+          // floats, nothing reads as a disconnected diagonal pole.
           var srEdge = 0.1, srTop = H + 1.1;
           map.addCollider(st.x1 - srEdge, st.zTop, st.x1 + srEdge, st.zBase, 0, srTop);
           map.addCollider(st.x2 - srEdge, st.zTop, st.x2 + srEdge, st.zBase, 0, srTop);
+          var sdz = st.zBase - st.zTop, slen = Math.sqrt(sdz * sdz + H * H);
+          var pitch = -Math.atan2(H, sdz);
           [st.x1 + 0.06, st.x2 - 0.06].forEach(function (rx) {
-            addBox(0.09, 1.0, 0.09, rx, H + 0.5, st.zTop, railMat);
-            addBox(0.09, 1.0, 0.09, rx, 0.5, st.zBase, railMat);
-            var sdz = st.zBase - st.zTop, slen = Math.sqrt(sdz * sdz + H * H);
-            var shr = addBox(0.09, 0.09, slen, rx, H / 2 + 0.82,
-                             (st.zTop + st.zBase) / 2, railMat);
-            shr.rotation.x = -Math.atan2(H, sdz);
+            // stringer following the slope, just under the tread noses
+            var strg = addBox(0.12, 0.22, slen, rx, H / 2 - 0.18, (st.zTop + st.zBase) / 2, dBeam);
+            strg.rotation.x = pitch;
+            // handrail on end posts + two mid balusters (rail terminates on
+            // the deck post above and the ground post below — no free ends)
+            addBox(0.09, 1.0, 0.09, rx, H + 0.5, st.zTop + 0.05, railMat);
+            addBox(0.09, 1.0, 0.09, rx, 0.5, st.zBase - 0.05, railMat);
+            var shr = addBox(0.09, 0.09, slen, rx, H / 2 + 0.82, (st.zTop + st.zBase) / 2, railMat);
+            shr.rotation.x = pitch;
+            [0.3, 0.7].forEach(function (t) {
+              var bz = st.zTop + sdz * t, by = H * (1 - t);
+              addBox(0.07, 1.0, 0.07, rx, by + 0.42, bz, railMat);
+            });
+            // support posts: ground up to the stringer underside at 1/3 + 2/3
+            [0.35, 0.72].forEach(function (t) {
+              var pz = st.zTop + sdz * t, ph = Math.max(0.4, H * (1 - t) - 0.28);
+              addBox(0.14, ph, 0.14, rx, ph / 2, pz, dBeam);
+            });
           });
         }
         if (s.integrated) {
@@ -2544,17 +2560,24 @@
             addBox(st.x2 - st.x1 + 0.48, 0.35, 0.3, (st.x1 + st.x2) / 2,
                    H - 0.2, st.zBase, dBeam);
           } else {
-            // Open industrial stair hall (used by the weather station): slim
-            // side collision and diagonal rails keep the crowd on the flight.
+            // Open industrial stair hall (used by the weather station): the
+            // same honest steel as the exterior flight — stringers, balusters
+            // and end posts, so no rail ever reads as a floating diagonal.
             var edge = 0.12, railTop = H + 1.0;
             map.addCollider(st.x1 - edge, st.zTop, st.x1 + edge, st.zBase, 0, railTop);
             map.addCollider(st.x2 - edge, st.zTop, st.x2 + edge, st.zBase, 0, railTop);
+            var odz = st.zBase - st.zTop, olen = Math.sqrt(odz * odz + H * H);
+            var opitch = -Math.atan2(H, odz);
             [st.x1 + 0.08, st.x2 - 0.08].forEach(function (rx) {
-              addBox(0.1, 1.0, 0.1, rx, H + 0.5, st.zTop, railMat);
-              addBox(0.1, 1.0, 0.1, rx, 0.5, st.zBase, railMat);
-              var dz = st.zBase - st.zTop, len = Math.sqrt(dz * dz + H * H);
-              var hand = addBox(0.1, 0.1, len, rx, H / 2 + 0.85, (st.zTop + st.zBase) / 2, railMat);
-              hand.rotation.x = -Math.atan2(H, dz);
+              var ostr = addBox(0.12, 0.2, olen, rx, H / 2 - 0.18, (st.zTop + st.zBase) / 2, dBeam);
+              ostr.rotation.x = opitch;
+              addBox(0.1, 1.0, 0.1, rx, H + 0.5, st.zTop + 0.05, railMat);
+              addBox(0.1, 1.0, 0.1, rx, 0.5, st.zBase - 0.05, railMat);
+              var hand = addBox(0.1, 0.1, olen, rx, H / 2 + 0.85, (st.zTop + st.zBase) / 2, railMat);
+              hand.rotation.x = opitch;
+              [0.33, 0.66].forEach(function (t) {
+                addBox(0.07, 1.0, 0.07, rx, H * (1 - t) + 0.42, st.zTop + odz * t, railMat);
+              });
             });
           }
           // Landing-side balustrades close the exposed omitted slab edges. The
