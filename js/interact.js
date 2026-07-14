@@ -213,7 +213,7 @@
           var sh = G.player.shield;
           if (!sh || sh.has) return;
           if (I.shield.count < I.shield.total) { G.audio.deny(); return; }
-          sh.has = true; sh.hp = sh.max;
+          sh.has = true; sh.owned = true; sh.hp = sh.max;
           G.audio.buy();
           G.hud.banner('ZOMBIE SHIELD', '#fb8', 2, 'Blocks attacks from behind');
           if (G.hud.setShield) G.hud.setShield(sh);
@@ -245,7 +245,220 @@
     I.quest = { on: questOn, stage: 0, sigilsLit: 0, currents: 0, valves: [],
                 offerings: 0, offeringItems: [], effigy: null, ghost: null, ghostFinds: 0, done: false };
     I.ee = { relics: [], activated: 0, box: null, boxMesh: null, glow: null,
-             souls: 0, need: 30, done: false };
+             souls: 0, need: CFG.cur.id === 'nacht' ? 24 : (CFG.cur.id === 'wetterjunge' ? 28 : 30),
+             done: false, reward: null, started: questOn, step: 0, objective: '', markers: [] };
+    I.overclock = { on: CFG.cur.id === 'derriese' && !!CFG.cur.OVERCLOCK,
+      available: false, stage: 0, reward: null, conduits: [], exposed: 0,
+      cells: [], installed: 0, carrying: null, cellTimer: 0,
+      lockdownKills: 0, lockdownUpper: false, boss: null, done: false,
+      markers: [], objective: '' };
+    function chooseEeReward() {
+      var pool = (CFG.cur.eeRewards || (CFG.cur.eeWonder ? [CFG.cur.eeWonder] : [])).slice();
+      if (!pool.length) return null;
+      var key = 'wj_last_ee_reward_' + CFG.cur.id;
+      var last = localStorage.getItem(key), pick;
+      if (pool.length === 2 && pool.indexOf(last) >= 0) pick = pool[last === pool[0] ? 1 : 0];
+      else pick = pool[(Math.random() * pool.length) | 0];
+      localStorage.setItem(key, pick); I.ee.reward = pick;
+      return pick;
+    }
+    I.pickEeReward = chooseEeReward;
+
+    // The older maps now advertise their quest with a conspicuous authored
+    // briefing station. Once read, exactly one numbered objective marker is
+    // visible at a time and every completion names the next room. This keeps
+    // discovery in-world without requiring the player to press F on random art.
+    var eeStart = !questOn && CFG.cur.EE_START;
+    function eeMarker(text, pos, color) {
+      var sp = G.util.textSprite(text, color || '#8ff', 4.2, 'rgba(0,0,0,0.68)');
+      sp.position.set(pos.x, (pos.y || 0) + 2.35, pos.z); G.scene.add(sp);
+      I.ee.markers.push(sp); return sp;
+    }
+    function showEeObjective(idx) {
+      I.ee.step = idx;
+      I.ee.markers.forEach(function (m, mi) { m.visible = mi === idx + 1; }); // 0 = briefing label
+      var st = (CFG.cur.EE_STEPS || [])[idx];
+      I.ee.objective = st ? (st.room + ' — ' + st.prompt) : 'Return to the awakened final device';
+    }
+
+    /* -------------------------- OVERCLOCK THE GIANT (Der Riese prestige EE)
+       This is constructed up-front but remains completely dormant until the
+       normal Giant's Heart chest awards its regular wonder weapon. */
+    function ocMarker(text, pos, color) {
+      var sp = G.util.textSprite(text, color || '#79ffe0', 3.6, 'rgba(0,0,0,0.72)');
+      sp.position.set(pos.x, (pos.y || 0) + 2.2, pos.z); sp.visible = false;
+      G.scene.add(sp); I.overclock.markers.push(sp); return sp;
+    }
+    function hideOcMarkers() { I.overclock.markers.forEach(function (m) { m.visible = false; }); }
+    function ocObjective(text, marker) {
+      hideOcMarkers(); if (marker) marker.visible = true;
+      I.overclock.objective = text; I.ee.objective = 'OVERCLOCK — ' + text;
+    }
+    function showNextOcCell() {
+      var oc = I.overclock, c = oc.cells[oc.installed];
+      hideOcMarkers();
+      oc.cells.forEach(function (x, i) { x.mesh.visible = i === oc.installed && !oc.carrying; });
+      if (c) {
+        c.marker.visible = true;
+        ocObjective(c.room + ' — recover reactor cell ' + (oc.installed + 1) + '/3', c.marker);
+      }
+    }
+    function beginLockdown() {
+      var oc = I.overclock; oc.stage = 4; oc.lockdownKills = 0; oc.lockdownUpper = false;
+      ocObjective('GROUND FLOOR — kill 6 enemies to drive the first pressure cycle', oc.lockdownGroundMarker);
+      G.hud.banner('FACTORY LOCKDOWN', '#79ffe0', 4, 'Cycle 1/4 — fight on the ground floor');
+    }
+    function spawnIronSubject() {
+      var oc = I.overclock; oc.stage = 5; hideOcMarkers();
+      oc.boss = G.zombies.spawnQuestBoss(oc.reward);
+      ocObjective('COURTYARD — break the Iron Subject with ' + CFG.WEAPONS[oc.reward].name, oc.bossMarker);
+    }
+    function completeOverclock() {
+      var oc = I.overclock, gun = G.weapons.slots.filter(function (g) { return g.id === oc.reward; })[0];
+      if (!gun) { G.weapons.giveWeapon(oc.reward); gun = G.weapons.current(); }
+      gun.overclocked = true; gun.soulCharges = 0;
+      var s = G.weapons.stats(gun); gun.ammo = s.mag; gun.reserve = s.reserve;
+      var slot = G.weapons.slots.indexOf(gun); if (slot >= 0) G.weapons.equip(slot, true);
+      G.player.grantGiantHeart();
+      oc.done = true; oc.stage = 7; hideOcMarkers();
+      if (G.awardFeat) G.awardFeat('ee');
+      G.audio.perkJingle();
+      G.hud.banner('OVERCLOCK THE GIANT — COMPLETE', '#79ffe0', 6,
+        G.weapons.stats(gun).name + ' + Heart of the Giant');
+    }
+    function setupOverclock() {
+      var oc = I.overclock, def = CFG.cur.OVERCLOCK; if (!oc.on || !def) return;
+      // Three shootable wall conduits. Their bright cores and markers only wake
+      // after the optional continuation is accepted.
+      def.conduits.forEach(function (d, i) {
+        var m = wallMount(d.cell, d.face, 0.16, d.y || 0), g = new THREE.Group();
+        g.position.copy(m.pos); g.rotation.y = m.yaw; g.visible = false;
+        var plate = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.8, 0.18),
+          new THREE.MeshLambertMaterial({ color: 0x3e4b48 })); plate.position.y = 0.8; g.add(plate);
+        var coreM = new THREE.MeshBasicMaterial({ color: 0x315e55 });
+        var core = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.54, 8), coreM);
+        core.position.set(0, 0.8, 0.13); g.add(core); G.scene.add(g);
+        var marker = ocMarker('CONDUIT ' + (i + 1) + '/3  ' + d.room, m.pos, '#79ffe0');
+        oc.conduits.push({ pos: m.pos, room: d.room, mesh: g, core: coreM, marker: marker, exposed: false });
+      });
+      // Three carryable cells, each routed through a different phase primer.
+      def.cells.forEach(function (d, i) {
+        var wc = CFG.cellToWorld(d.cell[0], d.cell[1]), pos = new THREE.Vector3(wc.x, d.y || 0, wc.z);
+        var g = new THREE.Group(); g.position.copy(pos); g.visible = false;
+        var shell = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.23, 0.72, 10),
+          new THREE.MeshPhongMaterial({ color: 0x56615d, emissive: 0x102824 })); shell.position.y = 0.4; g.add(shell);
+        var band = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.035, 6, 12),
+          new THREE.MeshBasicMaterial({ color: 0x79ffe0 })); band.position.y = 0.43; band.rotation.x = Math.PI / 2; g.add(band);
+        G.scene.add(g);
+        var marker = ocMarker('CELL ' + (i + 1) + '/3  ' + d.room, pos, '#ffd76e');
+        var cell = { index: i, pos: pos, room: d.room, teleporter: d.teleporter,
+          mesh: g, marker: marker, primed: false, installed: false };
+        oc.cells.push(cell);
+        add({ pos: pos, r: 2.0, y: d.y || 0,
+          prompt: function () {
+            return oc.stage === 2 && oc.installed === cell.index && !oc.carrying ?
+              'Take unstable reactor cell — ' + cell.teleporter + ' phase route' : null;
+          },
+          use: function () {
+            if (oc.stage !== 2 || oc.installed !== cell.index || oc.carrying) return;
+            oc.carrying = cell; cell.primed = false; cell.mesh.visible = false;
+            oc.cellTimer = def.cellTime;
+            ocObjective('Carry the cell to Teleporter ' + cell.teleporter + ' before it destabilizes', null);
+            G.audio.teleportCharge();
+            G.hud.banner('UNSTABLE CELL ACQUIRED', '#ffd76e', 3,
+              'Phase-prime it at Teleporter ' + cell.teleporter + ' — ' + def.cellTime + ' seconds');
+          }
+        });
+      });
+      var rm = wallMount(def.regulator.cell, def.regulator.face, 0.3, def.regulator.y || 0);
+      oc.regulatorPos = rm.pos;
+      oc.regulatorMarker = ocMarker('OPTIONAL  OVERCLOCK THE GIANT', rm.pos, '#79ffe0');
+      var ground = CFG.cellToWorld(8, 8), upper = CFG.cellToWorld(8, 3);
+      oc.lockdownGroundMarker = ocMarker('LOCKDOWN  GROUND FLOOR', new THREE.Vector3(ground.x, 0, ground.z), '#ffb46b');
+      oc.lockdownUpperMarker = ocMarker('LOCKDOWN  UPPER FLOOR', new THREE.Vector3(upper.x, 4, upper.z), '#79ffe0');
+      oc.bossMarker = ocMarker('THE IRON SUBJECT', new THREE.Vector3(ground.x, 0, ground.z), '#79ffe0');
+      add({ pos: rm.pos, r: 2.3, y: def.regulator.y || 0,
+        prompt: function () {
+          if (!oc.available || oc.done) return null;
+          if (oc.stage === 0) return 'Begin optional quest — Overclock the Giant';
+          if (oc.stage === 2 && oc.carrying && oc.carrying.primed) return 'Install phase-primed reactor cell';
+          if (oc.stage === 3) return 'Initiate the two-floor factory lockdown';
+          if (oc.stage === 6) return 'Place ' + CFG.WEAPONS[oc.reward].name + ' into the Giant\'s Heart';
+          return null;
+        },
+        use: function () {
+          if (oc.stage === 0) {
+            oc.stage = 1; oc.reward = I.ee.reward;
+            oc.conduits.forEach(function (c) { c.mesh.visible = true; c.marker.visible = true; });
+            ocObjective('Expose all three conduits using ' + CFG.WEAPONS[oc.reward].name, oc.conduits[0].marker);
+            // all three labels remain visible for this search phase
+            oc.conduits.forEach(function (c) { c.marker.visible = true; });
+            G.hud.banner('OVERCLOCK THE GIANT', '#79ffe0', 5, 'Use the awarded weapon on three 935 conduits');
+          } else if (oc.stage === 2 && oc.carrying && oc.carrying.primed) {
+            var c = oc.carrying; c.installed = true; oc.installed++; oc.carrying = null; oc.cellTimer = 0;
+            G.audio.teleLink();
+            if (oc.installed >= oc.cells.length) {
+              oc.stage = 3; hideOcMarkers(); oc.regulatorMarker.visible = true;
+              ocObjective('Upper Assembly — initiate the factory lockdown', oc.regulatorMarker);
+              G.hud.banner('REACTOR CELLS INSTALLED', '#79ffe0', 3, 'The Giant is ready for a live pressure test');
+            } else {
+              G.hud.banner('CELL ' + oc.installed + '/3 INSTALLED', '#79ffe0', 2.5);
+              showNextOcCell();
+            }
+          } else if (oc.stage === 3) beginLockdown();
+          else if (oc.stage === 6) completeOverclock();
+        }
+      });
+
+      I.onWonderFire = function (weaponId, origin, dir, range) {
+        if (oc.stage !== 1 || weaponId !== oc.reward) return false;
+        var hit = false;
+        oc.conduits.forEach(function (c) {
+          if (c.exposed || Math.abs((origin.y || 0) - ((c.pos.y || 0) + 1.0)) > 2.4) return;
+          var vx = c.pos.x - origin.x, vz = c.pos.z - origin.z;
+          var t = Math.max(0, Math.min(range, vx * dir.x + vz * dir.z));
+          if (Math.hypot(c.pos.x - (origin.x + dir.x * t), c.pos.z - (origin.z + dir.z * t)) > 1.25) return;
+          c.exposed = true; oc.exposed++; hit = true; c.core.color.setHex(0x79ffe0); c.marker.visible = false;
+          G.audio.zap(); G.hud.banner('CONDUIT EXPOSED ' + oc.exposed + '/3', '#79ffe0', 2.2, c.room);
+        });
+        if (oc.exposed >= oc.conduits.length) {
+          oc.stage = 2; oc.conduits.forEach(function (c) { c.mesh.visible = false; });
+          showNextOcCell();
+          G.hud.banner('THE CELL LOCKS RELEASE', '#ffd76e', 3.5, 'Recover and phase-prime three unstable cells');
+        }
+        return hit;
+      };
+      I.primeOverclockCell = function (teleporterId) {
+        var c = oc.carrying;
+        if (oc.stage !== 2 || !c || c.primed || c.teleporter !== teleporterId) return false;
+        c.primed = true; oc.cellTimer = 0;
+        ocObjective('Upper Assembly — install the phase-primed cell', oc.regulatorMarker);
+        G.audio.teleLink(); G.hud.banner('CELL PHASE-PRIMED', '#79ffe0', 3, 'Return it to the upper regulator');
+        return true;
+      };
+    }
+    setupOverclock();
+    if (eeStart) {
+      var sm = wallMount(eeStart.cell, eeStart.face, 0.3, eeStart.y || 0);
+      var sg = new THREE.Group(); sg.position.copy(sm.pos); sg.rotation.y = sm.yaw;
+      var smat = new THREE.MeshLambertMaterial({ color: CFG.cur.id === 'nacht' ? 0x554a36 :
+        (CFG.cur.id === 'derriese' ? 0x485753 : 0x385a68) });
+      var sbody = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.72, 0.28), smat); sbody.position.y = 0.75; sg.add(sbody);
+      var sscr = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.32, 0.04),
+        new THREE.MeshBasicMaterial({ color: CFG.cur.id === 'derriese' ? 0x72d0a8 : 0x72bde8 }));
+      sscr.position.set(0, 0.82, 0.17); sg.add(sscr); G.scene.add(sg);
+      var startLabel = eeMarker(eeStart.title, sm.pos, '#ffe18a'); startLabel.visible = true;
+      add({ pos: sm.pos, r: 2.2, y: eeStart.y || 0,
+        prompt: function () { return I.ee.started ? ('Current objective: ' + I.ee.objective) : eeStart.prompt; },
+        use: function () {
+          if (I.ee.started) {
+            G.hud.banner(CFG.cur.eeName, '#8ff', 3, I.ee.objective); return;
+          }
+          I.ee.started = true; showEeObjective(0); G.audio.teleportCharge();
+          G.hud.banner(CFG.cur.eeName + ' — STARTED', '#8ff', 4, eeStart.intro);
+        }
+      });
+    }
 
     // -- stage 0: the sigils (power-gated; silent until then)
     if (questOn) KAq.sigils.forEach(function (sg, sgi) {
@@ -270,36 +483,73 @@
     });
 
     // -- stage 1: the relics (3 of 9 authored spots, deterministic per match)
+    var authoredEeSteps = !questOn && (CFG.cur.EE_STEPS || []);
     var relicSpots = (CFG.RELIC_SPOTS || []).slice();
     var relicSeed = G.PU.hashStr((CFG.cur.id || '') + ':relics');
-    var chosenRelics = [];
-    for (var rPick = 0; rPick < 3 && relicSpots.length; rPick++) {
+    var chosenRelics = authoredEeSteps.length ? authoredEeSteps.slice() : [];
+    for (var rPick = 0; !authoredEeSteps.length && rPick < 3 && relicSpots.length; rPick++) {
       var idx = (relicSeed + rPick * 7919) % relicSpots.length;
       chosenRelics.push(relicSpots.splice(idx, 1)[0]);
     }
-    chosenRelics.forEach(function (loc) {
+    chosenRelics.forEach(function (loc, relicIndex) {
       var m = wallMount(loc.cell, loc.face, 0.26, loc.y);   // pedestal flush to wall
       var pos = m.pos;
       var mesh = G.Props.create('relic_pedestal', { position: pos, rotationY: m.yaw });
-      var relic = { pos: pos, mesh: mesh, active: false, cell: loc.cell };
+      if (!questOn) {
+        var themedMat = new THREE.MeshLambertMaterial({ color: CFG.cur.id === 'nacht' ? 0x3a3328 :
+          (CFG.cur.id === 'derriese' ? 0x59615d : 0x587482) });
+        if (CFG.cur.id === 'nacht') {
+          var radio = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.3, 0.2), themedMat);
+          radio.position.y = 0.72; mesh.add(radio);
+          var aerial = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.7, 6), themedMat);
+          aerial.position.set(0.18, 1.15, 0); aerial.rotation.z = -0.18; mesh.add(aerial);
+        } else if (CFG.cur.id === 'derriese') {
+          var card = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.45, 0.045), themedMat);
+          card.position.y = 0.85; card.rotation.x = -0.15; mesh.add(card);
+        } else if (CFG.cur.id === 'wetterjunge') {
+          var probe = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.55, 8), themedMat);
+          probe.position.y = 0.85; mesh.add(probe);
+          var vane = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 0.08), themedMat);
+          vane.position.y = 1.18; mesh.add(vane);
+        }
+      }
+      var relic = { pos: pos, mesh: mesh, active: false, cell: loc.cell,
+                    order: relicIndex, room: loc.room, kind: loc.kind };
       I.ee.relics.push(relic);
+      if (!questOn && authoredEeSteps.length) {
+        var marker = eeMarker((relicIndex + 1) + '  ' + (loc.room || '').toUpperCase(), pos, '#8ff');
+        marker.visible = false;
+      }
       add({
-        pos: pos, r: 1.8,
+        pos: pos, r: 1.8, y: loc.y || 0,
         prompt: function () {
           if (relic.active) return null;
           if (questOn && I.quest.stage < 1) return 'A cold pedestal — something must wake it';
-          return 'Activate the relic';
+          if (!questOn && authoredEeSteps.length) {
+            if (!I.ee.started) return 'Inactive ' + (loc.kind || 'device') + ' — find the marked briefing';
+            if (relic.order > I.ee.step) return (loc.kind || 'Device') + ' — awaiting the previous signal';
+            if (relic.order < I.ee.step) return null;
+            return loc.prompt;
+          }
+          return questOn ? 'Activate the relic' : 'Recover the ' + (CFG.cur.eeNode || 'quest component');
         },
         use: function () {
           if (relic.active) return;
           if (questOn && I.quest.stage < 1) { G.audio.deny(); return; }
+          if (!questOn && authoredEeSteps.length && (!I.ee.started || relic.order !== I.ee.step)) {
+            G.audio.deny(); return;
+          }
           relic.active = true; I.ee.activated++;
           if (relic.mesh.userData.activate) relic.mesh.userData.activate();
           G.audio.perkJingle();
           if (I.ee.activated >= I.ee.relics.length) {
             if (questOn) { I.quest.stage = 2; revealCurrents(); }
             else spawnSoulBox();
-          } else G.hud.banner('RELIC ' + I.ee.activated + '/' + I.ee.relics.length, '#7fd', 2, 'Find the others…');
+          } else if (!questOn && authoredEeSteps.length) {
+            showEeObjective(I.ee.step + 1);
+            G.hud.banner('STEP ' + I.ee.activated + '/' + I.ee.relics.length + ' COMPLETE', '#7fd', 3.5, loc.clue);
+          } else G.hud.banner((questOn ? 'RELIC ' : 'COMPONENT ') + I.ee.activated + '/' + I.ee.relics.length,
+                              '#7fd', 2, 'Find the others…');
         }
       });
     });
@@ -519,10 +769,21 @@
       else { var wc = CFG.cellToWorld(CFG.EE_SOULBOX[0], CFG.EE_SOULBOX[1]); I.ee.box = new THREE.Vector3(wc.x, 0, wc.z); }
       I.ee.boxMesh = G.Props.create('soul_chest', { position: I.ee.box });
       I.ee.glow = null;   // the chest carries its own internal glow light
-      G.hud.banner('SOUL CHEST AWAKENED', '#b6f', 3, 'Feed it kills nearby');
+      var title = questOn ? 'SOUL CHEST AWAKENED' : (CFG.cur.eeName || 'EASTER EGG') + ' — FINAL TRIAL';
+      var sub = CFG.cur.id === 'nacht' ? 'The transmitter is live — defend it with nearby kills'
+              : CFG.cur.id === 'derriese' ? 'The buried reactor turns — feed the factory heart'
+              : CFG.cur.id === 'wetterjunge' ? 'The supercell gathers — charge the weather core'
+              : 'Feed it kills nearby';
+      if (!questOn && eeStart) {
+        I.ee.markers.forEach(function (m) { m.visible = false; });
+        var fm = eeMarker('FINAL  ' + (CFG.cur.eeName || 'EASTER EGG'), I.ee.box, '#d9a5ff');
+        fm.visible = true; I.ee.objective = sub;
+      }
+      G.hud.banner(title, '#b6f', 3, sub);
     }
     function rewardSoulBox() {
       var ee = I.ee; ee.done = true;
+      ee.markers.forEach(function (m) { m.visible = false; });
       if (ee.boxMesh) G.scene.remove(ee.boxMesh);
       if (ee.glow) G.scene.remove(ee.glow);
       if (questOn) {                       // stage 6: the bargain awaits upstairs
@@ -531,25 +792,54 @@
         return;
       }
       if (G.awardFeat) G.awardFeat('ee');
-      var pool = CFG.FIZZ_POOL.filter(function (id) { return !G.player.hasPerk(id); });
-      if (pool.length) {
-        var pick = pool[(Math.random() * pool.length) | 0];
-        G.player.addPerk(pick); G.audio.perkJingle();
-        G.hud.banner('SOUL REWARD', '#b6f', 4, 'Free perk: ' + CFG.PERKS[pick].name);
-      } else {
-        G.weapons.maxAmmo(); G.player.addPoints(2000);
-        G.hud.banner('SOUL REWARD', '#b6f', 4, 'Max Ammo + 2000 points');
-      }
+      var reward = chooseEeReward();
+      if (reward && CFG.WEAPONS[reward]) {
+        if (!G.weapons.hasWeapon(reward)) G.weapons.giveWeapon(reward);
+        G.audio.perkJingle();
+        G.hud.banner(CFG.cur.eeName || 'EASTER EGG COMPLETE', '#b6f', 5,
+                     'Recovered: ' + CFG.WEAPONS[reward].name);
+        if (I.overclock && I.overclock.on) {
+          I.overclock.available = true; I.overclock.reward = reward;
+          I.overclock.regulatorMarker.visible = true;
+          I.ee.objective = 'OPTIONAL — Upper Assembly: Overclock the Giant';
+          G.hud.banner('THE GIANT\'S HEART — BASE COMPLETE', '#b6f', 6,
+            CFG.WEAPONS[reward].name + ' acquired — optional signal detected upstairs');
+        }
+      } else { G.weapons.maxAmmo(); G.player.addPoints(2000); }
     }
     // counted from zombies.killZombie — souls collect when kills land near the chest
-    I.onKill = function (pos) {
+    I.onKill = function (pos, killed) {
       var ee = I.ee;
-      if (!ee || !ee.box || ee.done) return;
-      if (Math.hypot(pos.x - ee.box.x, pos.z - ee.box.z) > 6.5) return;
-      ee.souls++;
-      if (ee.boxMesh && ee.boxMesh.userData.setCharge) ee.boxMesh.userData.setCharge(ee.souls / ee.need);
-      if (ee.souls >= ee.need) rewardSoulBox();
-      else if (ee.souls % 5 === 0) G.hud.banner('SOULS ' + ee.souls + '/' + ee.need, '#b6f', 1.1);
+      if (ee && ee.box && !ee.done && Math.hypot(pos.x - ee.box.x, pos.z - ee.box.z) <= 6.5) {
+        ee.souls++;
+        if (ee.boxMesh && ee.boxMesh.userData.setCharge) ee.boxMesh.userData.setCharge(ee.souls / ee.need);
+        if (ee.souls >= ee.need) rewardSoulBox();
+        else if (ee.souls % 5 === 0) G.hud.banner('SOULS ' + ee.souls + '/' + ee.need, '#b6f', 1.1);
+      }
+      var oc = I.overclock;
+      if (!oc || !oc.on || oc.done) return;
+      if (oc.stage === 4) {
+        var upperKill = (pos.y || 0) > 2;
+        if (upperKill !== oc.lockdownUpper) return;
+        oc.lockdownKills++;
+        var inCycle = oc.lockdownKills % 6;
+        if (oc.lockdownKills >= (CFG.cur.OVERCLOCK.lockdownKills || 24)) {
+          G.hud.banner('PRESSURE TEST COMPLETE', '#79ffe0', 3, 'Something tears free in the courtyard');
+          spawnIronSubject();
+        } else if (inCycle === 0) {
+          oc.lockdownUpper = !oc.lockdownUpper;
+          var cycle = Math.floor(oc.lockdownKills / 6) + 1;
+          ocObjective((oc.lockdownUpper ? 'UPPER FLOOR' : 'GROUND FLOOR') +
+            ' — kill 6 enemies for pressure cycle ' + cycle + '/4',
+            oc.lockdownUpper ? oc.lockdownUpperMarker : oc.lockdownGroundMarker);
+          G.hud.banner('PRESSURE CYCLE ' + cycle + '/4', '#79ffe0', 2.5,
+            'Move to the ' + (oc.lockdownUpper ? 'upper floor' : 'ground floor'));
+        } else G.hud.banner('LOCKDOWN ' + oc.lockdownKills + '/24', '#79ffe0', 0.8);
+      } else if (oc.stage === 5 && killed && killed === oc.boss) {
+        oc.stage = 6; hideOcMarkers(); oc.regulatorMarker.visible = true;
+        ocObjective('Upper Assembly — place the awarded weapon into the Giant\'s Heart', oc.regulatorMarker);
+        G.hud.banner('THE IRON SUBJECT FALLS', '#79ffe0', 4, 'Return the weapon to Upper Assembly');
+      }
     };
 
     // -- stage 4: accept the bargain at the portrait
@@ -565,9 +855,10 @@
         I.quest.done = true; I.quest.stage = 5;
         if (G.awardFeat) G.awardFeat('ee');
         if (KAq.face) KAq.face.material.color.setHex(0xffc86a);   // he smiles
-        if (CFG.cur.eeWonder && CFG.WEAPONS[CFG.cur.eeWonder] && !G.weapons.hasWeapon(CFG.cur.eeWonder)) {
-          G.weapons.giveWeapon(CFG.cur.eeWonder);
-          G.hud.banner("THE FOUNDER'S BARGAIN", '#e8c35a', 5, 'His buried prize: the ' + CFG.WEAPONS[CFG.cur.eeWonder].name);
+        var reward = chooseEeReward();
+        if (reward && CFG.WEAPONS[reward] && !G.weapons.hasWeapon(reward)) {
+          G.weapons.giveWeapon(reward);
+          G.hud.banner("THE FOUNDER'S BARGAIN", '#e8c35a', 5, 'His buried prize: the ' + CFG.WEAPONS[reward].name);
         } else {
           G.weapons.maxAmmo(); G.player.addPoints(5000);
           G.hud.banner("THE FOUNDER'S BARGAIN", '#e8c35a', 5, 'Max Ammo + 5000 points');
@@ -585,7 +876,7 @@
       var darkM = new THREE.MeshLambertMaterial({ color: 0x2e2620 });
       [{ cell: [11, 15], face: 'S' },     // Foyer, east of the spawn windows
        { cell: [2, 1],   face: 'N' },     // Sanctum, beside the library
-       { cell: [14, 11], face: 'S' }      // Cold Cellar, by the bricked archway
+       { cell: [17, 11], face: 'S' }      // Cold Cellar, clear of machines, quest props + doorway
       ].forEach(function (loc) {
         var m = wallMount(loc.cell, loc.face, 0.18, 0);
         var g = new THREE.Group();
@@ -817,12 +1108,23 @@
       add({
         pos: t.pos, r: 2.3,
         prompt: function () {
+          var oc = I.overclock, cell = oc && oc.carrying;
+          if (oc && oc.stage === 2 && cell && !cell.primed) {
+            if (cell.teleporter !== t.id) return 'Unstable cell requires Teleporter ' + cell.teleporter;
+            if (!map.power) return 'Teleporter ' + t.id + ' phase primer — needs power';
+            return 'Phase-prime the unstable cell at Teleporter ' + t.id;
+          }
           if (!map.power) return 'Teleporter ' + t.id + ' — no power';
           if (t.linked) return 'Teleport to mainframe — ' + CFG.TELE_USE_COST;
           if (t.linking) return 'Linking... reach the MAINFRAME! (' + Math.ceil(t.linkTimer) + 's)';
           return 'Activate Teleporter ' + t.id + ' (then link at mainframe)';
         },
         use: function () {
+          var oc = I.overclock, cell = oc && oc.carrying;
+          if (oc && oc.stage === 2 && cell && !cell.primed) {
+            if (!map.power || cell.teleporter !== t.id) { G.audio.deny(); return; }
+            I.primeOverclockCell(t.id); return;
+          }
           if (!map.power) { G.audio.deny(); return; }
           if (t.linked) {
             if (!G.player.spend(CFG.TELE_USE_COST)) return;
@@ -1130,6 +1432,20 @@
 
   I.update = function (dt) {
     if (G.state !== 'playing') { G.player.consumeInteract(); return; }
+
+    // Unstable reactor cells must be phase-primed before their timer expires.
+    // A failed carry simply resets that cell at its authored pickup spot.
+    if (I.overclock && I.overclock.stage === 2 && I.overclock.carrying &&
+        !I.overclock.carrying.primed && I.overclock.cellTimer > 0) {
+      I.overclock.cellTimer -= dt;
+      if (I.overclock.cellTimer <= 0) {
+        var lost = I.overclock.carrying; I.overclock.carrying = null;
+        lost.primed = false; lost.mesh.visible = true; lost.marker.visible = true;
+        I.overclock.objective = lost.room + ' — recover the destabilized cell again';
+        I.ee.objective = 'OVERCLOCK — ' + I.overclock.objective;
+        G.audio.deny(); G.hud.banner('REACTOR CELL DESTABILIZED', '#f66', 3, 'It reset in ' + lost.room);
+      }
+    }
 
     // the ghost hunt: he hovers and sways where he stands; corner him (get
     // close) and he wails away to another wing — I.foundGhost counts it

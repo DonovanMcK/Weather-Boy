@@ -342,6 +342,20 @@
     return z;
   }
   Z.spawnBoss = spawnBoss;     // exposed for the director + tests
+  Z.spawnQuestBoss = function (weaponId) {
+    var z = spawnBoss();
+    z.questBoss = true; z.questRequiredWeapon = weaponId;
+    z.questArmorHits = 6; z.questArmorBroken = false;
+    z.hp = Math.max(14000, Math.round(6000 + Z.round * 650)); z.hpMax = z.hp;
+    z.speed = 3.15; z.mesh.scale.set(2.0, 2.15, 2.0);
+    addArmor(z);
+    if (z.bossLight) z.bossLight.color.setHex(0x79ffe0);
+    var core = CFG.cellToWorld(8, 8);
+    z.mesh.position.set(core.x, 0, core.z);
+    G.hud.banner('THE IRON SUBJECT', '#79ffe0', 4,
+      'Break its plating with ' + (CFG.WEAPONS[weaponId] ? CFG.WEAPONS[weaponId].name : 'the quest weapon'));
+    return z;
+  };
   Z.bossAlive = function () { return Z.list.some(function (z) { return z.isBoss && !z.dead; }); };
 
   // Panzersoldat AI. Returns true (z.bossBusy) on frames it drives its own
@@ -423,6 +437,7 @@
 
   function beginRound() {
     Z.round++;
+    if (G.player.giantHeartRoundStart) G.player.giantHeartRoundStart();
     G.hud.setRound(Z.round);
     var isDogRound = Z.round % CFG.DOG_EVERY === 0;
     if (isDogRound) {
@@ -496,6 +511,27 @@
     opts = opts || {};
     var insta = G.powerups.timers.insta > 0;
     if (insta) dmg = 1e9;
+    // The Iron Subject's sealed plating only responds to the wonder weapon
+    // awarded by the base quest. Six solid contacts crack it; after that the
+    // player may finish the exposed experiment normally.
+    if (z.questBoss && !z.questArmorBroken && !insta) {
+      if (opts.weaponId !== z.questRequiredWeapon) {
+        if (!z._wrongWeaponT || G.time > z._wrongWeaponT) {
+          z._wrongWeaponT = G.time + 1.2;
+          G.hud.banner('PLATING REJECTS THE HIT', '#f88', 1.1, 'Use the Giant\'s awarded weapon');
+        }
+        return;
+      }
+      z.questArmorHits--;
+      if (z.questArmorHits > 0) {
+        G.hud.banner('IRON PLATING ' + z.questArmorHits + '/6', '#9fe8ff', 0.8);
+        return;
+      }
+      z.questArmorBroken = true;
+      breakArmor(z);
+      G.hud.banner('THE ARMOR SPLITS', '#79ffe0', 2.5, 'Finish the Iron Subject');
+      dmg *= 0.35;
+    }
     // armored "heavy": plating shrugs off body shots; headshots, knife and
     // explosives bypass it. Sustained damage cracks the armor off at ~40% hp.
     if (z.armored && !insta && !opts.head && !opts.knife && !opts.boom) dmg *= 0.4;
@@ -591,8 +627,9 @@
     } else if (!opts.silent) {
       G.powerups.maybeDrop(z.mesh.position);
     }
-    if (G.interact && G.interact.onKill) G.interact.onKill(z.mesh.position);
+    if (G.interact && G.interact.onKill) G.interact.onKill(z.mesh.position, z, opts);
     if (!opts.silent && G.weapons.variantKill) G.weapons.variantKill(z.mesh.position);  // tier-3 PaP procs
+    if (!opts.silent && G.weapons.superKill) G.weapons.superKill(z.mesh.position);
     checkRoundEnd(z);
   }
 
@@ -844,6 +881,14 @@
         Z.toSpawn++;
         Z._shootablesDirty = true;
         continue;
+      }
+      // Kryolithwerfer statues are genuine frozen bodies. The weapon system
+      // moves them only after the player launches them; normal AI must not
+      // fight that motion or claw through the ice state.
+      if (z.wwFrozen && !z.dead) {
+        z.wwFrozenT -= dt;
+        if (z.wwFrozenT <= 0) z.wwFrozen = false;
+        else { animate(z, dt, false); continue; }
       }
       // failsafe: a zombie that hasn't moved for ~15s (and isn't busy at a
       // window or on the player) respawns so rounds can never stall

@@ -1,16 +1,28 @@
 # TOTENSTURM — Undead Protocol
 
-A Black Ops 1/2-style **round-based zombies FPS** with **three maps**, each with
-its own wonder weapon. Fully 3D (Three.js), fully offline, zero build step,
+A Black Ops 1/2-style **round-based zombies FPS** with **four maps**, each with
+its own wonder weapon and a two-reward Easter egg. Fully 3D (Three.js), fully offline, zero build step,
 zero assets — every texture and sound is generated procedurally at runtime.
 
 ## Maps
 
-| Map | Layout | Pack-a-Punch unlock | Wonder weapon |
+| Map | Layout | Main wonder weapon | Easter egg reward pool |
 |---|---|---|---|
-| **Nacht der Untoten** | Tight 3-room bunker | Turn on the power | **Thundergun** (wind cone, flings hordes) |
-| **Der Riese** | Factory: courtyard mainframe + 3 teleporter wings | Link all 3 teleporters | **Wunderwaffe DG-2** (chain lightning, 10 zombies — 24 upgraded) |
-| **Der Wetterjunge** *(custom)* | Storm research station | Link all 3 teleporters | **Wettermacher** *(custom)* — storm orb that spawns a tornado vortex which drags zombies in and zaps them |
+| **Nacht der Untoten** | Tight bunker | **Thundergun** | **Nachtlicht** flare or **Minenwerfer 115** soul mine |
+| **Der Riese** | Factory with a functional two-access upper gantry | **Wunderwaffe DG-2** | **Seelenmotor** piston or **Nachbildner 115** echo cannon |
+| **Der Wetterjunge** *(custom)* | Storm station with a two-access rooftop weather deck | **Wettermacher** | **Blitzfanger** lightning fence or **Kryolithwerfer** freeze-and-launch cannon |
+| **KurHaus** *(custom)* | Alpine occult spa | **Maelstrom Driver** ricochet bore | **Aether Lance** or **Voss Siphon** |
+
+Completing a map's Easter egg awards one of its two exclusive weapons. The next
+completion awards the other, so repeat runs do not endlessly duplicate one gun.
+
+Every Easter egg now begins at a clearly marked briefing and displays one named,
+numbered destination at a time. See [EASTER-EGGS.md](EASTER-EGGS.md) for the full
+step-by-step routes and reward details.
+
+Der Riese also has an optional prestige continuation, **Overclock the Giant**.
+It upgrades the awarded quest weapon into one of two adaptive super variants and
+grants the permanent **Heart of the Giant** survival reward.
 
 Every map's mystery box also carries the **Ray Gun** and **Monkey Bombs**;
 other maps' wonder weapons never roll.
@@ -68,7 +80,7 @@ game is unaffected if you never start the server.
   zombie melee ramps up at high rounds so they stay deadly.
 - **Hellhound rounds every 5th round** — kill the last dog for a guaranteed **Max Ammo**.
 - **Points economy**: 10/hit, 60/kill, 100/headshot, 130/knife, 10/board.
-- **68-weapon arsenal** drawn from Black Ops 1/2/3 (M14, Olympia, Commando,
+- **78-weapon arsenal** drawn from Black Ops 1/2/3 (M14, Olympia, Commando,
   Ray Gun, PPSh-41, Galil, FAL, KN-44, Kuda, Gorgon, Locus and many more) with
   authentic COD-style damage profiles: shotguns and snipers one-shot bodies
   for many rounds, marksman rifles one-shot early, SMGs/ARs are 3-shot, pistols
@@ -103,14 +115,14 @@ game is unaffected if you never start the server.
 ## Development
 
 - `js/config.js` holds *all* tuning data (weapons, perks, round curves, and all
-  three map definitions). Maps are ASCII grids — edit one or add a fourth entry
+  four map definitions). Maps are ASCII grids — edit one or add another entry
   to `CFG.MAPS` and the world rebuilds itself.
 - Tests (no browser needed): `npm install && npm test`
   - `tests/validate-map.js` — for every map: grid integrity, door adjacency,
     reachability, placements, wonder-weapon/box-pool rules.
   - `tests/smoke.js` — boots the entire game headless in node, once per map,
     and plays through rounds, combat, doors, perks, power, teleporter linking,
-    Pack-a-Punch, the mystery box, all three wonder weapons, power-ups,
+    Pack-a-Punch, the mystery box, all map and Easter-egg wonder weapons, power-ups,
     hellhounds, quick revive and game over.
 
 See `DESIGN.md` for the full design document.

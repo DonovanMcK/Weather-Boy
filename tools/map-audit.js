@@ -55,16 +55,19 @@ function auditMap(id) {
     if (!isOut && density < 0.6) flags.push('SPARSE: ' + name + ' (' + rid + ') has ' + props + ' props over ' + cells + ' cells (density ' + density.toFixed(2) + ')');
     if (!isOut && lamps / cells < 0.18) flags.push('DARK: ' + name + ' (' + rid + ') has ' + lamps + ' lamps over ' + cells + ' cells');
   });
-  // door blockers: a non-wall collider OR prop within 1.6m of a door centre
+  // Door blockers: test the actual standing volume at the threshold on that
+  // door's floor. Proximity-only checks falsely flag legitimate frame walls,
+  // especially for second-storey doors above ground-floor architecture.
   var doorFlags = [];
   Object.keys(G.map.doors).forEach(function (did) {
-    var dp = G.map.doors[did].pos;
-    G.map.colliders.forEach(function (c) {
-      if (!c.on || c.y1 > 1.5) return;
-      var w = c.x2 - c.x1, h = c.z2 - c.z1; if (w > 3.5 || h > 3.5) return;
-      if (Math.hypot((c.x1 + c.x2) / 2 - dp.x, (c.z1 + c.z2) / 2 - dp.z) < 1.6)
-        doorFlags.push('DOOR-BLOCK: collider near door ' + did);
+    var door = G.map.doors[did], dp = door.pos;
+    var feet = (dp.y || 0) + 0.2, lo = feet + 0.25, hi = feet + 1.7;
+    var blocked = G.map.colliders.some(function (c) {
+      if (!c.on || c === door.collider) return false; // ignore the closed debris itself
+      return dp.x >= c.x1 && dp.x <= c.x2 && dp.z >= c.z1 && dp.z <= c.z2 && hi > c.y1 && lo < c.y2;
     });
+    if (blocked)
+      doorFlags.push('DOOR-BLOCK: threshold blocked at door ' + did);
   });
   // vertical interest: rooms that have a stage/deck over them
   var vertical = (G.map.stages || []).length;

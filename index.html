@@ -76,6 +76,10 @@
   #hud-shield i { width: 14px; height: 6px; border-radius: 1px; display: inline-block;
     background: #f9b27a; box-shadow: 0 0 4px rgba(0,0,0,0.8); }
   #hud-shield i.spent { background: rgba(255,255,255,0.18); box-shadow: none; }
+  #hud-heart { position: fixed; left: 28px; bottom: 158px; display: none;
+    color: #79ffe0; font-size: 13px; font-weight: 800; letter-spacing: 2px;
+    text-shadow: 0 0 8px #33b99d, 1px 1px 2px #000; }
+  #hud-heart.spent { color: #536b66; text-shadow: 1px 1px 2px #000; }
   #hud-health.low { animation: hpwarn 0.9s infinite; }
   @keyframes hpwarn { 0%,100% { box-shadow: 0 0 0 rgba(255,0,0,0); }
     50% { box-shadow: 0 0 12px rgba(255,40,40,0.8); } }
@@ -200,6 +204,7 @@
   </div>
   <div id="hud-health"><div id="hud-health-fill"></div></div>
   <div id="hud-shield"></div>
+  <div id="hud-heart"></div>
   <div id="hud-ammo-wrap">
     <div id="hud-gun"></div>
     <div id="hud-ammo-line"><span id="hud-mag">0</span><span id="hud-res">/ 0</span></div>
@@ -243,7 +248,7 @@
     <div class="mapcard" id="map-kurhaus">
       <h3>KURHAUS</h3>
       <p>The Aether Baths — a 3-floor thermal spa. Descend to the Furnace for power; Pack-a-Punch waits in the gated Core.</p>
-      <p class="wonder">Wonder weapon: Maelstrom Driver</p>
+      <p class="wonder">Wonder weapon: Maelstrom Driver — piercing ricochet bore</p>
       <span class="best" id="best-kurhaus"></span>
     </div>
   </div>
@@ -281,7 +286,7 @@
 </div>
 
 <script src="lib/three.min.js?v=r3"></script>
-<script src="js/config.js?v=r3"></script>
+<script src="js/config.js?v=r4"></script>
 <script src="js/audio.js?v=r3"></script>
 <script src="js/hud.js?v=r3"></script>
 <script src="js/assets/materials.js?v=r3"></script>
@@ -290,7 +295,7 @@
 <script src="js/assets/gameplay-machines.js?v=r3"></script>
 <script src="js/assets/environment-props.js?v=r3"></script>
 <script src="js/assets/interactive-props.js?v=r3"></script>
-<script src="js/map.js?v=r3"></script>
+<script src="js/map.js?v=r4"></script>
 <script src="js/nav.js?v=r3"></script>
 <script src="js/player.js?v=r3"></script>
 <script src="js/weapons.js?v=r3"></script>
@@ -300,6 +305,6 @@
 <script src="js/gamepad.js?v=r3"></script>
 <script src="js/remote.js?v=r3"></script>
 <script src="js/terminal.js?v=r3"></script>
-<script src="js/main.js?v=r3"></script>
+<script src="js/main.js?v=r4"></script>
 </body>
 </html>

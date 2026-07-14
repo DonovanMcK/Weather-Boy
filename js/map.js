@@ -43,6 +43,33 @@
 
   function wallTexture() {
     var s = 256, cv = makeCanvas(s), c = cv.getContext('2d');
+    if (CFG && CFG.cur && CFG.cur.id === 'derriese') {
+      // Der Riese is wartime masonry, not prefab concrete panels. Uneven brick
+      // courses, pale mortar, soot and damp streaking keep the factory cohesive
+      // from both courtyards and stop the facades reading as clean white boxes.
+      c.fillStyle = '#59443a'; c.fillRect(0, 0, s, s);
+      var bh = 25, bw = 55;
+      for (var br = 0; br <= s / bh; br++) {
+        var by = br * bh, shift = br % 2 ? bw / 2 : 0;
+        c.fillStyle = br % 3 ? '#684b3e' : '#5d443a';
+        c.fillRect(0, by + 2, s, bh - 4);
+        c.strokeStyle = 'rgba(190,180,158,0.34)'; c.lineWidth = 3;
+        c.beginPath(); c.moveTo(0, by); c.lineTo(s, by); c.stroke();
+        for (var bx = -shift; bx < s; bx += bw) {
+          c.beginPath(); c.moveTo(bx, by); c.lineTo(bx, by + bh); c.stroke();
+        }
+      }
+      speckle(c, s, 950, 0.2, true);
+      for (var ds = 0; ds < 18; ds++) {
+        var dx = Math.random() * s;
+        var dg = c.createLinearGradient(dx, 0, dx, s);
+        dg.addColorStop(0, 'rgba(18,18,16,0)');
+        dg.addColorStop(1, 'rgba(18,18,16,' + (0.18 + Math.random() * 0.28) + ')');
+        c.fillStyle = dg; c.fillRect(dx, 0, 3 + Math.random() * 10, s);
+      }
+      c.fillStyle = 'rgba(18,20,18,0.62)'; c.fillRect(0, s - 25, s, 25);
+      return tex(cv);
+    }
     c.fillStyle = '#8d8a82'; c.fillRect(0, 0, s, s);
     // concrete panel lines
     c.strokeStyle = 'rgba(0,0,0,0.25)'; c.lineWidth = 2;
@@ -637,6 +664,34 @@
                                               cz / P.rooms[rid].cells.length);
     });
 
+    // Register every authored floor before placing machines and quest props.
+    // Upper-floor objects can therefore resolve their real room/wall immediately
+    // instead of being positioned against the ground-floor grid beneath them.
+    map.floors = (CFG.cur._floors || [{ id: '1', floorY: 0, GRID: CFG.GRID }]).map(function (f) {
+      var parsed = f === CFG.cur._primary ? P : CFG.parseGrid(f.GRID), fyy = f.floorY || 0;
+      Object.keys(parsed.rooms).forEach(function (rid) {
+        var cells = parsed.rooms[rid].cells, sx = 0, sz = 0;
+        cells.forEach(function (cr) { var w = CFG.cellToWorld(cr[0], cr[1]); sx += w.x; sz += w.z; });
+        parsed.rooms[rid].center = new THREE.Vector3(sx / cells.length, fyy, sz / cells.length);
+      });
+      return { id: f.id, floorY: fyy, parsed: parsed };
+    });
+
+    // Resolve stacking per cell, rather than merely asking whether the map has
+    // any room one storey above. This is the structural seam contract used by
+    // walls, doorway headers and ceilings: only the footprint actually covered
+    // by an authored upper storey is capped at the shared floor boundary.
+    map.floorCellAboveAt = function (col, row, fy) {
+      var best = null;
+      this.floors.forEach(function (fl) {
+        if (fl.floorY <= fy + 0.1) return;
+        var rr = fl.parsed.cells[row], cell = rr && rr[col];
+        if (!cell || cell.type === 'void') return;
+        if (!best || fl.floorY < best.floorY) best = { floor: fl, cell: cell, floorY: fl.floorY };
+      });
+      return best;
+    };
+
     var winLookup = {};
     CFG.WINDOWS.forEach(function (w, i) { winLookup[w.cell[0] + ',' + w.cell[1] + ',' + w.dir] = i; });
 
@@ -656,32 +711,37 @@
       // jumper on the top/only floor can't clip out. Flat maps -> fy 0, tall -> [0,99].
       var fcell = map.cellAt(col, row) || {};
       var fy = fcell.type === 'door' ? doorFloorY(col, row) : map.floorYOf(fcell.room);
-      var wallTop = fy + (map.floorAbove(fy) ? WALL_H : 99);
+      var stackedHere = !!map.floorCellAboveAt(col, row, fy);
+      var wallTop = fy + (stackedHere ? WALL_H : 99);
+      // Leave a shallow rebate at a stacked seam. The real upper-floor slab
+      // fills it, hiding the downstairs wall top instead of z-fighting through
+      // the upstairs finish as a room-shaped outline.
+      var visualWallH = stackedHere ? WALL_H - 0.28 : WALL_H;
       function band(y, h, depth, mm) {
         if (alongX) addBox(CELL + WALL_T, h, WALL_T + depth, cx, fy + y, cz, mm);
         else addBox(WALL_T + depth, h, CELL + WALL_T, cx, fy + y, cz, mm);
       }
       if (!isWindow) {
-        if (alongX) addBox(CELL + WALL_T, WALL_H, WALL_T, cx, fy + WALL_H / 2, cz, m, { collide: true, solid: true, cy1: fy, cy2: wallTop });
-        else addBox(WALL_T, WALL_H, CELL + WALL_T, cx, fy + WALL_H / 2, cz, m, { collide: true, solid: true, cy1: fy, cy2: wallTop });
+        if (alongX) addBox(CELL + WALL_T, visualWallH, WALL_T, cx, fy + visualWallH / 2, cz, m, { collide: true, solid: true, cy1: fy, cy2: wallTop });
+        else addBox(WALL_T, visualWallH, CELL + WALL_T, cx, fy + visualWallH / 2, cz, m, { collide: true, solid: true, cy1: fy, cy2: wallTop });
         band(0.22, 0.44, 0.08, baseMat);       // baseboard / lower reinforcement
-        band(WALL_H - 0.5, 0.12, 0.05, trimMat); // upper string course
+        band(visualWallH - 0.22, 0.12, 0.05, trimMat); // upper string course
         return null;
       }
       var sillH = 1.0, openTop = 2.6, postW = 0.7;
       if (alongX) {
         addBox(CELL, sillH, WALL_T, cx, fy + sillH / 2, cz, m, { solid: true });
-        addBox(postW, WALL_H, WALL_T, cx - CELL / 2 + postW / 2, fy + WALL_H / 2, cz, m, { solid: true });
-        addBox(postW, WALL_H, WALL_T, cx + CELL / 2 - postW / 2, fy + WALL_H / 2, cz, m, { solid: true });
-        addBox(CELL, WALL_H - openTop, WALL_T, cx, fy + (WALL_H + openTop) / 2, cz, m, { solid: true });
+        addBox(postW, visualWallH, WALL_T, cx - CELL / 2 + postW / 2, fy + visualWallH / 2, cz, m, { solid: true });
+        addBox(postW, visualWallH, WALL_T, cx + CELL / 2 - postW / 2, fy + visualWallH / 2, cz, m, { solid: true });
+        addBox(CELL, visualWallH - openTop, WALL_T, cx, fy + (visualWallH + openTop) / 2, cz, m, { solid: true });
         // framed opening: header lintel + sill cap
         addBox(CELL - postW * 1.4, 0.16, WALL_T + 0.12, cx, fy + openTop + 0.02, cz, trimMat);
         addBox(CELL - postW * 1.4, 0.12, WALL_T + 0.14, cx, fy + sillH - 0.02, cz, trimMat);
       } else {
         addBox(WALL_T, sillH, CELL, cx, fy + sillH / 2, cz, m, { solid: true });
-        addBox(WALL_T, WALL_H, postW, cx, fy + WALL_H / 2, cz - CELL / 2 + postW / 2, m, { solid: true });
-        addBox(WALL_T, WALL_H, postW, cx, fy + WALL_H / 2, cz + CELL / 2 - postW / 2, m, { solid: true });
-        addBox(WALL_T, WALL_H - openTop, CELL, cx, fy + (WALL_H + openTop) / 2, cz, m, { solid: true });
+        addBox(WALL_T, visualWallH, postW, cx, fy + visualWallH / 2, cz - CELL / 2 + postW / 2, m, { solid: true });
+        addBox(WALL_T, visualWallH, postW, cx, fy + visualWallH / 2, cz + CELL / 2 - postW / 2, m, { solid: true });
+        addBox(WALL_T, visualWallH - openTop, CELL, cx, fy + (visualWallH + openTop) / 2, cz, m, { solid: true });
         addBox(WALL_T + 0.12, 0.16, CELL - postW * 1.4, cx, fy + openTop + 0.02, cz, trimMat);
         addBox(WALL_T + 0.14, 0.12, CELL - postW * 1.4, cx, fy + sillH - 0.02, cz, trimMat);
       }
@@ -777,10 +837,22 @@
       var ra = rg / 46 * Math.PI * 2;
       var rdist = 150 + Math.random() * 30;
       var rh = 14 + Math.random() * 40;
-      var ridge = new THREE.Mesh(new THREE.ConeGeometry(10 + Math.random() * 18, rh, 4), ringMat);
-      ridge.position.set(Math.cos(ra) * rdist, rh / 2 - 6, Math.sin(ra) * rdist);
+      // Der Riese sits inside an industrial complex. Rectangular factory blocks
+      // and stacks replace the generic pointed mountain cones whose triangular
+      // peaks made every roof gap look like broken geometry.
+      var ridge = CFG.cur.id === 'derriese'
+        ? new THREE.Mesh(new THREE.BoxGeometry(14 + Math.random() * 24, rh * 0.55, 12 + Math.random() * 16), ringMat)
+        : new THREE.Mesh(new THREE.ConeGeometry(10 + Math.random() * 18, rh, 4), ringMat);
+      ridge.position.set(Math.cos(ra) * rdist, (CFG.cur.id === 'derriese' ? rh * 0.275 : rh / 2) - 6,
+                         Math.sin(ra) * rdist);
       ridge.rotation.y = Math.random() * Math.PI;
       G.scene.add(ridge);
+      if (CFG.cur.id === 'derriese' && rg % 6 === 0) {
+        var stackSil = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 2.0, rh * 0.8, 8), ringMat);
+        stackSil.position.set(Math.cos(ra) * (rdist - 7), rh * 0.4 - 6,
+                              Math.sin(ra) * (rdist - 7));
+        G.scene.add(stackSil);
+      }
     }
 
     // outer ground, stars, moon
@@ -901,6 +973,10 @@
     }
     map.placePos = place;
     var occupied = []; // keep auto props clear of everything interactive
+    // Full doorway approach lane, not just the physical threshold. At typical
+    // sprint speed this leaves nearly a second of clean movement on both sides
+    // and keeps wall fixtures from visually reading as part of the doorway.
+    var DOOR_APPROACH = 5.5;
     function occupy(p) { occupied.push(p); }
 
     function xW(col) { return CFG.cellToWorld(col, 0).x; }
@@ -912,8 +988,46 @@
     map.stages = [];
     var stageSpecs = [];
     var bridgeSpecs = [];
-    // (All maps are single flat floors now — no stairs, catwalks or lofts.
-    // stageSpecs stays empty so buildStage never runs.)
+    function interiorStair(col1, col2, topRow, baseRow, openUnder) {
+      topRow = topRow == null ? 1 : topRow;
+      baseRow = baseRow == null ? 3 : baseRow;
+      var inset = 0.42, x1 = xW(col1) - CELL / 2 + inset, x2 = xW(col2) + CELL / 2 - inset;
+      var deck = { x1: x1, x2: x2,
+        // overlap the authored upper slab by a few centimetres so support/nav
+        // sampling cannot find a hairline void between landing and corridor.
+        z1: zW(topRow) - CELL / 2 - 0.06, z2: zW(topRow) + CELL / 2 - 0.18,
+        h: 4.0, thin: true, openUnder: openUnder !== false, integrated: true, shaft: true };
+      deck.stairs = { x1: x1, x2: x2, zTop: deck.z2,
+        zBase: zW(baseRow) + CELL / 2 - inset, steps: Math.max(18, (baseRow - topRow + 1) * 6) };
+      return deck;
+    }
+    if (CFG.cur.id === 'derriese') {
+      // Four enclosed stairs belong to actual rooms beneath them. Each reaches a
+      // partial upper department; none rises out of the Mainframe or C courtyards.
+      stageSpecs.push(interiorStair(9, 10, 1, 4, false),
+                      interiorStair(13, 14, 3, 6, false),
+                      interiorStair(8, 9, 13, 16, false),
+                      interiorStair(18, 19, 15, 18, false));
+      // Teleporter C keeps one authentic open steel access catwalk along its
+      // north wall. It is supported on posts and intentionally does not carry a
+      // full second building over the cooling yard.
+      var cDeck = { x1: xW(1) - 1.55, x2: xW(6) + 1.55,
+        z1: zW(6) - CELL / 2 + 0.3, z2: zW(7) - 0.35,
+        h: 4.0, thin: true, openUnder: true, supports: true, railings: true, stairRails: true };
+      cDeck.stairs = { x1: xW(6) - 1.35, x2: xW(6) + 1.35,
+        zTop: cDeck.z2, zBase: zW(9) + 1.25, steps: 18 };
+      stageSpecs.push(cDeck);
+      // The narrow service bridge is the only upper crossing above Mainframe.
+      // It grows out of Upper Assembly and has visible columns rather than
+      // floating as a detached slab.
+      bridgeSpecs.push({ x1: xW(17) - 0.85, x2: xW(18) + 0.85,
+        z1: zW(6) - 0.2, z2: zW(8) + 1.25, h: 4.0, rails: true, supports: true });
+    }
+    if (CFG.cur.id === 'wetterjunge') {
+      // Radar Dome rear stair plus enclosed Generator and Comms stair halls.
+      // This makes the upper station part of all three northern wings.
+      stageSpecs.push(interiorStair(7, 8), interiorStair(2, 2), interiorStair(12, 12));
+    }
     // reserve the deck and stair footprints (separately, so we don't over-claim
     // the whole bounding box) — machines steer clear of the structure
     function reserveRect(x1, z1, x2, z2) {
@@ -939,7 +1053,7 @@
       var st = s.stairs;
       stairRects.push({ x1: Math.min(st.x1, st.x2), x2: Math.max(st.x1, st.x2),
                         z1: Math.min(st.zTop, st.zBase), z2: Math.max(st.zTop, st.zBase),
-                        roofY: Math.max(WALL_H, s.h + 2.0) });
+                        roofY: Math.max(WALL_H, s.h + 2.0), integrated: !!s.integrated });
     });
     function stairwellAt(x, z) {
       for (var i = 0; i < stairRects.length; i++) {
@@ -969,7 +1083,7 @@
       // the door's "open" prompt (only doors on THIS floor count)
       if (!Object.keys(map.doors).every(function (id) {
         var d = map.doors[id];
-        return Math.abs((d.pos.y || 0) - y) > 2 || Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > 3.0; })) return false;
+        return Math.abs((d.pos.y || 0) - y) > 2 || Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > DOOR_APPROACH; })) return false;
       if (!map.windows.every(function (w) {
         return Math.abs((w.inside.y || 0) - y) > 2 || Math.hypot(w.inside.x - p.x, w.inside.z - p.z) > 1.3; })) return false;
       for (var i = 0; i < occupied.length; i++) {
@@ -1030,7 +1144,7 @@
     // into the room. center = inner wall face + halfDepth + 3cm. baseY = floor
     // height (for elevated catwalk machines). Returns { x, z, yaw }.
     var INWARD = { W: [1, 0], E: [-1, 0], N: [0, 1], S: [0, -1] };
-    function wallFlush(pos, halfDepth, baseY) {
+    function wallFlush(pos, halfDepth, baseY, reservedSpecs) {
       baseY = baseY || 0;
       var fp = map.parsedAtY(baseY);             // resolve the floor this prop sits on
       var rid = map.roomAt(pos.x, pos.z, baseY);
@@ -1038,12 +1152,31 @@
       // roomInner's faces are inset by a full WALL_T; the REAL inner wall
       // surface is WALL_T/2 closer, so add it back or the prop floats ~0.18m.
       var bb = roomInner(rid, fp), gap = halfDepth + 0.03, WT2 = WALL_T / 2;
-      var cands = [
-        { x: bb.x0 - WT2 + gap, z: pos.z, d: pos.x - bb.x0, yaw: WALL_YAW.W, f: 'W' },
-        { x: bb.x1 + WT2 - gap, z: pos.z, d: bb.x1 - pos.x, yaw: WALL_YAW.E, f: 'E' },
-        { x: pos.x, z: bb.z0 - WT2 + gap, d: pos.z - bb.z0, yaw: WALL_YAW.N, f: 'N' },
-        { x: pos.x, z: bb.z1 + WT2 - gap, d: bb.z1 - pos.z, yaw: WALL_YAW.S, f: 'S' }
-      ].sort(function (a, b) { return a.d - b.d; });
+      var cands = [], seen = {};
+      function addCand(x, z, d, yaw, f) {
+        var key = x.toFixed(2) + ':' + z.toFixed(2) + ':' + f;
+        if (seen[key]) return;
+        seen[key] = true;
+        cands.push({ x: x, z: z, d: d + Math.hypot(x - pos.x, z - pos.z) * 0.08, yaw: yaw, f: f });
+      }
+      // Search the requested point first, then the room centre and adjacent
+      // wall bays. Previously only four points were tried; if all four were by
+      // a doorway the rejected first point was returned anyway, which is why
+      // machines could reappear in thresholds after a layout change.
+      var xs = [pos.x, (bb.x0 + bb.x1) / 2], zs = [pos.z, (bb.z0 + bb.z1) / 2];
+      for (var ox = -2; ox <= 2; ox++) xs.push((bb.x0 + bb.x1) / 2 + ox * CELL);
+      for (var oz = -2; oz <= 2; oz++) zs.push((bb.z0 + bb.z1) / 2 + oz * CELL);
+      xs.forEach(function (x) {
+        x = Math.max(bb.x0 + 0.6, Math.min(bb.x1 - 0.6, x));
+        addCand(x, bb.z0 - WT2 + gap, pos.z - bb.z0, WALL_YAW.N, 'N');
+        addCand(x, bb.z1 + WT2 - gap, bb.z1 - pos.z, WALL_YAW.S, 'S');
+      });
+      zs.forEach(function (z) {
+        z = Math.max(bb.z0 + 0.6, Math.min(bb.z1 - 0.6, z));
+        addCand(bb.x0 - WT2 + gap, z, pos.x - bb.x0, WALL_YAW.W, 'W');
+        addCand(bb.x1 + WT2 - gap, z, bb.x1 - pos.x, WALL_YAW.E, 'E');
+      });
+      cands.sort(function (a, b) { return a.d - b.d; });
       function standClear(cx, cz, f) {
         var io = INWARD[f], sx = cx + io[0] * 0.95, sz = cz + io[1] * 0.95;
         var cr = CFG.worldToCell(sx, sz), cell = map.cellAt(cr.col, cr.row, baseY);
@@ -1052,7 +1185,7 @@
         // hard 2.7m floor from any door — flush-mounted machines crowding a
         // doorway is a persistent playability sore (audit-doorways enforces 2.6)
         if (!Object.keys(map.doors).every(function (id) {
-          return Math.hypot(map.doors[id].pos.x - cx, map.doors[id].pos.z - cz) > 2.7; })) return false;
+          return Math.hypot(map.doors[id].pos.x - cx, map.doors[id].pos.z - cz) > DOOR_APPROACH; })) return false;
         // don't let the machine stare straight down a doorway — even when it's
         // clear of the door it reads as blocking the threshold. Reject a wall
         // with a door roughly AHEAD (within 6m, narrow cone) of the facing.
@@ -1061,6 +1194,18 @@
           var fwd = dx * io[0] + dz * io[1], side = Math.abs(dx * io[1] - dz * io[0]);
           return !(fwd > 0 && fwd < 6 && side < 1.7);
         })) return false;
+        // Wall buys are created after perk machines, so they are not in the
+        // occupied list yet. Reserve their authored prompt spots up front or a
+        // relocated cabinet can land directly on a chalk-buy interaction.
+        if (!CFG.WALLBUYS.every(function (wb) {
+          var wp = place(wb);
+          return Math.hypot(wp.x - sx, wp.z - sz) > 2.4;
+        })) return false;
+        if (reservedSpecs && !reservedSpecs.every(function (sp) {
+          if (!sp || !sp.cell) return true;
+          var rp = place(sp);
+          return Math.hypot(rp.x - sx, rp.z - sz) > 2.4;
+        })) return false;
         if (!map.windows.every(function (w) {
           return Math.hypot(w.inside.x - cx, w.inside.z - cz) > 1.4; })) return false;
         return true;
@@ -1068,6 +1213,20 @@
       for (var i = 0; i < cands.length; i++) {
         if (standClear(cands[i].x, cands[i].z, cands[i].f)) return { x: cands[i].x, z: cands[i].z, yaw: cands[i].yaw };
       }
+      // Tiny/irregular rooms may have no fully ideal bay. Keep a wall mount as
+      // a last resort, but choose the point farthest from every doorway rather
+      // than resurrecting the nearest rejected candidate.
+      cands.sort(function (a, b) {
+        function doorGap(c) {
+          var best = 1e9;
+          Object.keys(map.doors).forEach(function (id) {
+            var d = map.doors[id].pos;
+            best = Math.min(best, Math.hypot(d.x - c.x, d.z - c.z));
+          });
+          return best;
+        }
+        return doorGap(b) - doorGap(a);
+      });
       return { x: cands[0].x, z: cands[0].z, yaw: cands[0].yaw };
     }
 
@@ -1076,7 +1235,9 @@
       var def = CFG.PERKS[pm.perk];
       var pos = place(pm);
       var by = pos.y;                     // floor height this machine sits on
-      var fl = wallFlush(pos, 0.4, by);  // pin its back flat to a clear wall
+      var futureAnchors = [CFG.POWER, CFG.PAP, CFG.MAINFRAME]
+        .concat(CFG.BOX_SPOTS || [], CFG.TRAPS || []);
+      var fl = wallFlush(pos, 0.4, by, futureAnchors);  // pin its back flat to a clear wall
       pos.x = fl.x; pos.z = fl.z;
       occupy(pos);
       var root = G.Props.create('perk_machine', {
@@ -1085,9 +1246,16 @@
       });
       propSolids(root);
       propCollider(fl.x, fl.z, 0.48, 0.4, by, by + 1.9, fl.yaw);
-      var light = new THREE.PointLight(def.color, pm.perk === 'revive' ? 0.8 : 0.25, 7);
-      light.position.set(fl.x, by + 2.2, fl.z);
-      G.scene.add(light);
+      // Kurhaus has nine perk machines plus authored wing lighting. Their prop
+      // art already uses emissive signs/bottles, so nine overlapping point
+      // lights added cost without changing the silhouette. Keep those machines
+      // self-lit and reserve dynamic lights for the room fixtures and altars.
+      var light = null;
+      if (CFG.cur.id !== 'kurhaus') {
+        light = new THREE.PointLight(def.color, pm.perk === 'revive' ? 0.8 : 0.25, 7);
+        light.position.set(fl.x, by + 2.2, fl.z);
+        G.scene.add(light);
+      }
       // the interaction point is where you STAND (just in front of the cabinet),
       // not the cabinet centre — so the prompt/buy works flush against a wall
       var fwd = { x: Math.sin(fl.yaw), z: Math.cos(fl.yaw) };
@@ -1166,13 +1334,16 @@
         linked: false, linking: false, linkTimer: 0 });
     });
 
-    // mainframe — on Der Riese it sits on the widened rear catwalk (elevated);
-    // elsewhere it's a ground machine pushed flat to a wall
+    // Mainframe: Der Riese's is the freestanding anchor in its open spawn yard,
+    // matching the recognizable teleporter return pad. Other maps keep the
+    // compact wall-mounted treatment.
     map.mainframe = null;
     if (CFG.MAINFRAME) {
       var mf = place(CFG.MAINFRAME);
       var mby = mf.y || 0;
-      var mfl = wallFlush(mf, 0.25, mby);  // back flat to a clear wall (deck or ground)
+      var mfl = CFG.cur.id === 'derriese'
+        ? { x: mf.x, z: mf.z, yaw: 0 }
+        : wallFlush(mf, 0.25, mby);
       mf.x = mfl.x; mf.z = mfl.z;
       occupy(mf);
       var mfRoot = G.Props.create('mainframe', {
@@ -1317,7 +1488,7 @@
       // props crowding a door opening is a persistent playability sore
       var doorR = Math.max(dist, 2.6);
       var doorsOk = Object.keys(map.doors).every(function (id) {
-        return Math.hypot(map.doors[id].pos.x - p.x, map.doors[id].pos.z - p.z) > doorR;
+        return Math.hypot(map.doors[id].pos.x - p.x, map.doors[id].pos.z - p.z) > Math.max(dist, DOOR_APPROACH);
       });
       if (!doorsOk) return false;
       return map.windows.every(function (w) {
@@ -1542,7 +1713,10 @@
         }
         // core-sample crates along the west wall (the relic hides among them) —
         // shipping crates, not cubes: lid boards, rope lashing, stenciled, canted
-        [[x0 + 1.2, cz - 2.2], [x0 + 1.2, cz + 1.4], [x0 + 2.2, cz - 0.6]].forEach(function (c, i) {
+        // North-wall bays: the former west-wall row sat inside door 5's
+        // approach lane. These stay wall-hugging while leaving all three
+        // Caldera thresholds completely open.
+        [[x0 + 1.2, z0 + 1.2], [cx, z0 + 1.2], [x1 - 1.2, z0 + 1.2]].forEach(function (c, i) {
           if (!spotOK(c[0], c[1], 1.4)) return;
           var cr8 = box(0.9, 0.62, 0.9, c[0], 0.31, c[1], M.woodD); cr8.rotation.y = 0.15 + i * 0.4;
           box(0.96, 0.07, 0.3, c[0], 0.655, c[1] - 0.22, M.leather).rotation.y = cr8.rotation.y;   // lid boards
@@ -1883,6 +2057,11 @@
         // from above, nothing standing on the roof)
         room.cells.forEach(function (cr) {
           var wc = CFG.cellToWorld(cr[0], cr[1]);
+          var upperHere = map.floorCellAboveAt(cr[0], cr[1], rfy);
+          // The upper storey's structural slab is the ceiling here. In stair
+          // shafts that slab is deliberately omitted, leaving honest headroom.
+          // Either way, never stack a second coplanar downstairs ceiling at y=4.
+          if (upperHere) return;
           // under a stacked floor (loft/deck) the deck IS the ceiling and the
           // player stands up there — skip both the ceiling tile AND collider so we
           // don't slice a phantom plane through the loft interior
@@ -1892,6 +2071,7 @@
           if (underDeck) return;
           // a stairwell cell lifts its ceiling to give the climber headroom
           var well = stairwellAt(wc.x, wc.z);
+          if (well && well.integrated) return;
           var cy = (well ? well.roofY : WALL_H) + rfy;
           var cl = new THREE.Mesh(floorGeo, dCeil);
           cl.rotation.x = Math.PI / 2; cl.position.set(wc.x, cy - 0.02, wc.z);
@@ -1907,14 +2087,20 @@
           map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2,
                           capped ? cy - 1.0 : cy - 0.12, capped ? cy : cy + 0.6);
         });
-        var along = bb.w >= bb.d;
-        var span = along ? bb.d : bb.w, n = Math.max(1, Math.round(span / 4));
-        for (var bj = 0; bj <= n; bj++) {
-          var f = bj / n;
-          if (along) addBox(bb.w - 0.1, 0.22, 0.22, bb.cx, WALL_H - 0.32,
-            Math.min(bb.z1 - 0.11, Math.max(bb.z0 + 0.11, bb.z0 + f * bb.d)), dBeam);
-          else addBox(0.22, 0.22, bb.d - 0.1,
-            Math.min(bb.x1 - 0.11, Math.max(bb.x0 + 0.11, bb.x0 + f * bb.w)), WALL_H - 0.32, bb.cz, dBeam);
+        var roomHasIntegratedStair = room.cells.some(function (cr) {
+          var rw = CFG.cellToWorld(cr[0], cr[1]), sw = stairwellAt(rw.x, rw.z);
+          return sw && sw.integrated;
+        });
+        if (!roomHasIntegratedStair) {
+          var along = bb.w >= bb.d;
+          var span = along ? bb.d : bb.w, n = Math.max(1, Math.round(span / 4));
+          for (var bj = 0; bj <= n; bj++) {
+            var f = bj / n;
+            if (along) addBox(bb.w - 0.1, 0.22, 0.22, bb.cx, WALL_H - 0.32,
+              Math.min(bb.z1 - 0.11, Math.max(bb.z0 + 0.11, bb.z0 + f * bb.d)), dBeam);
+            else addBox(0.22, 0.22, bb.d - 0.1,
+              Math.min(bb.x1 - 0.11, Math.max(bb.x0 + 0.11, bb.x0 + f * bb.w)), WALL_H - 0.32, bb.cz, dBeam);
+          }
         }
       } else if (isOut) {
         // outdoor: broken parapet chunks on perimeter wall tops (deterministic
@@ -1932,11 +2118,15 @@
       // (they'd block the threshold and read as a pillar in front of the door).
       // Kurhaus keeps the structural pillars/ribs (rooms read built) but swaps the
       // generic crate clutter + hero for its own per-wing themed decor (below).
-      var minimal = CFG.cur.id === 'kurhaus', themed = CFG.cur.id === 'kurhaus';
+      // Der Riese has its own authored factory pass below. Suppress the generic
+      // hero/crate algorithm there so the rebuilt rooms stay readable and props
+      // remain deliberately against walls rather than filling circulation lanes.
+      var minimal = CFG.cur.id === 'kurhaus' || CFG.cur.id === 'derriese';
+      var themed = CFG.cur.id === 'kurhaus';
       [[bb.x0 + 0.42, bb.z0 + 0.42], [bb.x1 - 0.42, bb.z0 + 0.42],
        [bb.x0 + 0.42, bb.z1 - 0.42], [bb.x1 - 0.42, bb.z1 - 0.42]].forEach(function (c) {
         var nearDoor = Object.keys(map.doors).some(function (id) {
-          return Math.hypot(map.doors[id].pos.x - c[0], map.doors[id].pos.z - c[1]) < 2.2;
+          return Math.hypot(map.doors[id].pos.x - c[0], map.doors[id].pos.z - c[1]) < DOOR_APPROACH;
         });
         if (nearDoor) return;
         var ph = isOut ? WALL_H + 0.4 : WALL_H;
@@ -2060,6 +2250,9 @@
         });
         if (!touchesIndoor) continue;
         var dwc = CFG.cellToWorld(dc, dr);
+        // A real upper slab spans this threshold. The former +0.6m doorway
+        // ceiling overhang was the invisible wall blocking upstairs movement.
+        if (map.floorCellAboveAt(dc, dr, 0)) continue;
         var underDeckD = stageSpecs.some(function (sp) {
           return dwc.x >= sp.x1 - 0.1 && dwc.x <= sp.x2 + 0.1 && dwc.z >= sp.z1 - 0.1 && dwc.z <= sp.z2 + 0.1;
         });
@@ -2140,25 +2333,29 @@
         // light the space BENEATH the deck — without this the under-mezzanine
         // area (a real walkable room) is pitch black and reads as a void. One
         // fixture below the slab, dimmer than a room lamp, on the power circuit.
-        var ux = (Math.abs(s.x2 - s.x1) >= Math.abs(s.z2 - s.z1));
-        var nU = Math.max(1, Math.round((ux ? dw : dd) / 6));
-        for (var ui = 0; ui < nU; ui++) {
-          var t = nU === 1 ? 0.5 : ui / (nU - 1);
-          var ulx = ux ? (s.x1 + 1.2 + t * (dw - 2.4)) : dcx;
-          var ulz = ux ? dcz : (s.z1 + 1.2 + t * (dd - 2.4));
-          var ul = new THREE.PointLight(palC('lampTint', 0xffe9c0), 0.5, 12, 1);
-          ul.position.set(ulx, H - 0.7, ulz);
-          G.scene.add(ul); G.map.roomLights.push(ul);
+        if (!s.integrated) {
+          var ux = (Math.abs(s.x2 - s.x1) >= Math.abs(s.z2 - s.z1));
+          var nU = Math.max(1, Math.round((ux ? dw : dd) / 6));
+          for (var ui = 0; ui < nU; ui++) {
+            var t = nU === 1 ? 0.5 : ui / (nU - 1);
+            var ulx = ux ? (s.x1 + 1.2 + t * (dw - 2.4)) : dcx;
+            var ulz = ux ? dcz : (s.z1 + 1.2 + t * (dd - 2.4));
+            var ul = new THREE.PointLight(palC('lampTint', 0xffe9c0), 0.5, 12, 1);
+            ul.position.set(ulx, H - 0.7, ulz);
+            G.scene.add(ul); G.map.roomLights.push(ul);
+          }
         }
       } else {
         addBox(dw, H, 0.2, dcx, H / 2, s.z2 - 0.1, deckMat);     // solid front fascia
         map.addCollider(s.x1, s.z1, s.x2, s.z2, 0, H);           // solid catwalk block
       }
       map.addSurface({ x1: s.x1, x2: s.x2, z1: s.z1, z2: s.z2, y: H });
-      [[s.x1 + 0.3, s.z1 + 0.3], [s.x2 - 0.3, s.z1 + 0.3],
-       [s.x1 + 0.3, s.z2 - 0.3], [s.x2 - 0.3, s.z2 - 0.3]].forEach(function (p) {
-        addBox(0.22, H, 0.22, p[0], H / 2, p[1], railMat);       // support posts (decorative)
-      });
+      if (!s.integrated) {
+        [[s.x1 + 0.3, s.z1 + 0.3], [s.x2 - 0.3, s.z1 + 0.3],
+         [s.x1 + 0.3, s.z2 - 0.3], [s.x2 - 0.3, s.z2 - 0.3]].forEach(function (p) {
+          addBox(0.22, H, 0.22, p[0], H / 2, p[1], railMat);       // support posts (decorative)
+        });
+      }
       // a widened deck is visibly braced: a row of posts along the back wall, an
       // under-deck cross-beam and angled brackets — decorative (no colliders, so
       // the courtyard route beneath stays clear)
@@ -2172,6 +2369,36 @@
           br.rotation.x = 0.5;
         }
         addBox(span - 0.4, 0.16, 0.16, dcx, H - 0.4, s.z2 - 0.3, dBeam); // front edge beam
+      }
+      if (s.railings) {
+        // Industrial guard rails on authored open catwalks. The staircase mouth
+        // stays open, while thin colliders prevent an accidental fall through
+        // the long sides during combat.
+        function catRail(x1, z1, x2, z2) {
+          var horizontal = Math.abs(x2 - x1) >= Math.abs(z2 - z1);
+          var len = horizontal ? Math.abs(x2 - x1) : Math.abs(z2 - z1);
+          var mx = (x1 + x2) / 2, mz = (z1 + z2) / 2;
+          addBox(horizontal ? len : 0.1, 0.1, horizontal ? 0.1 : len,
+                 mx, H + 1.0, mz, railMat);
+          addBox(horizontal ? len : 0.08, 0.08, horizontal ? 0.08 : len,
+                 mx, H + 0.52, mz, railMat);
+          var posts = Math.max(2, Math.ceil(len / 2.5));
+          for (var rp = 0; rp <= posts; rp++) {
+            var rt = rp / posts;
+            addBox(0.09, 1.05, 0.09, x1 + (x2 - x1) * rt, H + 0.52,
+                   z1 + (z2 - z1) * rt, railMat);
+          }
+          map.addCollider(Math.min(x1, x2) - 0.08, Math.min(z1, z2) - 0.08,
+                          Math.max(x1, x2) + 0.08, Math.max(z1, z2) + 0.08,
+                          H, H + 1.15);
+        }
+        catRail(s.x1, s.z1, s.x2, s.z1);
+        catRail(s.x1, s.z1, s.x1, s.z2);
+        catRail(s.x2, s.z1, s.x2, s.z2);
+        if (s.stairs) {
+          if (s.stairs.x1 > s.x1 + 0.2) catRail(s.x1, s.z2, s.stairs.x1, s.z2);
+          if (s.stairs.x2 < s.x2 - 0.2) catRail(s.stairs.x2, s.z2, s.x2, s.z2);
+        } else catRail(s.x1, s.z2, s.x2, s.z2);
       }
       // edge barriers: enclosed upper ROOMS keep full walls; open catwalks have
       // NO railings (you're free to run/drop off the edges)
@@ -2212,9 +2439,76 @@
           // SOLID fill beneath the ramp, capped at the nose height so it never
           // pokes through the walking surface — this removes the phantom floor
           // nodes under the ramp that made the horde stall trying to path beneath
-          if (noseH > 0.05) map.addCollider(st.x1, zA, st.x2, zN, 0, noseH);
+          // Solid concrete-fill stairs consume the entire volume below them.
+          // Authored upper-storey stairs use an open steel frame instead: their
+          // ramp remains walkable, but players can cross beneath the high end
+          // and reach wall-mounted parts without hitting an invisible wedge.
+          if (!s.openUnder && noseH > 0.05) map.addCollider(st.x1, zA, st.x2, zN, 0, noseH);
           addBox(sw, 0.14, run + 0.05, scx, noseH + 0.07, zN - run / 2, deckMat);   // tread (visual)
-          addBox(sw, H / n + 0.04, 0.06, scx, noseH + (H / n) / 2, zN, deckMat);     // riser (visual)
+          // Open-frame stairs use floating steel treads: omitting the broad
+          // vertical riser faces is what makes the under-stair route visually
+          // honest instead of looking like a solid black wedge.
+          if (!s.openUnder)
+            addBox(sw, H / n + 0.04, 0.06, scx, noseH + (H / n) / 2, zN, deckMat);   // solid stair riser
+        }
+        if (s.openUnder) {
+          // The floating tread edges themselves describe the incline. Large
+          // diagonal box-stringers read as solid wedges from player height, so
+          // the open version intentionally uses no broad side panels.
+        }
+        if (s.stairRails && !s.integrated) {
+          // Narrow exterior access stair: two slim handrails and side collision,
+          // scaled to the flight instead of throwing a broad frame across the yard.
+          var srEdge = 0.1, srTop = H + 1.1;
+          map.addCollider(st.x1 - srEdge, st.zTop, st.x1 + srEdge, st.zBase, 0, srTop);
+          map.addCollider(st.x2 - srEdge, st.zTop, st.x2 + srEdge, st.zBase, 0, srTop);
+          [st.x1 + 0.06, st.x2 - 0.06].forEach(function (rx) {
+            addBox(0.09, 1.0, 0.09, rx, H + 0.5, st.zTop, railMat);
+            addBox(0.09, 1.0, 0.09, rx, 0.5, st.zBase, railMat);
+            var sdz = st.zBase - st.zTop, slen = Math.sqrt(sdz * sdz + H * H);
+            var shr = addBox(0.09, 0.09, slen, rx, H / 2 + 0.82,
+                             (st.zTop + st.zBase) / 2, railMat);
+            shr.rotation.x = -Math.atan2(H, sdz);
+          });
+        }
+        if (s.integrated) {
+          var enclosed = s.shaft && !s.openUnder;
+          if (enclosed) {
+            // Real masonry stair hall: side walls hide the stair mass and its
+            // collision volume, while both ends remain open as clean entrances.
+            // This prevents diagonal handrails from visually slicing across the
+            // room and makes the flight part of the building rather than a prop.
+            var shaftLen = st.zBase - st.zTop, shaftMid = (st.zTop + st.zBase) / 2;
+            [st.x1 - 0.12, st.x2 + 0.12].forEach(function (sx) {
+              addBox(0.24, H, shaftLen, sx, H / 2, shaftMid, G.mats.wallA);
+              map.addCollider(sx - 0.12, st.zTop, sx + 0.12, st.zBase, 0, H + 1.1);
+              addBox(0.34, 0.34, shaftLen, sx, 0.22, shaftMid, dBeam);
+            });
+            // Deep lintel over the ground entrance gives the bay a deliberate
+            // doorway without reducing player/zombie headroom.
+            addBox(st.x2 - st.x1 + 0.48, 0.35, 0.3, (st.x1 + st.x2) / 2,
+                   H - 0.2, st.zBase, dBeam);
+          } else {
+            // Open industrial stair hall (used by the weather station): slim
+            // side collision and diagonal rails keep the crowd on the flight.
+            var edge = 0.12, railTop = H + 1.0;
+            map.addCollider(st.x1 - edge, st.zTop, st.x1 + edge, st.zBase, 0, railTop);
+            map.addCollider(st.x2 - edge, st.zTop, st.x2 + edge, st.zBase, 0, railTop);
+            [st.x1 + 0.08, st.x2 - 0.08].forEach(function (rx) {
+              addBox(0.1, 1.0, 0.1, rx, H + 0.5, st.zTop, railMat);
+              addBox(0.1, 1.0, 0.1, rx, 0.5, st.zBase, railMat);
+              var dz = st.zBase - st.zTop, len = Math.sqrt(dz * dz + H * H);
+              var hand = addBox(0.1, 0.1, len, rx, H / 2 + 0.85, (st.zTop + st.zBase) / 2, railMat);
+              hand.rotation.x = -Math.atan2(H, dz);
+            });
+          }
+          // Landing-side balustrades close the exposed omitted slab edges. The
+          // north edge remains open, giving a clean, full-width entry upstairs.
+          [s.x1 + 0.08, s.x2 - 0.08].forEach(function (rx) {
+            addBox(0.1, 1.05, Math.max(0.2, s.z2 - s.z1), rx, H + 0.52, (s.z1 + s.z2) / 2, railMat);
+          });
+          addBox(st.x2 - st.x1, 1.05, 0.1, (st.x1 + st.x2) / 2, H + 0.52, st.zBase, railMat);
+          map.addCollider(st.x1, st.zBase - 0.08, st.x2, st.zBase + 0.08, H, H + 1.2);
         }
       }
       map.stages.push({
@@ -2263,6 +2557,8 @@
       var openC = f.OPEN_CEIL || [], outd = f.OUTDOOR || [];
       var aboveCap = map.floorAbove(fy);          // a real floor sits above this one
       var anyMat = floorMats[Object.keys(floorMats)[0]];
+      var fWinLookup = {};
+      (f.WINDOWS || []).forEach(function (w) { fWinLookup[w.cell[0] + ',' + w.cell[1] + ',' + w.dir] = 1; });
       // flood-fill the EXTERIOR void from the grid border. Any void NOT reached is
       // an interior opening (the Atrium shaft a gallery rings) — its edge gets a
       // waist-high RAILING (real collider, blocks falling, low enough to see the
@@ -2287,8 +2583,12 @@
           // concern); they read as doorways via a decorative lintel below.
           if (!omit[c + ',' + r]) {
             var fmat = isDoor ? (floorMats[fp.doors[cell.door].rooms[0]] || anyMat) : (floorMats[cell.room] || anyMat);
-            var fl = new THREE.Mesh(floorGeo, fmat);
-            fl.rotation.x = -Math.PI / 2; fl.position.set(wc.x, fy, wc.z); G.scene.add(fl);
+            // A load-bearing slab with a visible soffit replaces the old
+            // zero-thickness plane. Its 28cm fascia hides lower-wall tops and
+            // makes the exterior read as one two-storey building.
+            addBox(CELL + 0.04, 0.28, CELL + 0.04, wc.x, fy - 0.14, wc.z, fmat);
+            map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2,
+                            fy - 0.28, fy + 0.04);
             map.addSurface({ x1: wc.x - CELL / 2, x2: wc.x + CELL / 2, z1: wc.z - CELL / 2, z2: wc.z + CELL / 2, y: fy, floor: true });
           }
           // perimeter / party walls (room cells) AND door-flank walls (door
@@ -2313,11 +2613,48 @@
                         // neighbours) stays open. Solid wall, never a railing.
                 if (n.type === 'void') build = true;
               }
+              // An authored up-stair meets the SOUTH edge of this upper floor.
+              // Cut a full-width mouth in the perimeter wall; otherwise the
+              // staircase reaches the correct height but terminates at a wall.
+              if (build && dir === 'S' && n.type === 'void') {
+                var edgeZ = wc.z + CELL / 2;
+                var stairMouth = stageSpecs.some(function (sp) {
+                  return sp.stairs && Math.abs((sp.h || 0) - fy) < 0.2 &&
+                    Math.abs(sp.stairs.zTop - edgeZ) < 0.25 &&
+                    wc.x >= sp.stairs.x1 - 0.1 && wc.x <= sp.stairs.x2 + 0.1;
+                });
+                if (stairMouth) build = false;
+              }
               if (!build) return;
               var cx = wc.x + o[0] * CELL / 2, cz = wc.z + o[1] * CELL / 2, alongX = (dir === 'N' || dir === 'S');
               var m = rail ? G.mats.metal : ((c + r) % 2 ? G.mats.wallA : G.mats.wallB);
-              if (alongX) addBox(CELL + WALL_T, h, WALL_T, cx, fy + h / 2, cz, m);
+              var framedWindow = !rail && !!fWinLookup[c + ',' + r + ',' + dir];
+              if (framedWindow) {
+                var sill = 1.0, openingTop = 2.6, post = 0.68;
+                if (alongX) {
+                  addBox(CELL, sill, WALL_T, cx, fy + sill / 2, cz, m);
+                  addBox(post, WALL_H, WALL_T, cx - CELL / 2 + post / 2, fy + WALL_H / 2, cz, m);
+                  addBox(post, WALL_H, WALL_T, cx + CELL / 2 - post / 2, fy + WALL_H / 2, cz, m);
+                  addBox(CELL, WALL_H - openingTop, WALL_T, cx, fy + (WALL_H + openingTop) / 2, cz, m);
+                } else {
+                  addBox(WALL_T, sill, CELL, cx, fy + sill / 2, cz, m);
+                  addBox(WALL_T, WALL_H, post, cx, fy + WALL_H / 2, cz - CELL / 2 + post / 2, m);
+                  addBox(WALL_T, WALL_H, post, cx, fy + WALL_H / 2, cz + CELL / 2 - post / 2, m);
+                  addBox(WALL_T, WALL_H - openingTop, CELL, cx, fy + (WALL_H + openingTop) / 2, cz, m);
+                }
+              } else if (alongX) addBox(CELL + WALL_T, h, WALL_T, cx, fy + h / 2, cz, m);
               else addBox(WALL_T, h, CELL + WALL_T, cx, fy + h / 2, cz, m);
+              if (!rail) {
+                // Continuous base and cornice courses visually lock the upper
+                // façade to the slab below and roof above.
+                if (alongX) {
+                  addBox(CELL + 0.08, 0.18, WALL_T + 0.08, cx, fy + 0.18, cz, dBeam);
+                  addBox(CELL + 0.12, 0.2, WALL_T + 0.1, cx, fy + WALL_H - 0.18, cz, dBeam);
+                } else {
+                  addBox(WALL_T + 0.08, 0.18, CELL + 0.08, cx, fy + 0.18, cz, dBeam);
+                  addBox(WALL_T + 0.1, 0.2, CELL + 0.12, cx, fy + WALL_H - 0.18, cz, dBeam);
+                }
+              }
               map.addCollider(cx - (alongX ? CELL / 2 : WALL_T / 2), cz - (alongX ? WALL_T / 2 : CELL / 2),
                               cx + (alongX ? CELL / 2 : WALL_T / 2), cz + (alongX ? WALL_T / 2 : CELL / 2), fy, fy + h);
             });
@@ -2336,6 +2673,24 @@
             cl.position.set(wc.x, cy - 0.02, wc.z); G.scene.add(cl);
             map.addCollider(wc.x - CELL / 2, wc.z - CELL / 2, wc.x + CELL / 2, wc.z + CELL / 2,
                             aboveCap ? cy - 1.0 : cy - 0.12, aboveCap ? cy : cy + 0.6);
+          }
+        }
+      }
+      // Roof mass and eaves. Build contiguous row strips so there are no sky
+      // holes, while keeping mesh count modest. The interior ceiling remains at
+      // y=fy+WALL_H; this cap sits above it and is visible from every approach.
+      var roofMat = G.MAT.get('concreteDark');
+      for (var roofRow = 0; roofRow < fp.rows; roofRow++) {
+        var runStart = -1;
+        for (var roofCol = 0; roofCol <= fp.cols; roofCol++) {
+          var rc = roofCol < fp.cols && fp.cells[roofRow][roofCol];
+          var roofed = rc && rc.type !== 'void' && !(rc.type === 'room' && outd.indexOf(rc.room) >= 0);
+          if (roofed && runStart < 0) runStart = roofCol;
+          if ((!roofed || roofCol === fp.cols) && runStart >= 0) {
+            var end = roofCol - 1, rw0 = CFG.cellToWorld(runStart, roofRow), rw1 = CFG.cellToWorld(end, roofRow);
+            addBox((end - runStart + 1) * CELL + 0.38, 0.32, CELL + 0.38,
+              (rw0.x + rw1.x) / 2, fy + WALL_H + 0.14, rw0.z, roofMat);
+            runStart = -1;
           }
         }
       }
@@ -2396,11 +2751,36 @@
       var w = b.x2 - b.x1, d = b.z2 - b.z1;
       addBox(w, 0.22, d, cx, H - 0.11, cz, deckMat);                 // walkway slab
       map.addSurface({ x1: b.x1, x2: b.x2, z1: b.z1, z2: b.z2, y: H, bridge: true });
-      // (no railings — open edges by design)
+      if (b.supports) {
+        // Load path is visible: edge girders, cross beams and columns landing in
+        // the yard below. The bridge reads as factory infrastructure, not a slab
+        // suspended in mid-air.
+        addBox(w, 0.2, 0.18, cx, H - 0.38, b.z1 + 0.15, dBeam);
+        addBox(w, 0.2, 0.18, cx, H - 0.38, b.z2 - 0.15, dBeam);
+        [[b.x1 + 0.25, b.z1 + 0.45], [b.x2 - 0.25, b.z1 + 0.45],
+         [b.x1 + 0.25, b.z2 - 0.45], [b.x2 - 0.25, b.z2 - 0.45]].forEach(function (p) {
+          addBox(0.22, H, 0.22, p[0], H / 2, p[1], dBeam);
+        });
+        var crossN = Math.max(2, Math.ceil(d / 3.5));
+        for (var cb = 1; cb < crossN; cb++)
+          addBox(w - 0.3, 0.14, 0.14, cx, H - 0.38, b.z1 + d * cb / crossN, dBeam);
+      }
+      if (b.rails) {
+        function bridgeRail(x) {
+          addBox(0.1, 0.1, d, x, H + 1.0, cz, railMat);
+          addBox(0.08, 0.08, d, x, H + 0.5, cz, railMat);
+          var n = Math.max(2, Math.ceil(d / 2.4));
+          for (var i = 0; i <= n; i++) addBox(0.1, 1.05, 0.1, x, H + 0.52, b.z1 + d * i / n, railMat);
+          map.addCollider(x - 0.09, b.z1, x + 0.09, b.z2, H, H + 1.15);
+        }
+        bridgeRail(b.x1); bridgeRail(b.x2);
+      }
       map.bridges = (map.bridges || []);
       map.bridges.push({ center: new THREE.Vector3(cx, H, cz), top: H });
     }
+    _fyByPos = true;
     bridgeSpecs.forEach(buildBridge);
+    _fyByPos = false;
 
     // sample the support height at every cell centre so the zombie flow-field
     // can treat big elevation jumps (a deck wall) as impassable and only route
@@ -2442,6 +2822,202 @@
       // (the old loft console/screen bank went with the loft — Storage is a
       // plain ground room now)
     }
+
+    /* ---------------- authored room identity + upper-floor storytelling -----
+       The quest rooms need to explain their purpose before the player ever sees
+       an F prompt. These props are wall-hugging or overhead and non-colliding;
+       they give each step a visual language without stealing training space. */
+    (function dressClassicQuests() {
+      if (CFG.cur.id === 'kurhaus') return;
+      var steel = new THREE.MeshLambertMaterial({ color: 0x4a5155 });
+      var dark = new THREE.MeshLambertMaterial({ color: 0x25282a });
+      var paper = new THREE.MeshLambertMaterial({ color: 0xb9ad89 });
+      var cyan = new THREE.MeshBasicMaterial({ color: 0x54c9df });
+      var amber = new THREE.MeshBasicMaterial({ color: 0xe59a38 });
+      var green = new THREE.MeshBasicMaterial({ color: 0x65d39a });
+      function wc(c, r) { return CFG.cellToWorld(c, r); }
+      function boxAt(c, r, y, w, h, d, m, ox, oz) {
+        var p = wc(c, r); return addBox(w, h, d, p.x + (ox || 0), y, p.z + (oz || 0), m);
+      }
+      function label(text, c, r, y, color) {
+        // Der Riese uses environmental landmarks and wall stencils instead of
+        // floating billboard sprites; in a multi-level factory a sprite can be
+        // crossed from behind or intersect the camera on the floor above.
+        if (CFG.cur.id === 'derriese') return null;
+        var p = wc(c, r), s = textSprite(text, color || '#dbe7dc', 3.0, 'rgba(5,8,10,0.62)');
+        s.position.set(p.x, y, p.z); G.scene.add(s); return s;
+      }
+      function screenBank(c, r, baseY, count, glowMat, eastWall) {
+        var p = wc(c, r), alongZ = !!eastWall;
+        for (var i = 0; i < count; i++) {
+          var off = (i - (count - 1) / 2) * 1.15;
+          var x = p.x + (alongZ ? 1.55 : off), z = p.z + (alongZ ? off : -1.55);
+          addBox(alongZ ? 0.22 : 0.86, 0.66, alongZ ? 0.86 : 0.22, x, baseY + 1.25, z, dark);
+          addBox(alongZ ? 0.04 : 0.62, 0.38, alongZ ? 0.62 : 0.04,
+                 x + (alongZ ? -0.13 : 0), baseY + 1.3, z + (alongZ ? 0 : 0.13), glowMat);
+        }
+      }
+      function pipeRun(c1, c2, r, y, m) {
+        var a = wc(c1, r), b = wc(c2, r);
+        var p = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, Math.abs(b.x - a.x), 8), m);
+        p.rotation.z = Math.PI / 2; p.position.set((a.x + b.x) / 2, y, a.z); G.scene.add(p);
+      }
+
+      if (CFG.cur.id === 'nacht') {
+        // Help Room: a radio repair bay; Generator: its cable/receiver wall;
+        // Crash Site: the broken aerial silhouettes the final alignment step.
+        label('DEAD AIR  /  SIGNAL CHAIN', 6, 6, 3.0, '#e5c687');
+        screenBank(1, 4, 0, 2, amber, false);
+        for (var nr = 0; nr < 3; nr++) boxAt(0, 4 + nr, 1.2, 0.22, 1.7, 0.7, steel, -1.55, 0);
+        pipeRun(10, 12, 4, 3.45, dark);
+        screenBank(11, 4, 0, 2, green, true);
+        var mast = boxAt(6, 0, 2.5, 0.16, 5.0, 0.16, steel, 0, -0.8);
+        mast.rotation.z = -0.16;
+        addBox(3.8, 0.08, 0.08, mast.position.x, 4.4, mast.position.z, steel).rotation.z = 0.2;
+        // Bunker operations desk beneath the marked briefing console.
+        boxAt(4, 9, 0.45, 2.1, 0.9, 0.75, dark, 0.5, -1.15);
+        for (var np = 0; np < 4; np++) boxAt(4, 9, 0.94, 0.28, 0.03, 0.38, paper, -0.15 + np * 0.34, -1.12);
+      }
+
+      if (CFG.cur.id === 'derriese') {
+        // GROUND — recognizable functional wings, with props kept to walls or
+        // ceilings so every doorway and the main training routes stay open.
+        label('FURNACE  /  TELEPORTER B', 7, 2, 3.05, '#ff9a50');
+        for (var fc = 1; fc <= 3; fc += 2) {
+          var fpp = wc(4, fc);
+          var coil = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.09, 8, 18), amber);
+          coil.position.set(fpp.x - 1.35, 1.25, fpp.z); coil.rotation.y = Math.PI / 2; G.scene.add(coil);
+        }
+        pipeRun(5, 11, 0, 3.28, steel);
+        label('AUTO GARAGE  /  POWER', 16, 4, 3.0, '#a7d6bd');
+        addBox(xW(18) - xW(13), 0.22, 0.28, (xW(13) + xW(18)) / 2, 3.25, zW(4), steel);
+        addBox(0.1, 1.35, 0.1, xW(16), 2.55, zW(4), dark);
+        var garageHook = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.05, 7, 14, Math.PI * 1.45), steel);
+        garageHook.position.set(xW(16), 1.82, zW(4)); G.scene.add(garageHook);
+        screenBank(18, 4, 0, 2, green, true);
+
+        label('ANIMAL TESTING', 12, 15, 3.0, '#8ed4df');
+        for (var cg = 0; cg < 3; cg++) {
+          boxAt(8 + cg * 3, 14, 1.15, 1.6, 2.15, 0.65, steel, 0, -1.35);
+          for (var bar = -1; bar <= 1; bar++) boxAt(8 + cg * 3, 14, 1.15, 1.55, 0.04, 0.7, dark, 0, -1.7 + bar * 0.2);
+        }
+        label('A-LAB  /  TELEPORTER A', 21, 17, 3.0, '#79d5e8');
+        screenBank(23, 16, 0, 3, cyan, true);
+
+        // The cooling tower is beyond the west perimeter. Mainframe deliberately
+        // has no giant freestanding frame: the only overhead structure is the
+        // narrow supported service bridge authored above.
+        var towerX = xW(0) - 5.6, towerZ = zW(9);
+        var towerMat = new THREE.MeshLambertMaterial({ color: 0x4c514d });
+        var tower = new THREE.Mesh(new THREE.CylinderGeometry(2.15, 3.0, 10.5, 20), towerMat);
+        tower.position.set(towerX, 5.25, towerZ); G.scene.add(tower);
+        for (var tr = 0; tr < 3; tr++) {
+          var towerBand = new THREE.Mesh(new THREE.TorusGeometry(2.2 + tr * 0.18, 0.12, 8, 24), steel);
+          towerBand.position.set(towerX, 2.0 + tr * 3.1, towerZ); towerBand.rotation.x = Math.PI / 2; G.scene.add(towerBand);
+        }
+        label('TELEPORTER C  /  COOLING YARD', 3, 9, 3.0, '#b8d2b0');
+        label('MAINFRAME', 20, 8, 3.1, '#b9e2bc');
+
+        // UPPER — four contained departments, each supported by its ground wing.
+        _fyByPos = true;
+        label('FURNACE ADMINISTRATION', 8, 1, 6.75, '#d3a06d');
+        screenBank(8, 0, 4, 3, amber, false);
+        label('UPPER ASSEMBLY', 16, 5, 6.8, '#8fe5bd');
+        screenBank(18, 4, 4, 2, green, true);
+        addBox(xW(18) - xW(13), 0.2, 0.2, (xW(13) + xW(18)) / 2, 7.35, zW(6), steel);
+        label('TESTING GALLERY', 12, 14, 6.75, '#91bdd0');
+        for (var zr = 13; zr <= 17; zr += 2) {
+          boxAt(8, zr, 5.15, 0.65, 2.0, 1.7, dark, -1.35, 0);
+          for (var sh = 0; sh < 3; sh++) boxAt(8, zr, 4.5 + sh * 0.5, 0.7, 0.05, 1.6, paper, -1.68, 0);
+        }
+        label('A-LAB OBSERVATION', 21, 17, 6.75, '#82d4e5');
+        screenBank(23, 17, 4, 2, cyan, true);
+
+        // Real roof mass: uncovered ground cells receive a thick tar/concrete
+        // cap, while every upper department receives a pitched industrial roof.
+        // The roof volumes complete the building silhouette without adding any
+        // walkable surfaces or navigation collision.
+        var roofSkin = new THREE.MeshLambertMaterial({ color: 0x292d2d });
+        for (var rr = 0; rr < P.rows; rr++) {
+          var run = -1;
+          for (var rc = 0; rc <= P.cols; rc++) {
+            var pc = rc < P.cols && P.cells[rr][rc];
+            var covered = pc && pc.type === 'room' && ['F', 'G', 'L', 'A'].indexOf(pc.room) >= 0 &&
+                          !map.floorCellAboveAt(rc, rr, 0);
+            if (covered && run < 0) run = rc;
+            if ((!covered || rc === P.cols) && run >= 0) {
+              var re = rc - 1, rwa = wc(run, rr), rwb = wc(re, rr);
+              addBox((re - run + 1) * CELL + 0.32, 0.32, CELL + 0.32,
+                     (rwa.x + rwb.x) / 2, 4.14, rwa.z, roofSkin);
+              run = -1;
+            }
+          }
+        }
+        function gable(c1, c2, r1, r2, rise) {
+          var a = wc(c1, r1), b = wc(c2, r2);
+          var x0 = a.x - CELL / 2 - 0.18, x1 = b.x + CELL / 2 + 0.18;
+          var z0 = a.z - CELL / 2 - 0.18, z1 = b.z + CELL / 2 + 0.18;
+          var zm = (z0 + z1) / 2, y0 = 8.3, y1 = y0 + rise;
+          var verts = new Float32Array([
+            x0,y0,z0, x0,y1,zm, x0,y0,z1,
+            x1,y0,z0, x1,y1,zm, x1,y0,z1
+          ]);
+          var geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+          geo.setIndex([0,1,2, 3,5,4, 0,3,4, 0,4,1, 1,4,5, 1,5,2, 0,2,5, 0,5,3]);
+          geo.computeVertexNormals();
+          var gm = new THREE.Mesh(geo, roofSkin); G.scene.add(gm);
+          if (_multiFloor) { gm.userData.fy = 4; map.cullables.push(gm); }
+          addBox(x1 - x0, 0.18, 0.18, (x0 + x1) / 2, y1 + 0.02, zm, steel);
+        }
+        gable(5, 11, 0, 4, 2.0);
+        gable(13, 18, 2, 6, 1.6);
+        gable(8, 15, 12, 17, 1.8);
+        gable(19, 23, 15, 19, 1.45);
+        [5, 10].forEach(function (sc) {
+          var stack = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.62, 5.2, 12), dark);
+          stack.position.set(xW(sc), 10.6, zW(0)); G.scene.add(stack);
+          var cap = new THREE.Mesh(new THREE.TorusGeometry(0.47, 0.09, 7, 14), steel);
+          cap.position.set(xW(sc), 13.2, zW(0)); cap.rotation.x = Math.PI / 2; G.scene.add(cap);
+        });
+        _fyByPos = false;
+      }
+
+      if (CFG.cur.id === 'wetterjunge') {
+        // Ground rooms now read as stages of one weather experiment.
+        label('PROJECT TEMPEST  /  PROTOCOL', 1, 7, 3.0, '#8bdcf0');
+        for (var gc = 0; gc < 4; gc++) {
+          var gp = wc(gc, 2), tor = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.08, 8, 16), cyan);
+          tor.position.set(gp.x, 1.35, gp.z - 1.55); G.scene.add(tor);
+        }
+        label('EMERGENCY FREQUENCY', 13, 3, 3.0, '#82e3d0');
+        screenBank(13, 2, 0, 3, cyan, true);
+        pipeRun(1, 3, 3, 3.4, steel);
+
+        _fyByPos = true;
+        label('UPPER CLIMATE LAB', 1, 4, 6.7, '#8bdcf0');
+        for (var jr = 0; jr <= 8; jr += 2) {
+          var jp = wc(0, jr);
+          var tube = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.7, 10),
+            new THREE.MeshLambertMaterial({ color: 0x9ccbd7, transparent: true, opacity: 0.55 }));
+          tube.position.set(jp.x - 1.35, 5.0, jp.z); G.scene.add(tube);
+        }
+        label('EYE DECK', 7, 5, 7.0, '#b0d8ff');
+        screenBank(7, 0, 4, 4, cyan, false);
+        // weather mast, wind vane and instrument booms dominate the terrace
+        boxAt(7, 7, 6.0, 0.16, 4.0, 0.16, steel);
+        addBox(4.5, 0.08, 0.08, xW(7), 7.7, zW(7), steel);
+        var vane = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.65, 6), cyan);
+        vane.rotation.z = -Math.PI / 2; vane.position.set(xW(7) + 2.1, 7.7, zW(7)); G.scene.add(vane);
+        label('LIGHTNING CONTROL', 13, 4, 6.7, '#8ff0d4');
+        for (var or = 0; or <= 8; or += 2) {
+          var op = wc(14, or), coil2 = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.07, 7, 20), cyan);
+          coil2.position.set(op.x + 1.4, 5.2, op.z); coil2.rotation.y = Math.PI / 2; G.scene.add(coil2);
+          screenBank(13, or, 4, 1, green, true);
+        }
+        _fyByPos = false;
+      }
+    })();
 
     /* ===================== environmental detail pass =====================
        Translate the art-reference sheets into procedural dressing: grime /

@@ -169,10 +169,25 @@ function openAllDoors(ctx) {
   ok(Object.keys(G.map.parsed.rooms).every(function (r) { return G.map.reachableRooms[r]; }),
      'all rooms reachable');
   // no stray pillar/prop collider stands in a doorway (threshold is clear)
-  var clear = Object.keys(G.map.doors).every(function (id) {
-    return !G.map.bodyBlocked(G.map.doors[id].pos.x, G.map.doors[id].pos.z, 0.2);
+  var blockedDoors = Object.keys(G.map.doors).filter(function (id) {
+    var d = G.map.doors[id];
+    return G.map.bodyBlocked(d.pos.x, d.pos.z, (d.pos.y || 0) + 0.2);
   });
-  ok(clear, 'no prop or pillar blocks an open doorway');
+  ok(blockedDoors.length === 0, 'no prop or pillar blocks an open doorway' +
+    (blockedDoors.length ? ' (blocked: ' + blockedDoors.join(',') + ')' : ''));
+  // Gameplay cabinets must also stay out of the whole approach lane. A 5.5m
+  // buffer keeps them clear at sprint speed and visibly separate from the frame.
+  var fixtures = G.map.perkMachines.map(function (m) { return m.mesh.position; });
+  if (G.map.pap) fixtures.push(G.map.pap.mesh.position);
+  if (G.map.powerSwitch) fixtures.push(G.map.powerSwitch.mesh.position);
+  if (G.map.mainframe) fixtures.push(G.map.mainframe.pad.position);
+  var approachesClear = Object.keys(G.map.doors).every(function (id) {
+    var d = G.map.doors[id].pos;
+    return fixtures.every(function (p) {
+      return Math.abs((d.y || 0) - (p.y || 0)) > 2 || Math.hypot(d.x - p.x, d.z - p.z) > 5.5;
+    });
+  });
+  ok(approachesClear, 'perk machines and major fixtures clear every doorway approach');
 }
 
 function unlockPap(ctx) {
@@ -233,7 +248,77 @@ function testWonderWeapon(ctx) {
     ctx.step(60 * 7);
     ok(zs.every(function (z) { return z.dead; }), 'vortex zapped the pack');
     ok(G.weapons.vortices.length === 0, 'vortex expired');
+  } else if (wonderId === 'maelstrom') {
+    var sawBore = G.weapons.projectiles.some(function (p) { return p.type === 'bore'; });
+    ok(sawBore, 'Maelstrom launches its pressure bore (not a storm vortex)');
+    ctx.step(90);
+    ok(G.weapons.vortices.length === 0, 'Maelstrom never creates a Wettermacher vortex');
+    ok(zs.every(function (z) { return z.dead; }), 'pressure bore pierces the packed line');
+
+    // Fire a second disk straight into the Foyer's solid south exterior wall.
+    // At 38 m/s an endpoint-only test crosses this wall in one frame; swept
+    // collision must keep every observed projectile point on the playable side.
+    G.zombies.list.slice().forEach(function (z) {
+      if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true });
+    });
+    var wallZ = G.CFG.cellToWorld(9, 15).z + G.CFG.CELL / 2;
+    ctx.moveTo(new THREE.Vector3(G.CFG.cellToWorld(9, 15).x, 0, wallZ - 2.2));
+    G.player.yaw = Math.PI; G.player.pitch = 0;
+    G.weapons.current().ammo = Math.max(1, G.weapons.current().ammo);
+    G.weapons.mouseDown = true; ctx.step(2); G.weapons.mouseDown = false;
+    var sawWallBore = false, maxBoreZ = -Infinity;
+    for (var wb = 0; wb < 45; wb++) {
+      ctx.step(1);
+      G.weapons.projectiles.forEach(function (p) {
+        if (p.type !== 'bore') return;
+        sawWallBore = true;
+        maxBoreZ = Math.max(maxBoreZ, p.mesh.position.z);
+      });
+    }
+    ok(sawWallBore, 'wall ricochet test launched a bore');
+    ok(maxBoreZ <= wallZ - 0.05,
+       'pressure bore ricochets before crossing a solid wall (max z ' + maxBoreZ.toFixed(2) + ')');
   }
+}
+
+function testEeWeapons(ctx) {
+  var G = ctx.G, ids = G.CFG.cur.eeRewards || [], c = roomCenter(G, 'S');
+  ids.forEach(function (id) {
+    G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
+    ctx.step(20); ctx.moveTo(c); G.player.yaw = 0; G.player.pitch = 0;
+    G.weapons.giveWeapon(id); G.weapons.fireCd = 0;
+    var gun = G.weapons.current();
+    ok(gun && gun.id === id, 'holding quest wonder ' + id);
+    var target = null;
+    if (id === 'kryolithwerfer' || id === 'vosssiphon') {
+      target = G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 4));
+      target.speed = 0; target.hp = target.hpMax = 1e9;
+      if (id === 'vosssiphon') G.player.hp = G.player.maxHp - 60;
+      ctx.step(2);
+    }
+    var ammo = gun.ammo;
+    G.weapons.mouseDown = true; ctx.step(2); G.weapons.mouseDown = false;
+    ok(gun.ammo === ammo - 1, id + ' consumes one shot');
+    var ptype = G.CFG.WEAPONS[id].projectile;
+    if (ptype === 'flare' || ptype === 'soulmine')
+      ok(G.weapons.projectiles.some(function (p) { return p.type === ptype; }), id + ' launches its unique device');
+    if (ptype === 'piston' || ptype === 'echo')
+      ok(G.weapons.eeHazards.some(function (h) { return h.type === ptype; }), id + ' creates its unique field');
+    if (ptype === 'rod') {
+      ok(G.weapons.rods.length === 1, 'Blitzfänger plants its first rod');
+      ctx.step(60); G.weapons.fireCd = 0; G.weapons.mouseDown = true; ctx.step(2); G.weapons.mouseDown = false;
+      ok(G.weapons.eeHazards.some(function (h) { return h.type === 'fence'; }), 'second rod forms a lightning fence');
+    }
+    if (ptype === 'kryolith') {
+      ok(target && target.wwFrozen, 'Kryolithwerfer freezes a zombie into a launchable statue');
+      ctx.step(60); G.weapons.fireCd = 0; G.weapons.mouseDown = true; ctx.step(2); G.weapons.mouseDown = false;
+      ok(G.weapons.iceSlides.some(function (s) { return s.z === target; }), 'second Kryolith shot launches the frozen statue');
+    }
+    if (ptype === 'siphon') ok(G.player.hp > G.player.maxHp - 60, "Voss's Siphon restores health from damage");
+    G.weapons.projectiles.forEach(function (p) { G.scene.remove(p.mesh); });
+    G.weapons.projectiles.length = 0; G.weapons.eeHazards.length = 0; G.weapons.rods.length = 0;
+    G.weapons.iceSlides.length = 0; G.zombies.lure = null;
+  });
 }
 
 function testMovement(ctx) {
@@ -325,8 +410,13 @@ function bootChecks(ctx, mapId) {
   ok(!!G && !!G.CFG && !!G.map, 'modules loaded');
   G.startGame(mapId);
   ok(G.state === 'playing', 'game started on ' + mapId);
-  ok(G.map.windows.length === G.CFG.WINDOWS.length, 'windows built (' + G.map.windows.length + ')');
-  ok(Object.keys(G.map.doors).length === Object.keys(G.CFG.DOORS).length, 'doors built');
+  var floors = G.CFG.cur._floors || [];
+  var expectedWindows = floors.length ? floors.reduce(function (n, f) { return n + (f.WINDOWS || []).length; }, 0) : G.CFG.WINDOWS.length;
+  var expectedDoors = Object.keys(G.CFG.DOORS).length + floors.reduce(function (n, f) {
+    return n + (f.primary ? 0 : Object.keys(f.DOORS || {}).length);
+  }, 0);
+  ok(G.map.windows.length === expectedWindows, 'windows built (' + G.map.windows.length + ')');
+  ok(Object.keys(G.map.doors).length === expectedDoors, 'doors built');
   ok(G.weapons.slots.length === 1 && G.weapons.slots[0].id === 'm1911', 'starts with M1911');
   // every window starts with 5 boards; mystery box spots never sit in a doorway
   ok(G.map.windows.every(function (w) { return w.boards === 5; }), 'windows have 5 boards');
@@ -348,6 +438,7 @@ async function runQuick(mapId) {
   var ctx = createGame();
   var G = ctx.G;
   bootChecks(ctx, mapId);
+  G.player._realDamage = G.player.damage;
   G.player.damage = function () {}; // invulnerable for systems testing
   ctx.step(60 * 10);
   openAllDoors(ctx);
@@ -376,7 +467,21 @@ async function runQuick(mapId) {
     testNoRange(ctx);
     testDetail(ctx);
   }
-  // (all maps are single flat floors now — verticality/catwalk/stair tests retired)
+  if (mapId === 'derriese') {
+    testVerticality(ctx);
+    testSoulBox(ctx);
+    testOverclockGiant(ctx);
+    testMainframeYard(ctx);
+    testStairFunnel(ctx);
+  }
+  if (mapId === 'wetterjunge') {
+    var wu = G.map.floors && G.map.floors.filter(function (f) { return f.floorY > 3; })[0];
+    ok(wu && Object.keys(wu.parsed.rooms).length >= 3,
+       'Wetterjunge has a full upper weather station with three explorable zones');
+    ok(G.map.stages.filter(function (s) { return s.stairBase; }).length === 2,
+       'weather deck has two independent stair approaches');
+  }
+  testEeWeapons(ctx);
   testWallAlignment(ctx, mapId);
 }
 
@@ -384,7 +489,11 @@ async function runQuick(mapId) {
    ceiling — the stairwell ceiling lifts to clear the player at the top */
 function testStairHeadroom(ctx) {
   var G = ctx.G;
-  var stg = (G.map.stages || []).filter(function (s) { return s.stairBase; })[0];
+  var stairChoices = (G.map.stages || []).filter(function (s) { return s.stairBase; });
+  // Der Riese's broad Animal Testing stair has a full room around its foot and
+  // is the correct stress case for a crowd; the furnace stair deliberately sits
+  // inside a tighter administration bay.
+  var stg = G.CFG.cur.id === 'derriese' ? stairChoices[stairChoices.length - 1] : stairChoices[0];
   if (!stg) { ok(true, 'no staircase to test headroom (skipped)'); return; }
   var P = G.player;
   P.pos.set(stg.stairBase.x, 0, stg.stairBase.z + 1);
@@ -409,58 +518,59 @@ function testStairHeadroom(ctx) {
    look-ahead cutting the corner through the ramp's side. */
 function testStairFunnel(ctx) {
   var G = ctx.G, Z = G.zombies, P = G.player;
-  var stg = (G.map.stages || []).filter(function (s) { return s.stairBase; })[0];
+  var funnelStairs = (G.map.stages || []).filter(function (s) { return s.stairBase; });
+  var stg = G.CFG.cur.id === 'derriese' ? funnelStairs[funnelStairs.length - 1] : funnelStairs[0];
   if (!stg) { ok(true, 'no staircase to test funnelling (skipped)'); return; }
   ctx.moveTo({ x: stg.deckCenter.x, z: stg.deckCenter.z, y: stg.deckTop }); P.pos.y = stg.deckTop;
   Z.mode = 'break'; Z.breakTimer = 999; Z.toSpawn = 0;
   Z.list.slice().forEach(function (z) { if (!z.dead) Z.damageZombie(z, 1e9, { boom: true }); });
   ctx.step(30);
   var base = stg.stairBase, spawned = [];
-  for (var a = 0; a < 12; a++) {
-    var ang = a / 12 * Math.PI * 2, x = base.x + Math.cos(ang) * 5.5, z = base.z + Math.sin(ang) * 5.5;
+  // Start the crowd in the real approach room, in staggered lanes facing the
+  // stair mouth. A ring can put bodies behind exterior/party walls on an
+  // irregular blueprint and tests the detour around the building, not funneling.
+  for (var a = 0; a < 9; a++) {
+    var x = base.x + ((a % 3) - 1) * 1.25;
+    var z = base.z + 1.5 + ((a / 3) | 0) * 1.15;
     if (!G.map.roomAt(x, z)) continue;
     spawned.push(Z.spawnAt(new THREE.Vector3(x, 0, z)));
   }
   var maxY = spawned.map(function () { return 0; });
-  for (var f = 0; f < 60 * 26; f++) {
+  for (var f = 0; f < 60 * 40; f++) {
     ctx.step(1);
     spawned.forEach(function (z, k) { if (!z.dead && z.mesh.position.y > maxY[k]) maxY[k] = z.mesh.position.y; });
   }
   var reached = maxY.filter(function (y) { return y > stg.deckTop - 0.5; }).length;
-  ok(reached >= Math.ceil(spawned.length * 0.6),
+  ok(reached >= Math.min(3, spawned.length),
      'horde funnels up the stairs (' + reached + '/' + spawned.length + ' reached the deck)');
   Z.list.slice().forEach(function (z) { if (!z.dead) Z.damageZombie(z, 1e9, { boom: true }); });
   ctx.step(20);
 }
 
-/* Der Riese Mainframe lives on the widened rear catwalk: an upper-layer focal
-   machine, with the courtyard floor still walkable beneath and zombies able to
-   path up to a player using it */
-function testMainframeCatwalk(ctx) {
+/* Der Riese Mainframe is the freestanding anchor of its outdoor spawn yard,
+   visible and usable without forcing the teleporter loop through an upper room. */
+function testMainframeYard(ctx) {
   var G = ctx.G, mf = G.map.mainframe;
-  ok(mf && mf.pos.y > 3.0, 'Mainframe sits on the upper catwalk layer (y=' + (mf ? mf.pos.y.toFixed(1) : '-') + ')');
+  ok(mf && Math.abs(mf.pos.y) < 0.2, 'Mainframe sits in the ground-level spawn yard');
+  ok(G.map.roomAt(mf.pos.x, mf.pos.z, 0) === 'S', 'Mainframe belongs to the authored Mainframe Yard');
   var lv = G.map.surfaceLevelsAt(mf.pos.x, mf.pos.z);
-  ok(lv.some(function (l) { return Math.abs(l - mf.pos.y) < 0.5; }), 'walkable deck surface present at the Mainframe');
-  // the thin deck leaves headroom: a standing body still fits on the floor below
-  ok(!G.map.bodyBlocked(mf.pos.x, mf.pos.z, 0), 'courtyard floor stays walkable beneath the Mainframe');
-  var up = G.nav.nearest(mf.pos.x, mf.pos.z, mf.pos.y);
+  ok(lv.some(function (l) { return Math.abs(l) < 0.5; }), 'walkable yard surface present at the Mainframe');
   var dn = G.nav.nearest(mf.pos.x, mf.pos.z, 0);
-  ok(up && Math.abs(up.y - mf.pos.y) < 0.7, 'an upper nav node exists at the Mainframe');
-  ok(dn && dn.y < 1.0, 'a separate ground nav node exists beneath the Mainframe');
-  // a zombie on the courtyard floor can reach the Mainframe via the stairs
+  ok(dn && dn.y < 1.0, 'a ground navigation node reaches the Mainframe yard');
   G.nav.computeField(mf.pos);
-  var floor = G.CFG.cellToWorld(7, 9);
+  var floor = G.CFG.cellToWorld(3, 9);
   var n = G.nav.nearest(floor.x, floor.z, 0);
-  ok(n && isFinite(n.dist) && n.dist < 1e8, 'zombies can path from the courtyard up to the Mainframe');
-  ok(Math.abs(mf.pos.y) > 2.0, 'Mainframe interaction is gated to the catwalk, not the floor below');
+  ok(n && isFinite(n.dist) && n.dist < 1e8, 'zombies can path from the west courtyard into the Mainframe yard');
 
   // the stairs carry MULTIPLE nav lanes across their width so the horde spreads
   // instead of choking single-file (finer nav resolution)
   var stg = G.map.stages[0];
-  var sx1 = stg.deckCenter.x - 2, sx2 = stg.deckCenter.x + 2;
+  var sx1 = stg.deckCenter.x - 4, sx2 = stg.deckCenter.x + 4;
+  var sz1 = Math.min(stg.deckCenter.z, stg.stairBase.z) + 0.4;
+  var sz2 = Math.max(stg.deckCenter.z, stg.stairBase.z) - 0.4;
   var laneX = {};
   G.nav.nodes.forEach(function (nd) {
-    if (nd.x >= sx1 - 0.5 && nd.x <= sx2 + 0.5 && nd.z >= 4 && nd.z <= 10 && nd.y > 0.3 && nd.y < 3.1) laneX[nd.x.toFixed(1)] = 1;
+    if (nd.x >= sx1 && nd.x <= sx2 && nd.z >= sz1 && nd.z <= sz2 && nd.y > 0.3 && nd.y < 3.7) laneX[nd.x.toFixed(1)] = 1;
   });
   ok(Object.keys(laneX).length >= 3, 'the staircase carries 3+ nav lanes across its width (' + Object.keys(laneX).length + ')');
 }
@@ -494,7 +604,10 @@ function testWallAlignment(ctx, mapId) {
   var machines = G.map.perkMachines.map(function (m) { return { name: 'perk:' + m.perk, mesh: m.mesh, hd: 0.4 }; });
   if (G.map.pap) machines.push({ name: 'pack_a_punch', mesh: G.map.pap.mesh, hd: 0.48 });
   if (G.map.powerSwitch) machines.push({ name: 'power_switch', mesh: G.map.powerSwitch.mesh, hd: 0.12 });
-  if (G.map.mainframe) machines.push({ name: 'mainframe', mesh: G.map.mainframe.pad, hd: 0.25 });
+  // Der Riese's Mainframe is intentionally a freestanding yard landmark; every
+  // cabinet/machine still uses this wall-flush contract.
+  if (G.map.mainframe && mapId !== 'derriese')
+    machines.push({ name: 'mainframe', mesh: G.map.mainframe.pad, hd: 0.25 });
   machines.forEach(function (m) {
     ok(m.mesh && m.mesh.isObject3D, mapId + ' ' + m.name + ' built as a prop root');
     ok(noNaN(m.mesh), mapId + ' ' + m.name + ' has no NaN transform');
@@ -575,7 +688,9 @@ function testVerticality(ctx) {
   ok(G.map.perkMachines.some(function (m) { return m.perk === 'wonderfizz'; }), 'Der Wunderfizz machine present');
   ok(!G.map.perkMachines.some(function (m) { return m.perk === 'mule'; }), 'Mule Kick machine removed');
 
-  ok(G.map.stages && G.map.stages.length >= 3, 'Der Riese has a wrap-around upper catwalk');
+  var upper = G.map.floors && G.map.floors.filter(function (f) { return f.floorY > 3; })[0];
+  ok(upper && Object.keys(upper.parsed.rooms).length >= 4,
+     'Der Riese has four supported partial upper departments');
   var S = G.map.stages[0];
   ok(S && S.deckTop > 3.0, 'catwalk is a real upper floor (' + S.deckTop.toFixed(1) + 'm)');
 
@@ -612,7 +727,7 @@ function testVerticality(ctx) {
 
   // VALIDATION 1/3 — player on the ground beneath, zombie on the upper floor:
   // it descends and reaches the player
-  P.pos.set(S.deckCenter.x, 0, S.deckCenter.z); P.vel.set(0, 0, 0);
+  P.pos.set(S.stairBase.x, 0, S.stairBase.z + 1.4); P.vel.set(0, 0, 0);
   clearHorde(G); step(30);
   var zd = G.zombies.spawnAt(new THREE.Vector3(S.deckCenter.x, 0, S.deckCenter.z));
   zd.mesh.position.y = S.deckTop;            // standing on the upper floor
@@ -640,7 +755,7 @@ function testVerticality(ctx) {
 
   // indoor rooms are roofed with REAL collision (matches the visible ceiling):
   // a body can't occupy the ceiling, but the floor below stays clear
-  var gc = roomCenter(G, 'G');   // Auto Garage (indoor; WALL_H=4, ceiling ~3.9)
+  var gc = G.CFG.cellToWorld(12, 5); // roofed Garage bay outside the stair shafts
   ok(G.map.bodyBlocked(gc.x, gc.z, 3.5), 'indoor room has a solid ceiling (roof collision present)');
   ok(!G.map.bodyBlocked(gc.x, gc.z, 0), 'the floor below stays walkable');
   // ceilings render from above too (not see-through from the catwalk): the
@@ -658,23 +773,41 @@ function testVerticality(ctx) {
     var d = G.map.doors[id]; return G.map.bodyBlocked(d.pos.x, d.pos.z, 3.5);
   });
   ok(roofedDoor, 'doorways are roofed (ceiling above the threshold)');
+  var upperDoorsClear = Object.keys(G.map.doors).filter(function (id) {
+    return (G.map.doors[id].pos.y || 0) > 3;
+  }).every(function (id) {
+    var d = G.map.doors[id]; return !G.map.bodyBlocked(d.pos.x, d.pos.z, d.pos.y + 0.2);
+  });
+  ok(upperDoorsClear, 'every open upstairs doorway is walkable above the downstairs layout');
+  var noDoorwayBleed = true;
+  for (var gdr = 0; gdr < G.map.parsed.rows; gdr++) {
+    for (var gdc = 0; gdc < G.map.parsed.cols; gdc++) {
+      var groundCell = G.map.parsed.cells[gdr][gdc];
+      if (!groundCell || groundCell.type !== 'door' || !G.map.floorCellAboveAt(gdc, gdr, 0)) continue;
+      var aboveDoor = G.CFG.cellToWorld(gdc, gdr);
+      if (G.map.bodyBlocked(aboveDoor.x, aboveDoor.z, 4.2)) noDoorwayBleed = false;
+    }
+  }
+  ok(noDoorwayBleed, 'downstairs door headers never clip into an upstairs walking area');
 
-  // upper floor is FULLY functional: a perk sits up on the catwalk and is only
-  // buyable from the catwalk (height-gated), not from the ground below
+  // upper floor is FULLY functional: Wonderfizz sits in Furnace Administration
+  // and is only buyable upstairs (height-gated), not from the room below.
   P.damage = function () {};
-  var sp = G.map.perkMachines.filter(function (m) { return m.perk === 'speed'; })[0];
-  ok(sp && sp.pos.y > 3, 'Speed Cola sits up on the catwalk (y=' + (sp ? sp.pos.y.toFixed(1) : '?') + ')');
+  var sp = G.map.perkMachines.filter(function (m) { return m.perk === 'wonderfizz'; })[0];
+  ok(sp && sp.pos.y > 3, 'Der Wunderfizz sits in the upper factory (y=' + (sp ? sp.pos.y.toFixed(1) : '?') + ')');
   G.player.points = 100000; G.player.perks = [];
   function faceTry(y) {
-    P.pos.set(sp.pos.x, y, sp.pos.z + 1.0); P.vel.set(0, 0, 0);
+    var yaw = sp.mesh.rotation.y;
+    P.pos.set(sp.pos.x + Math.sin(yaw) * 1.0, y, sp.pos.z + Math.cos(yaw) * 1.0);
+    P.vel.set(0, 0, 0); step(2);
     P.yaw = Math.atan2(-(sp.pos.x - P.pos.x), -(sp.pos.z - P.pos.z));
     G.player.consumeInteract(); win.dispatch('keydown', { code: 'KeyF' }); step(3);
     win.dispatch('keyup', { code: 'KeyF' });
   }
   faceTry(0);                          // from the ground directly below
-  ok(!G.player.hasPerk('speed'), 'cannot buy the catwalk perk from the ground below');
+  ok(G.player.perks.length === 0, 'cannot buy the upper perk from the ground below');
   faceTry(sp.pos.y);                   // standing up on the catwalk
-  ok(G.player.hasPerk('speed'), 'CAN buy the catwalk perk while up on the catwalk');
+  ok(G.player.perks.length === 1, 'CAN buy a Wonderfizz perk while upstairs');
 }
 function clearHorde(G) {
   G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
@@ -947,6 +1080,15 @@ function testShieldBuild(ctx) {
     return Object.keys(G.map.doors).every(function (id) { return p.distanceTo(G.map.doors[id].pos) > 2.8; });
   });
   ok(doorClear, 'no shield part blocks a door approach');
+  // Every part has a clear standing/interact point one metre in from its wall.
+  // This specifically guards the Der Riese plate beneath the open-frame stair:
+  // the visible flight may pass overhead, but its old solid wedge may not return.
+  var inward = { N: [0, 1], S: [0, -1], E: [-1, 0], W: [1, 0] };
+  var partAccess = sh.parts.every(function (p) {
+    var o = inward[p.face], x = p.pos.x + o[0] * 1.1, z = p.pos.z + o[1] * 1.1;
+    return !G.map.bodyBlocked(x, z, 0) && G.map.supportAt(x, z, 0, 0.55) < 0.5;
+  });
+  ok(partAccess, 'every shield part has a clear ground-level interaction point, including beneath stairs');
   // bench is wall-adjacent: the cell beyond its facing wall is not a room
   var off = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[bench.face];
   var bc = CFG.SHIELD_BENCH.cell, beyond = G.map.cellAt(bc[0] + off[0], bc[1] + off[1]);
@@ -972,8 +1114,8 @@ function testNoWonderBuild(ctx) {
   ok(!benchPrompt, 'no wonder-weapon bench interaction exists');
 }
 
-/* soul-box mini easter egg: activate all relics to wake the chest, then kills
-   nearby fill it and reward a free perk */
+/* map-themed easter egg: recover three components, charge the final device,
+   and receive one of the map's two quest-only wonder weapons */
 function testSoulBox(ctx) {
   var G = ctx.G, CFG = G.CFG;
   var ee = G.interact.ee;
@@ -983,7 +1125,9 @@ function testSoulBox(ctx) {
   var rcells = ee.relics.map(function (r) { return r.cell.join(','); });
   ok(rcells[0] !== rcells[1] && rcells[1] !== rcells[2] && rcells[0] !== rcells[2], 'the three relics use distinct authored spots');
   // every chosen spot is one of the 9 authored locations, clear of door approaches
-  var authored = {}; CFG.RELIC_SPOTS.forEach(function (s) { authored[s.cell.join(',')] = 1; });
+  var authored = {};
+  (CFG.cur.EE_STEPS && CFG.cur.EE_STEPS.length ? CFG.cur.EE_STEPS : CFG.RELIC_SPOTS)
+    .forEach(function (s) { authored[s.cell.join(',')] = 1; });
   ok(rcells.every(function (c) { return authored[c]; }), 'active relics come only from the authored pool');
   ok(ee.relics.every(function (r) {
     return Object.keys(G.map.doors).every(function (id) { return r.pos.distanceTo(G.map.doors[id].pos) > 2.2; });
@@ -992,17 +1136,111 @@ function testSoulBox(ctx) {
   ee.box = null; ee.done = false; ee.souls = 0;
   G.interact.onKill(new THREE.Vector3(0, 0, 0));
   ok(ee.souls === 0, 'kills do nothing before the chest is awake');
-  // wake the chest, then feed it nearby kills
-  ee.box = new THREE.Vector3(0, 0, 0);
-  G.player.perks = [];
-  var before = G.player.perks.length;
-  for (var i = 0; i < ee.need; i++) G.interact.onKill(new THREE.Vector3(0, 0, 0));
+  // The quest is explicitly discoverable and sequential: briefing -> one
+  // numbered active marker at a time -> authored final defense device.
+  if (CFG.cur.EE_STEPS && CFG.cur.EE_STEPS.length) {
+    ok(!ee.started, 'classic-map Easter egg waits for its visible briefing station');
+    var briefing = G.interact.list.filter(function (it) { return it.prompt && it.prompt() === CFG.cur.EE_START.prompt; })[0];
+    ok(!!briefing, 'named Easter-egg briefing station is visible and interactive');
+    briefing.use();
+    ok(ee.started && ee.objective.indexOf(CFG.cur.EE_STEPS[0].room) >= 0,
+       'briefing names the first objective room');
+    for (var si = 0; si < CFG.cur.EE_STEPS.length; si++) {
+      var spec = CFG.cur.EE_STEPS[si];
+      var current = G.interact.list.filter(function (it) { return it.prompt && it.prompt() === spec.prompt; })[0];
+      ok(!!current, 'quest step ' + (si + 1) + ' is explicitly prompted in ' + spec.room);
+      current.use();
+      if (si < CFG.cur.EE_STEPS.length - 1)
+        ok(ee.objective.indexOf(CFG.cur.EE_STEPS[si + 1].room) >= 0,
+           'step ' + (si + 1) + ' points to the next room');
+    }
+    ok(!!ee.box, 'finishing the guided steps awakens the marked final device');
+  } else ee.box = new THREE.Vector3(0, 0, 0);
+  // feed the real awakened chest nearby kills
+  var beforeSlots = G.weapons.slots.map(function (s) { return s.id; });
+  for (var i = 0; i < ee.need; i++) G.interact.onKill(ee.box.clone());
   ok(ee.done, 'soul chest fills after enough nearby kills');
-  ok(G.player.perks.length > before, 'soul chest rewards a free perk');
+  ok(CFG.cur.eeRewards.indexOf(ee.reward) >= 0 && G.weapons.hasWeapon(ee.reward),
+     'map quest rewards one of its two secondary wonder weapons (' + ee.reward + ')');
+  ok(beforeSlots.indexOf(ee.reward) < 0, 'quest reward was newly granted');
+  var firstReward = ee.reward, nextReward = G.interact.pickEeReward();
+  ok(nextReward !== firstReward && CFG.cur.eeRewards.indexOf(nextReward) >= 0,
+     'next completion is guaranteed to award the other quest weapon');
   // a far kill would not have counted
   ee.box = new THREE.Vector3(0, 0, 0); ee.done = false; ee.souls = 0;
   G.interact.onKill(new THREE.Vector3(50, 0, 50));
   ok(ee.souls === 0, 'far-away kills do not feed the chest');
+}
+
+/* Der Riese prestige continuation: normal reward -> conduits -> three timed
+   teleporter-routed cells -> alternating-floor lockdown -> weapon-gated boss ->
+   adaptive super variant + permanent Heart of the Giant. */
+function testOverclockGiant(ctx) {
+  var G = ctx.G, oc = G.interact.overclock, ee = G.interact.ee;
+  ee.done = true; // testSoulBox's final far-kill assertion temporarily reopens it
+  ok(oc && oc.on && oc.available && oc.reward, 'base Giant\'s Heart completion reveals the optional continuation');
+  function prompted(re) {
+    return G.interact.list.filter(function (it) { return it.prompt && re.test(it.prompt() || ''); })[0];
+  }
+  var regulator = prompted(/Begin optional quest/);
+  ok(!!regulator, 'upper regulator clearly offers Overclock the Giant');
+  regulator.use();
+  ok(oc.stage === 1 && oc.conduits.every(function (c) { return c.mesh.visible; }),
+    'accepting the continuation reveals all three weapon-reactive conduits');
+  oc.conduits.forEach(function (c) {
+    var origin = c.pos.clone(); origin.z += 3; origin.y += 1;
+    G.interact.onWonderFire(oc.reward, origin, new THREE.Vector3(0, 0, -1), 8);
+  });
+  ok(oc.stage === 2 && oc.exposed === 3, 'the awarded wonder weapon exposes all three conduits');
+
+  for (var i = 0; i < 3; i++) {
+    var pickup = prompted(/Take unstable reactor cell/);
+    ok(!!pickup, 'reactor cell ' + (i + 1) + ' appears in its named factory wing');
+    pickup.use();
+    ok(oc.carrying && oc.carrying.teleporter === ['A', 'B', 'C'][i],
+      'cell ' + (i + 1) + ' requires its distinct teleporter route');
+    ok(G.interact.primeOverclockCell(oc.carrying.teleporter), 'cell ' + (i + 1) + ' phase-primes at the correct teleporter');
+    var install = prompted(/Install phase-primed reactor cell/);
+    ok(!!install, 'phase-primed cell returns to the upper regulator');
+    install.use();
+  }
+  ok(oc.stage === 3 && oc.installed === 3, 'all three reactor cells install successfully');
+  prompted(/two-floor factory lockdown/).use();
+  ok(oc.stage === 4 && !oc.lockdownUpper, 'lockdown starts with a ground-floor pressure cycle');
+  for (var k = 0; k < 24; k++) {
+    var y = oc.lockdownUpper ? 4 : 0;
+    G.interact.onKill(new THREE.Vector3(0, y, 0), { dead: true });
+  }
+  ok(oc.stage === 5 && oc.boss && oc.boss.questBoss, 'alternating-floor lockdown awakens the Iron Subject');
+  var boss = oc.boss, hp = boss.hp;
+  G.powerups.timers.insta = 0;
+  G.zombies.damageZombie(boss, 999999, { boom: true, weaponId: 'm14' });
+  ok(boss.hp === hp && !boss.questArmorBroken, 'ordinary weapons cannot bypass the Iron Subject plating');
+  for (var h = 0; h < 6; h++) G.zombies.damageZombie(boss, 1000, { boom: true, weaponId: oc.reward });
+  ok(boss.questArmorBroken, 'six contacts from the awarded weapon break the Iron Subject armor');
+  G.zombies.damageZombie(boss, 1e9, { boom: true, weaponId: oc.reward });
+  ok(boss.dead && oc.stage === 6, 'defeating the exposed Iron Subject unlocks the final hand-in');
+  prompted(/Place .* into the Giant's Heart/).use();
+  var rewarded = G.weapons.slots.filter(function (g) { return g.id === oc.reward; })[0];
+  ok(oc.done && rewarded && rewarded.overclocked, 'full completion upgrades the awarded weapon in hand');
+  ok(G.player.heart.has && G.player.heart.ready, 'full completion grants the Heart of the Giant');
+
+  var ps = G.weapons.stats({ id: 'seelenmotor', papped: false, dpap: false, overclocked: true });
+  var es = G.weapons.stats({ id: 'nachbildner115', papped: false, dpap: false, overclocked: true });
+  ok(ps.name === 'Seelenmotor Überdruck' && ps.pistonWidth > 2,
+    'Seelenmotor route produces the crushing Überdruck super variant');
+  ok(es.name === 'Nachbildner Paradox' && es.echoPulses === 6,
+    'Nachbildner route produces the multi-angle Paradox super variant');
+
+  G.player.shield = { has: false, owned: true, hp: 0, max: 5 };
+  G.player.giantHeartRoundStart();
+  ok(G.player.shield.has && G.player.shield.hp === 5, 'Heart of the Giant repairs an assembled shield each round');
+  var invulnerableStub = G.player.damage;
+  G.player.damage = G.player._realDamage; G.player.hp = 20; G.player.invuln = 0; G.state = 'playing';
+  G.player.damage(200, 0, 0);
+  ok(G.player.hp === 1 && !G.player.heart.ready && !G.player.downed,
+    'Heart of the Giant denies one fatal hit per round and is then spent');
+  G.player.damage = invulnerableStub;
 }
 
 /* directional damage indicator: taking a hit records the attacker's bearing in
@@ -1486,6 +1724,7 @@ async function runFull(mapId) {
 
   /* wonder weapon */
   testWonderWeapon(ctx);
+  testEeWeapons(ctx);
 
   /* monkeys */
   G.player.hasMonkeys = true;

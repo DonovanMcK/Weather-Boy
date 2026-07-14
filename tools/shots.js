@@ -18,6 +18,8 @@ var ROOT = path.resolve(__dirname, '..');
 var OUT = path.join(ROOT, 'screenshots');
 var URL = 'file://' + path.join(ROOT, 'index.html');
 var W = 1280, H = 800;
+var ONLY = process.argv[2] || null;
+var ONLY_VIEW = process.argv[3] || null;
 
 // derived IN the page (has access to the live game globals). Returns an array of
 // { name, pos:[x,y,z], look:[x,y,z], fov } computed from map geometry only.
@@ -70,6 +72,18 @@ function deriveViewpointsSrc() {
         vps.push({ name: 'room-' + rid, pos: pos, look: look, fov: 82 });
       }
     });
+    // UPPER ROOMS — inspect every authored second-floor zone from inside.  These
+    // are separate parsed grids, so they are not present in P.rooms above.
+    (G.map.floors || []).forEach(function (floor, fi) {
+      if (!floor || !floor.parsed || !floor.floorY) return;
+      Object.keys(floor.parsed.rooms).forEach(function (rid) {
+        var bb = bounds(floor.parsed.rooms[rid]);
+        var w = bb.x1 - bb.x0, d = bb.z1 - bb.z0, y = floor.floorY;
+        var pos = (w >= d) ? [bb.x0 + 1.0, y + 2.3, bb.cz] : [bb.cx, y + 2.3, bb.z0 + 1.0];
+        var look = (w >= d) ? [bb.x1, y + 1.2, bb.cz] : [bb.cx, y + 1.2, bb.z1];
+        vps.push({ name: 'upper-' + (fi + 1) + '-' + rid, pos: pos, look: look, fov: 82 });
+      });
+    });
     // STAIRCASES — a side 3/4 of the flight (perpendicular to the stair axis) so
     // the steps and the funnel read; pick whichever perpendicular side sits in an
     // actual room (not buried in a perimeter wall)
@@ -83,7 +97,7 @@ function deriveViewpointsSrc() {
       // and FURTHEST from the perimeter (maps are centred on the origin, so the
       // side closer to (0,0) is the interior one) — avoids burying the cam in a
       // wall or the upper structure. Backed off the foot, looking up the flight.
-      var off = 4.5;
+      var off = 7.5;   // clear the new full-width flights instead of filming from inside their tread span
       function camFor(sg) { return [mx + sg * px * off - ux * 2.0, 1.9, mz + sg * pz * off - uz * 2.0]; }
       var cP = camFor(1), cM = camFor(-1);
       var okP = G.map.roomAt(cP[0], cP[2]), okM = G.map.roomAt(cM[0], cM[2]);
@@ -147,6 +161,7 @@ function shoot() {
     await page.goto(URL, { waitUntil: 'load' });
     await page.waitForFunction('window.G && G.CFG && G.CFG.MAP_IDS && G.map && G.player');
     var maps = await page.evaluate('G.CFG.MAP_IDS.slice()');
+    if (ONLY) maps = maps.filter(function (m) { return m === ONLY; });
     console.log('Maps discovered: ' + maps.join(', '));
 
     var plan = {};
@@ -190,6 +205,7 @@ function shoot() {
         });
       });
       var views = await page.evaluate('window.__viewpoints()');
+      if (ONLY_VIEW) views = views.filter(function (v) { return v.name === ONLY_VIEW; });
       var canvas = await page.$('#game');
       for (var vi = 0; vi < views.length; vi++) {
         var v = views[vi];
