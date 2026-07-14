@@ -1627,7 +1627,7 @@
         var xr1 = box(1.8, 0.09, 0.06, ax, 1.6, az - 0.16, M.chalk); xr1.rotation.z = 0.6;
         var xr2 = box(1.8, 0.09, 0.06, ax, 1.6, az - 0.16, M.chalk); xr2.rotation.z = -0.6;
         KA.arch = {
-          pos: new THREE.Vector3(ax, 0, az), cracked: false,
+          pos: new THREE.Vector3(ax, 0, az), cracked: false, bricks: archBricks,
           crack: function () {                                            // quest: blast it open a crack
             if (KA.arch.cracked) return; KA.arch.cracked = true;
             var cm = M.brick.clone(); cm.color.multiplyScalar(0.55);
@@ -2698,6 +2698,75 @@
         strip(s.x1, s.z2 - bw, s.x2, s.z2);
         strip(s.x1, s.z1, s.x1 + bw, s.z2);
         strip(s.x2 - bw, s.z1, s.x2, s.z2);
+      });
+    })();
+
+    /* ---------------- static geometry merge (draw-call collapse) ----------
+       Every book spine, brick and trim board is its own mesh (~2400 on
+       Kurhaus -> ~1600 draw calls). Everything static that shares a palette
+       material gets baked into ONE mesh per material; the originals leave the
+       scene but stay alive in solidMeshes so bullet raycasts are unchanged.
+       Anything animated or mutated at runtime is skipped via the registries
+       (lamps' bulbs, doors, window boards, teleporter rings, the whole kAnim
+       living-map set, floor-culled meshes). Look is pixel-identical. */
+    (function mergeStatic() {
+      var skip = new Set();
+      function sk(m) { if (m) skip.add(m); }
+      Object.keys(map.doors).forEach(function (id) { sk(map.doors[id].mesh); });
+      (map.windows || []).forEach(function (w) { (w.boardMeshes || []).forEach(sk); });
+      (map.lamps || []).forEach(function (l) { sk(l.bulb); });
+      (map.teleporters || []).forEach(function (t) { sk(t.ring); sk(t.pad); sk(t.mesh); });
+      sk(map.sky); sk(map.radar); sk(map.beacon); sk(map.surgeRing);
+      var KA = map.kAnim;
+      if (KA) {
+        KA.embers.forEach(function (e) { sk(e.m); });
+        KA.steam.forEach(function (s) { sk(s.m); });
+        KA.candles.forEach(sk);
+        KA.needles.forEach(sk);
+        if (KA.manifold) sk(KA.manifold.m);
+        sk(KA.bucket); sk(KA.face);
+        (KA.sigils || []).forEach(function (s) { sk(s.mesh); });
+        if (KA.arch && KA.arch.bricks) KA.arch.bricks.forEach(sk);
+      }
+      var MERGE_TYPES = { BoxGeometry: 1, CylinderGeometry: 1, ConeGeometry: 1, SphereGeometry: 1 };
+      var groups = new Map();
+      G.scene.children.forEach(function (m) {
+        if (!m.isMesh || skip.has(m)) return;
+        if (m.userData.fy !== undefined) return;             // floor-culled (stacked maps)
+        var g = m.geometry, mat = m.material;
+        if (!g || !mat || Array.isArray(mat) || mat.transparent) return;
+        if (!MERGE_TYPES[g.type]) return;
+        if (!groups.has(mat)) groups.set(mat, []);
+        groups.get(mat).push(m);
+      });
+      function concat(arrs) {
+        var n = 0; arrs.forEach(function (a) { n += a.length; });
+        var out = new Float32Array(n), o = 0;
+        arrs.forEach(function (a) { out.set(a, o); o += a.length; });
+        return out;
+      }
+      groups.forEach(function (list, mat) {
+        if (list.length < 8) return;                         // not worth a merge
+        var pos = [], norm = [], uv = [];
+        list.forEach(function (m) {
+          m.updateMatrixWorld(true);
+          var geo = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+          geo.applyMatrix4(m.matrixWorld);
+          var pa = geo.getAttribute('position');
+          pos.push(pa.array);
+          norm.push(geo.getAttribute('normal').array);
+          var u = geo.getAttribute('uv');
+          uv.push(u ? u.array : new Float32Array(pa.count * 2));
+        });
+        var gg = new THREE.BufferGeometry();
+        gg.setAttribute('position', new THREE.BufferAttribute(concat(pos), 3));
+        gg.setAttribute('normal', new THREE.BufferAttribute(concat(norm), 3));
+        gg.setAttribute('uv', new THREE.BufferAttribute(concat(uv), 2));
+        var big = new THREE.Mesh(gg, mat);
+        G.scene.add(big);
+        // originals leave the scene; the solid ones keep serving raycasts
+        // (matrixWorld is already baked, and Raycaster ignores scene membership)
+        list.forEach(function (m) { G.scene.remove(m); });
       });
     })();
 
