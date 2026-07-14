@@ -1047,8 +1047,10 @@
         var cr = CFG.worldToCell(sx, sz), cell = map.cellAt(cr.col, cr.row, baseY);
         if (!cell || cell.type !== 'room') return false;            // stand spot in the room
         if (map.bodyBlocked(sx, sz, baseY + 0.2)) return false;     // not inside a wall/prop
+        // hard 2.7m floor from any door — flush-mounted machines crowding a
+        // doorway is a persistent playability sore (audit-doorways enforces 2.6)
         if (!Object.keys(map.doors).every(function (id) {
-          return Math.hypot(map.doors[id].pos.x - cx, map.doors[id].pos.z - cz) > 2.2; })) return false;
+          return Math.hypot(map.doors[id].pos.x - cx, map.doors[id].pos.z - cz) > 2.7; })) return false;
         // don't let the machine stare straight down a doorway — even when it's
         // clear of the door it reads as blocking the threshold. Reject a wall
         // with a door roughly AHEAD (within 6m, narrow cone) of the facing.
@@ -1309,8 +1311,11 @@
       for (var i = 0; i < occupied.length; i++) {
         if (Math.hypot(occupied[i].x - p.x, occupied[i].z - p.z) < dist) return false;
       }
+      // doorways get a HARD 2.6m floor regardless of the caller's radius —
+      // props crowding a door opening is a persistent playability sore
+      var doorR = Math.max(dist, 2.6);
       var doorsOk = Object.keys(map.doors).every(function (id) {
-        return Math.hypot(map.doors[id].pos.x - p.x, map.doors[id].pos.z - p.z) > dist;
+        return Math.hypot(map.doors[id].pos.x - p.x, map.doors[id].pos.z - p.z) > doorR;
       });
       if (!doorsOk) return false;
       return map.windows.every(function (w) {

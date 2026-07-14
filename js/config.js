@@ -211,7 +211,8 @@
       { id: 'B', cell: [15, 7], off: [0, 0] },
       { id: 'C', cell: [7, 1],  off: [0, 0] }
     ],
-    MAINFRAME: { cell: [7, 5], off: [0, -0.8] },   // Courtyard, against the north wall
+    MAINFRAME: { cell: [7, 6], off: [0, -0.8] },   // Courtyard — one cell south of the
+                                                   // north wall so it clears door 6's opening
     PAP: { cell: [9, 7], off: [0, 0] },
     POWER: { cell: [10, 2], off: [0, 0] },
     PLAYER_SPAWN: { cell: [7, 12], off: [0, 0.5] },
@@ -330,7 +331,7 @@
     ],
     MAINFRAME: { cell: [6, 6], off: [0, 0] },
     PAP: { cell: [8, 6], off: [0, 0] },
-    POWER: { cell: [12, 1], off: [0, 0] },
+    POWER: { cell: [12, 2], off: [0, 0] },   // one row south — clears door 8's doorway
     PLAYER_SPAWN: { cell: [7, 11], off: [0, 0.5] },
     RELIC_SPOTS: [{ cell: [0, 0], face: 'W' }, { cell: [6, 0], face: 'N' }, { cell: [11, 0], face: 'N' }, { cell: [1, 5], face: 'N' }, { cell: [5, 5], face: 'N' }, { cell: [11, 5], face: 'N' }, { cell: [5, 11], face: 'N' }, { cell: [1, 0], face: 'W' }, { cell: [8, 0], face: 'N' }],
     EE_SOULBOX: [7, 7],
@@ -502,7 +503,7 @@
     // Foyer. (Walls chosen clear of machines/wallbuys/windows/relics.)
     SHIELD_PARTS: {
       frame: { room: 'V', spots: [{ cell: [10, 1], face: 'N' }, { cell: [11, 5], face: 'S' }, { cell: [7, 5], face: 'W' }] },
-      plate: { room: 'F', spots: [{ cell: [13, 3], face: 'W' }, { cell: [16, 5], face: 'S' }, { cell: [17, 1], face: 'E' }] },
+      plate: { room: 'F', spots: [{ cell: [13, 1], face: 'W' }, { cell: [16, 5], face: 'S' }, { cell: [17, 1], face: 'E' }] },   // [13,3] crowded door 6
       glass: { room: 'B', spots: [{ cell: [4, 7], face: 'N' }, { cell: [5, 9], face: 'E' }, { cell: [1, 11], face: 'S' }] }
     },
     SHIELD_BENCH: { cell: [7, 15], face: 'S' }
