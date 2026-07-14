@@ -286,7 +286,7 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
           return rmsI[b].cells.length - rmsI[a].cells.length; })[0];
         var ic = { x: rmsI[rid0].center.x, y: 0, z: rmsI[rid0].center.z };
         var pulledZ = [];
-        [[5, 0], [-5, 2], [0, -5.5]].forEach(function (o5) {
+        [[3, 0], [-3, 1.2], [0, -3]].forEach(function (o5) {   // tight ring: fits the smallest rooms
           var zz = { dead: false, hp: 50000, hpMax: 50000, state: 'chase',
                      mesh: { position: new THREE.Vector3(ic.x + o5[0], 0, ic.z + o5[1]) } };
           G.zombies.list.push(zz); pulledZ.push({ z: zz, d0: Math.hypot(o5[0], o5[1]) });
