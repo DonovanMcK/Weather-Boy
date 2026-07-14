@@ -281,7 +281,10 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
       // -- 13. MAELSTROM IMPLOSION: zombies get DRAGGED to the point, then the
       // clump detonates (the redesigned wonder — no longer a Wettermacher clone)
       if (CFG.WEAPONS.maelstrom && CFG.WEAPONS.maelstrom.projectile === 'implode') {
-        var ic = { x: rrT.S.center.x, y: 0, z: rrT.S.center.z };   // open foyer ground
+        var rmsI = G.map.parsed.rooms;
+        var rid0 = Object.keys(rmsI).sort(function (a, b) {         // biggest room = open ground
+          return rmsI[b].cells.length - rmsI[a].cells.length; })[0];
+        var ic = { x: rmsI[rid0].center.x, y: 0, z: rmsI[rid0].center.z };
         var pulledZ = [];
         [[5, 0], [-5, 2], [0, -5.5]].forEach(function (o5) {
           var zz = { dead: false, hp: 50000, hpMax: 50000, state: 'chase',
