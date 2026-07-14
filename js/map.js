@@ -35,7 +35,9 @@
   function tex(cv) {
     var t = new THREE.CanvasTexture(cv);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.anisotropy = 4;
+    // max anisotropic filtering: floors/walls stay crisp at grazing angles.
+    // Near-free on any GPU of the last decade (16 is the universal cap).
+    t.anisotropy = 16;
     return t;
   }
 

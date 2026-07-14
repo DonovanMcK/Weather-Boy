@@ -156,9 +156,16 @@
       var sl = 0.2 * vm.len * vm.slideFac;
       box(0.052, 0.07, sl + 0.06, 0, 0.02, -sl / 2, body);                 // slide
       box(0.054, 0.014, sl - 0.02, 0, 0.058, -sl / 2, accent);            // slide accent rib
+      box(0.002, 0.026, 0.07, 0.027, 0.03, -sl * 0.62, M.dark);           // ejection port (dark inset, right side)
+      for (var ser = 0; ser < 4; ser++)                                   // rear slide serrations
+        box(0.056, 0.05, 0.006, 0, 0.026, -0.012 - ser * 0.016, M.mid);
       box(0.048, 0.05, 0.16, 0, -0.035, -0.03, M.mid);                    // frame
-      box(0.042, 0.13, 0.062, 0, -0.115, 0.035, vm.wood ? M.wood : furniture, 0.22); // grip
+      box(0.014, 0.034, 0.02, 0, 0.05, 0.045, M.dark).rotation.x = 0.5;   // hammer, cocked back
+      box(0.042, 0.13, 0.062, 0, -0.115, 0.035, vm.wood ? M.wood : furniture, 0.22); // grip core
+      box(0.05, 0.1, 0.05, 0, -0.105, 0.038, vm.wood ? M.wood : furniture, 0.2);     // grip side panels
+      box(0.046, 0.016, 0.066, 0, -0.183, 0.035, M.dark);                 // mag baseplate
       box(0.04, 0.02, 0.05, 0, -0.045, -0.045, M.dark);                   // trigger guard
+      box(0.008, 0.026, 0.012, 0, -0.038, -0.03, M.mid).rotation.x = 0.25;// trigger blade
       box(0.012, 0.028, 0.012, 0, 0.066, -sl - 0.02, M.dark);             // front sight
       box(0.036, 0.022, 0.014, 0, 0.064, 0.03, M.dark);                   // rear sight
       if (vm.mag === 'cyl') {
