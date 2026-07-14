@@ -765,6 +765,7 @@
     if (s.projectile === 'chain') { fireWunderwaffe(s); return; }
     if (s.projectile === 'lance') { fireLance(s); return; }
     if (s.projectile === 'storm') { spawnProjectile('storm', s); return; }
+    if (s.projectile === 'implode') { spawnProjectile('implode', s); return; }
     if (s.projectile === 'ray') { spawnProjectile('ray', s); return; }
     if (s.projectile === 'rocket') { spawnProjectile('rocket', s); return; }
 
@@ -907,6 +908,80 @@
     G.hud.hitmarker(true);
   }
 
+  /* ---------------------------------- implosion field (Maelstrom Driver) ----
+     The anti-Thundergun. For pullDur seconds every zombie inside pullRadius is
+     DRAGGED toward the point (zombies.js honours z.pullT/z.pullPt, wall-safe),
+     visualized by a shrinking violet ring and inward light-streaks; then the
+     clump detonates. Element infusions ride the burst. */
+  W.implosions = [];
+  function spawnImplosion(pos, o) {
+    var fy = G.map.supportAt(pos.x, pos.z, pos.y, 0);
+    var c = new THREE.Vector3(pos.x, fy, pos.z);
+    var ringM = new THREE.Mesh(new THREE.TorusGeometry(o.pullRadius * 0.85, 0.12, 8, 28),
+      new THREE.MeshBasicMaterial({ color: 0x8a5cf0, transparent: true, opacity: 0.75, depthWrite: false }));
+    ringM.rotation.x = Math.PI / 2; ringM.position.set(c.x, fy + 1.1, c.z);
+    G.scene.add(ringM);
+    var core = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 10),
+      new THREE.MeshBasicMaterial({ color: 0xd9c8ff }));
+    core.position.set(c.x, fy + 1.1, c.z); G.scene.add(core);
+    poolFlash(new THREE.Vector3(c.x, fy + 1.5, c.z), 0x8a5cf0, 1.6, o.pullRadius * 1.5);
+    G.audio.implodeCharge(o.pullDur);
+    W.implosions.push({ c: c, t: 0, o: o, ring: ringM, core: core, streakT: 0 });
+  }
+  W._implode = spawnImplosion;   // exposed for the test harness
+  function updateImplosions(dt) {
+    for (var i = W.implosions.length - 1; i >= 0; i--) {
+      var im = W.implosions[i];
+      im.t += dt; im.streakT += dt;
+      var k = Math.max(0.12, 1 - im.t / im.o.pullDur);
+      im.ring.scale.set(k, k, k);
+      im.ring.rotation.z += dt * 5;
+      im.core.scale.setScalar(1 + (1 - k) * 1.6);
+      var pulled = [];
+      G.zombies.list.forEach(function (z) {
+        if (z.dead) return;
+        var plx = im.c.x - z.mesh.position.x, plz = im.c.z - z.mesh.position.z;
+        var pld = Math.hypot(plx, plz);
+        if (pld > im.o.pullRadius) return;
+        z.pullT = 0.3;                       // flags the AI: it is being taken
+        // drag at 7m/s (beats any walk speed); a wall-blocked step is skipped
+        if (pld > 0.45) {
+          var pstep = Math.min(pld - 0.35, 7 * dt);
+          var pnx = z.mesh.position.x + plx / pld * pstep, pnz = z.mesh.position.z + plz / pld * pstep;
+          if (!G.map.bodyBlocked || !G.map.bodyBlocked(pnx, pnz, z.mesh.position.y + 0.2)) {
+            z.mesh.position.x = pnx; z.mesh.position.z = pnz;
+          }
+        }
+        pulled.push(z);
+      });
+      if (im.streakT > 0.12 && pulled.length) {          // inward light-streaks
+        im.streakT = 0;
+        var zs = pulled[(Math.random() * pulled.length) | 0];
+        var a = zs.mesh.position.clone(); a.y += 1.3;
+        addLine(a, new THREE.Vector3(im.c.x, im.c.y + 1.1, im.c.z), 0xb790ff, 0.1, 0.3);
+      }
+      if (im.t < im.o.pullDur) continue;
+      // BURST — the clump detonates
+      G.scene.remove(im.ring); G.scene.remove(im.core);
+      W.implosions.splice(i, 1);
+      poolFlash(new THREE.Vector3(im.c.x, im.c.y + 1.5, im.c.z), 0xd9c8ff, 3, im.o.burstRadius * 3.5);
+      G.audio.implodeBurst();
+      G.player.shake(0.5);
+      var any = false;
+      G.zombies.list.slice().forEach(function (z) {
+        if (z.dead) return;
+        var d = Math.hypot(z.mesh.position.x - im.c.x, z.mesh.position.z - im.c.z);
+        if (d > im.o.burstRadius * 1.2) return;
+        any = true;
+        W.blood(z.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)), 4);
+        G.zombies.damageZombie(z, im.o.dmg, { boom: true });
+        W.applyElement(z);                                 // infused Maelstrom
+      });
+      if (any) G.hud.hitmarker(true);
+      if (G.interact && G.interact.onBoom) G.interact.onBoom(im.c);
+    }
+  }
+
   /* -------------------------------------------- storm vortex (Wettermacher) */
   function spawnVortex(pos, opts) {
     var grp = new THREE.Group();
@@ -1006,6 +1081,13 @@
       vel = dir.multiplyScalar(24).add(new THREE.Vector3(0, 0.5, 0));
       opts = { dmg: s.dmg, radius: 2.5, gravity: 1.5, fuse: 3, color: 0x66ccff,
                storm: { dur: s.stormDur, radius: s.stormRadius } };
+    } else if (type === 'implode') {
+      mesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0x8a5cf0 }));
+      vel = dir.multiplyScalar(24).add(new THREE.Vector3(0, 0.5, 0));
+      opts = { dmg: s.dmg, radius: 2.5, gravity: 1.5, fuse: 3, color: 0x8a5cf0,
+               implode: { pullDur: s.pullDur, pullRadius: s.pullRadius,
+                          burstRadius: s.burstRadius, dmg: s.dmg } };
     }
     mesh.position.copy(pos);
     G.scene.add(mesh);
@@ -1153,7 +1235,8 @@
 
       if (detonate) {
         if (p.type === 'monkey' && G.zombies.lure && G.zombies.lure.proj === p) G.zombies.lure = null;
-        if (p.opts.storm) spawnVortex(p.mesh.position, p.opts);
+        if (p.opts.implode) spawnImplosion(p.mesh.position, p.opts.implode);
+        else if (p.opts.storm) spawnVortex(p.mesh.position, p.opts);
         else W.explode(p.mesh.position, p.opts.dmg, p.opts.radius, p.opts);
         G.scene.remove(p.mesh);
         W.projectiles.splice(i, 1);
@@ -1249,6 +1332,7 @@
 
     updateProjectiles(dt);
     updateVortices(dt);
+    updateImplosions(dt);
 
     for (var i = W.tracers.length - 1; i >= 0; i--) {
       var t = W.tracers[i];

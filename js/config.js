@@ -1010,16 +1010,18 @@
       pap: { name: 'Auge des Sturms', dmg: 5000, mag: 8, reserve: 24,
              stormDur: 6.5, stormRadius: 7.5 }
     },
-    // Kurhaus wonder weapon (placeholder behaviour reuses the storm-vortex
-    // projectile until the bespoke Maelstrom Driver model + thermal FX are
-    // authored in a later stage). Flagged wonder:true so it only rolls on Kurhaus.
+    // Kurhaus wonder weapon — the IMPLOSION driver, the anti-Thundergun: the
+    // projectile detonates into a vacuum that DRAGS every zombie nearby into a
+    // clump at the point, then the clump detonates. Nothing else in the
+    // arsenal pulls. Flagged wonder:true so it only rolls on Kurhaus.
     maelstrom: {
-      name: 'Maelstrom Driver', cls: 'storm', dmg: 2600, head: 1, rpm: 75,
+      name: 'Maelstrom Driver', cls: 'storm', dmg: 3200, head: 1, rpm: 75,
       mag: 4, reserve: 16, reload: 3.2, mode: 'semi', spread: 0, box: 2.5,
       vm: { driver: 1 },
-      projectile: 'storm', wonder: true, stormDur: 4, stormRadius: 5.5,
-      pap: { name: 'Maelstrom Driver — Overcharged', dmg: 5200, mag: 8, reserve: 24,
-             stormDur: 6.5, stormRadius: 7.5 }
+      projectile: 'implode', wonder: true,
+      pullDur: 1.3, pullRadius: 8, burstRadius: 4,
+      pap: { name: 'Maelstrom Driver — Event Horizon', dmg: 7000, mag: 8, reserve: 24,
+             pullDur: 1.7, pullRadius: 11, burstRadius: 5.5 }
     },
     // Kurhaus's SECOND wonder — the founder's own weapon, granted ONLY by
     // completing the Founder's Bargain quest (never rolls in any box: wonder

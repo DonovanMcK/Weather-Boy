@@ -827,6 +827,7 @@
       z.t += dt;
       z.attackCd -= dt;
       if (z.slowT > 0) z.slowT -= dt;
+      if (z.pullT > 0) z.pullT -= dt;   // Maelstrom drag flag (weapons.js moves them)
       // molten infusion burn — ticks damage for its duration
       if (z.burnT > 0 && !z.dead) {
         z.burnT -= dt;

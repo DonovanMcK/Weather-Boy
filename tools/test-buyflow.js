@@ -278,6 +278,27 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         ck(burned, 'molten infusion IGNITES (30% proc observed within 40 hits)');
       }
 
+      // -- 13. MAELSTROM IMPLOSION: zombies get DRAGGED to the point, then the
+      // clump detonates (the redesigned wonder — no longer a Wettermacher clone)
+      if (CFG.WEAPONS.maelstrom && CFG.WEAPONS.maelstrom.projectile === 'implode') {
+        var ic = { x: rrT.S.center.x, y: 0, z: rrT.S.center.z };   // open foyer ground
+        var pulledZ = [];
+        [[5, 0], [-5, 2], [0, -5.5]].forEach(function (o5) {
+          var zz = { dead: false, hp: 50000, hpMax: 50000, state: 'chase',
+                     mesh: { position: new THREE.Vector3(ic.x + o5[0], 0, ic.z + o5[1]) } };
+          G.zombies.list.push(zz); pulledZ.push({ z: zz, d0: Math.hypot(o5[0], o5[1]) });
+        });
+        G.weapons._implode(new THREE.Vector3(ic.x, 0, ic.z), { pullDur: 1.2, pullRadius: 8, burstRadius: 4, dmg: 99999 });
+        tick(30);                                            // 0.5s of vacuum
+        var dragged = pulledZ.every(function (pz) {
+          return Math.hypot(pz.z.mesh.position.x - ic.x, pz.z.mesh.position.z - ic.z) < pz.d0 - 1.0;
+        });
+        ck(dragged, 'implosion DRAGS zombies toward the point');
+        tick(60);                                            // past pullDur -> burst
+        ck(pulledZ.every(function (pz) { return pz.z.dead; }), 'the clump DETONATES (all dead)');
+        pulledZ.forEach(function (pz) { var ix = G.zombies.list.indexOf(pz.z); if (ix >= 0) G.zombies.list.splice(ix, 1); });
+      }
+
       // classic mini egg on the maps without the full quest
       if ((!I.quest || !I.quest.on) && CFG.RELIC_SPOTS && CFG.RELIC_SPOTS.length && CFG.EE_SOULBOX) {
         I.ee.relics.forEach(function (r) { buyAt(r.pos); });

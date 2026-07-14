@@ -397,6 +397,18 @@
       noise({ dur: 0.1, bp: 2000, q: 1, vol: 0.12, when: 0.02 });
     },
 
+    // Maelstrom implosion: the vacuum winds UP for the pull duration…
+    implodeCharge: function (dur) {
+      tone({ type: 'sawtooth', freq: 90, to: 620, dur: dur || 1.3, vol: 0.11, send: 0.6 });
+      noise({ dur: dur || 1.3, bp: 500, q: 1.2, vol: 0.05 });
+    },
+    // …then the clump detonates: a deep doubled thump
+    implodeBurst: function () {
+      tone({ type: 'sine', freq: 95, to: 28, dur: 0.5, vol: 0.3 });
+      tone({ type: 'sine', freq: 190, to: 60, dur: 0.3, vol: 0.14, when: 0.03 });
+      noise({ dur: 0.25, bp: 300, q: 1, vol: 0.2 });
+    },
+
     // the Aether Lance discharge — a rising skewer-crack with a hard snap
     lanceFire: function () {
       tone({ type: 'sawtooth', freq: 180, to: 950, dur: 0.16, vol: 0.16 });
