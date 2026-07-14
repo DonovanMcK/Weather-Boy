@@ -249,35 +249,24 @@ function testWonderWeapon(ctx) {
     ok(zs.every(function (z) { return z.dead; }), 'vortex zapped the pack');
     ok(G.weapons.vortices.length === 0, 'vortex expired');
   } else if (wonderId === 'maelstrom') {
-    var sawBore = G.weapons.projectiles.some(function (p) { return p.type === 'bore'; });
-    ok(sawBore, 'Maelstrom launches its pressure bore (not a storm vortex)');
-    ctx.step(90);
+    // The IMPLOSION driver: projectile -> vacuum field that DRAGS the pack
+    // into a clump -> the clump detonates. No vortex, no push, no chain.
+    var sawImp = false;
+    for (var mi = 0; mi < 200 && !sawImp; mi++) { ctx.step(1); if (G.weapons.implosions.length > 0) sawImp = true; }
+    ok(sawImp, 'Maelstrom detonates into an implosion field (not a storm vortex)');
     ok(G.weapons.vortices.length === 0, 'Maelstrom never creates a Wettermacher vortex');
-    ok(zs.every(function (z) { return z.dead; }), 'pressure bore pierces the packed line');
-
-    // Fire a second disk straight into the Foyer's solid south exterior wall.
-    // At 38 m/s an endpoint-only test crosses this wall in one frame; swept
-    // collision must keep every observed projectile point on the playable side.
-    G.zombies.list.slice().forEach(function (z) {
-      if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true });
-    });
-    var wallZ = G.CFG.cellToWorld(9, 15).z + G.CFG.CELL / 2;
-    ctx.moveTo(new THREE.Vector3(G.CFG.cellToWorld(9, 15).x, 0, wallZ - 2.2));
-    G.player.yaw = Math.PI; G.player.pitch = 0;
-    G.weapons.current().ammo = Math.max(1, G.weapons.current().ammo);
-    G.weapons.mouseDown = true; ctx.step(2); G.weapons.mouseDown = false;
-    var sawWallBore = false, maxBoreZ = -Infinity;
-    for (var wb = 0; wb < 45; wb++) {
-      ctx.step(1);
-      G.weapons.projectiles.forEach(function (p) {
-        if (p.type !== 'bore') return;
-        sawWallBore = true;
-        maxBoreZ = Math.max(maxBoreZ, p.mesh.position.z);
-      });
-    }
-    ok(sawWallBore, 'wall ricochet test launched a bore');
-    ok(maxBoreZ <= wallZ - 0.05,
-       'pressure bore ricochets before crossing a solid wall (max z ' + maxBoreZ.toFixed(2) + ')');
+    // let the vacuum drag, then measure the clump before the burst resolves
+    var impC = G.weapons.implosions.length ? G.weapons.implosions[0].c : null;
+    ctx.step(40);
+    if (impC) {
+      var spread = zs.filter(function (z) { return !z.dead; }).map(function (z) {
+        return Math.hypot(z.mesh.position.x - impC.x, z.mesh.position.z - impC.z); });
+      ok(!spread.length || Math.max.apply(null, spread) < 2.5,
+         'vacuum dragged the pack into a clump (max ' + (spread.length ? Math.max.apply(null, spread).toFixed(2) : '0') + 'm)');
+    } else ok(false, 'implosion field had no centre');
+    ctx.step(60 * 2);
+    ok(zs.every(function (z) { return z.dead; }), 'the clump detonation killed the pack');
+    ok(G.weapons.implosions.length === 0, 'implosion field expired');
   }
 }
 

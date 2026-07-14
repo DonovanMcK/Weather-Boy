@@ -1519,7 +1519,7 @@
         p.mesh.position.set(nx, ny, nz);
       }
 
-      if (!detonate && (p.type === 'ray' || p.type === 'rocket' || p.type === 'storm')) {
+      if (!detonate && (p.type === 'ray' || p.type === 'rocket' || p.type === 'storm' || p.type === 'implode')) {
         // height-aware contact: the orb flies at chest/eye height while a
         // zombie's origin is at its feet, so test horizontal range + a body
         // column (otherwise the shot sails straight over open-map hordes)
