@@ -991,23 +991,51 @@
     function interiorStair(col1, col2, topRow, baseRow, openUnder) {
       topRow = topRow == null ? 1 : topRow;
       baseRow = baseRow == null ? 3 : baseRow;
-      var inset = 0.42, x1 = xW(col1) - CELL / 2 + inset, x2 = xW(col2) + CELL / 2 - inset;
+      // 0.42 inset leaves a 3.16m run on a single-cell stair: narrow enough to
+      // read as a stair hall, wide enough for 3 parallel nav lanes at NR=1.5
+      // (any slimmer and the horde single-files — smoke asserts 3+ lanes)
+      var inset = 0.42;
+      var x1 = xW(col1) - CELL / 2 + inset, x2 = xW(col2) + CELL / 2 - inset;
+      // if the upper slab continues EAST/WEST of the landing (rather than
+      // north), kill the wall-clearance inset on that side and overlap the
+      // slab by a few centimetres — otherwise the inset leaves a 0.42m void
+      // strip between landing and floor that neither feet nor the nav graph
+      // can cross (this is what orphaned Der Riese's room K).
+      var f2 = (CFG.cur.FLOORS || []).filter(function (f) { return (f.floorY || 0) > 0; })[0];
+      function f2cell(c, r) {
+        if (!f2 || !f2.GRID || !f2.GRID[r]) return false;
+        var ch = f2.GRID[r][c];
+        if (!ch || ch === '.') return false;
+        return !(f2.FLOOR_OMIT || []).some(function (o) { return o[0] === c && o[1] === r; });
+      }
+      var runX1 = x1, runX2 = x2;                       // the stair RUN keeps the inset
+      if (f2cell(col2 + 1, topRow)) x2 = xW(col2) + CELL / 2 + 0.06;
+      if (f2cell(col1 - 1, topRow)) x1 = xW(col1) - CELL / 2 - 0.06;
       var deck = { x1: x1, x2: x2,
         // overlap the authored upper slab by a few centimetres so support/nav
         // sampling cannot find a hairline void between landing and corridor.
         z1: zW(topRow) - CELL / 2 - 0.06, z2: zW(topRow) + CELL / 2 - 0.18,
         h: 4.0, thin: true, openUnder: openUnder !== false, integrated: true, shaft: true };
-      deck.stairs = { x1: x1, x2: x2, zTop: deck.z2,
+      deck.stairs = { x1: runX1, x2: runX2, zTop: deck.z2,
         zBase: zW(baseRow) + CELL / 2 - inset, steps: Math.max(18, (baseRow - topRow + 1) * 6) };
       return deck;
     }
     if (CFG.cur.id === 'derriese') {
-      // Four enclosed stairs belong to actual rooms beneath them. Each reaches a
-      // partial upper department; none rises out of the Mainframe or C courtyards.
-      stageSpecs.push(interiorStair(9, 10, 1, 4, false),
-                      interiorStair(13, 14, 3, 6, false),
-                      interiorStair(8, 9, 13, 16, false),
-                      interiorStair(18, 19, 15, 18, false));
+      // Four enclosed stairs, ONE cell wide, each tucked against a side wall so
+      // the room's floor and kite lane stay open (the old two-cell masses cut
+      // Furnace, Garage and Animal Testing in half):
+      //  - Furnace:      west wall, clear of the Tel-B pad and both doors
+      //  - Garage:       northeast corner, clear of POWER, the boxes and door 5
+      //  - Animal Test.: east edge of the gallery slab, clear of door 7's lane
+      //  - A-Lab:        col 19 line, clear of the Tel-A pad and the east window
+      // each shaft pierces its slab from INSIDE the footprint (a slab's
+      // perimeter wall would seal off an externally-attached landing)
+      // three-row runs: a 4m climb over ~7.5m keeps the slope under the nav
+      // engine's step limit (a two-row run reads as a cliff and orphans the slab)
+      stageSpecs.push(interiorStair(5, 5, 1, 3, false),
+                      interiorStair(17, 17, 2, 4, false),
+                      interiorStair(15, 15, 13, 15, false),
+                      interiorStair(19, 19, 15, 17, false));
       // Teleporter C keeps one authentic open steel access catwalk along its
       // north wall. It is supported on posts and intentionally does not carry a
       // full second building over the cooling yard.
@@ -1024,9 +1052,13 @@
         z1: zW(6) - 0.2, z2: zW(8) + 1.25, h: 4.0, rails: true, supports: true });
     }
     if (CFG.cur.id === 'wetterjunge') {
-      // Radar Dome rear stair plus enclosed Generator and Comms stair halls.
-      // This makes the upper station part of all three northern wings.
-      stageSpecs.push(interiorStair(7, 8), interiorStair(2, 2), interiorStair(12, 12));
+      // One narrow stair per northern wing, each tucked against its OUTER wall
+      // (the old center-column flights bisected all three rooms and their side
+      // rails cut the kite rings). Rows dodge the ground windows at [0,1]/[14,1]
+      // and the storm-EE consoles at [0,2]/[14,2].
+      stageSpecs.push(interiorStair(5, 5, 1, 3),      // Dome, west wall
+                      interiorStair(0, 0, 3, 5),      // Generator, west wall
+                      interiorStair(14, 14, 3, 5));   // Comms, east wall
     }
     // reserve the deck and stair footprints (separately, so we don't over-claim
     // the whole bounding box) — machines steer clear of the structure

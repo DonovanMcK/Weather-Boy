@@ -561,7 +561,10 @@ function testMainframeYard(ctx) {
   G.nav.nodes.forEach(function (nd) {
     if (nd.x >= sx1 && nd.x <= sx2 && nd.z >= sz1 && nd.z <= sz2 && nd.y > 0.3 && nd.y < 3.7) laneX[nd.x.toFixed(1)] = 1;
   });
-  ok(Object.keys(laneX).length >= 3, 'the staircase carries 3+ nav lanes across its width (' + Object.keys(laneX).length + ')');
+  // 2+ lanes = the horde pairs up instead of single-filing. (3+ would force
+  // ~3.7m-wide flights — rejected in playtesting as room-dominating masses;
+  // the polish directive explicitly narrows stairs to service-hall width.)
+  ok(Object.keys(laneX).length >= 2, 'the staircase carries 2+ nav lanes across its width (' + Object.keys(laneX).length + ')');
 }
 
 /* every perk machine + Pack-a-Punch + power switch must sit flat against a wall

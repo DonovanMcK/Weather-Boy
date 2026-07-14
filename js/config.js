@@ -206,7 +206,7 @@
       { gun: 'mp5k',     cell: [0, 10], off: [-1.6, 0], face: 'W' },
       { gun: 'mp40',     cell: [23, 17], off: [1.6, 0], face: 'E' },
       { gun: 'ak74u',    cell: [6, 0], off: [0, -1.6], face: 'N' },
-      { gun: 'm16',      cell: [18, 3], off: [1.6, 0], face: 'E' },
+      { gun: 'm16',      cell: [16, 2], off: [0, -1.6], face: 'N' },   // [18,3]E hid behind the garage stair
       { gun: 'stakeout', cell: [7, 14], off: [-1.6, 0], face: 'W' },
       { gun: 'frags',    cell: [12, 19], off: [0, 1.6], face: 'S' }
     ],
@@ -223,7 +223,8 @@
     ],
     MAINFRAME: { cell: [20, 9], off: [0, 0] },
     PAP: { cell: [22, 9], off: [0, 0] },
-    POWER: { cell: [18, 4], off: [0, 0] },
+    POWER: { cell: [15, 2], off: [0, 0] },   // north wall, in the open — the old
+                                             // [18,4] spot hid behind the garage stair
     PLAYER_SPAWN: { cell: [20, 12], off: [0, 0.5] },
     RELIC_SPOTS: [{ cell: [5, 0], face: 'N' }, { cell: [4, 3], face: 'W' }, { cell: [18, 3], face: 'E' }, { cell: [0, 8], face: 'W' }, { cell: [3, 6], face: 'N' }, { cell: [7, 14], face: 'W' }, { cell: [12, 19], face: 'S' }, { cell: [23, 16], face: 'E' }, { cell: [21, 19], face: 'S' }],
     EE_SOULBOX: [13, 16],
@@ -276,10 +277,12 @@
       ROOMS: CFG.MAPS.derriese.ROOMS, OUTDOOR: CFG.MAPS.derriese.OUTDOOR,
       WINDOWS: CFG.MAPS.derriese.WINDOWS, RISERS: CFG.MAPS.derriese.RISERS },
     { id: '2', floorY: 4,
-      FLOOR_OMIT: [[9, 1], [10, 1], [9, 2], [10, 2], [9, 3], [10, 3], [9, 4], [10, 4],
-        [13, 3], [14, 3], [13, 4], [14, 4], [13, 5], [14, 5], [13, 6], [14, 6],
-        [8, 13], [9, 13], [8, 14], [9, 14], [8, 15], [9, 15], [8, 16], [9, 16],
-        [18, 15], [19, 15], [18, 16], [19, 16], [18, 17], [19, 17], [18, 18], [19, 18]], GRID: [
+      // stairwell shafts cut from the slabs — one single-cell column per stair
+      // (Furnace's stair hugs col 4, OUTSIDE the B slab, so B stays whole)
+      FLOOR_OMIT: [[5, 1], [5, 2], [5, 3],
+        [17, 2], [17, 3], [17, 4],
+        [15, 13], [15, 14], [15, 15],
+        [19, 15], [19, 16], [19, 17]], GRID: [
       '.....BBBBBBB............',
       '.....BBBBBBB............',
       '.....BBBBBBB.WWWWWW.....',
@@ -455,9 +458,9 @@
       OPEN_CEIL: CFG.MAPS.wetterjunge.OPEN_CEIL, WINDOWS: CFG.MAPS.wetterjunge.WINDOWS,
       RISERS: CFG.MAPS.wetterjunge.RISERS },
     { id: '2', floorY: 4, OUTDOOR: [],
-      FLOOR_OMIT: [[2, 1], [2, 2], [2, 3],
-        [7, 1], [8, 1], [7, 2], [8, 2], [7, 3], [8, 3],
-        [12, 1], [12, 2], [12, 3]], GRID: [
+      FLOOR_OMIT: [[0, 3], [0, 4], [0, 5],
+        [5, 1], [5, 2], [5, 3],
+        [14, 3], [14, 4], [14, 5]], GRID: [
       'JJJJ.KKKKK.OOOO',
       'JJJJ2KKKKK3OOOO',
       'JJJJ.KKKKK.OOOO',
