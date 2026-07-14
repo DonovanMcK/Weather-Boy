@@ -30,7 +30,9 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
             }
           });
           (map.colliders || []).forEach(function (c) {
-            if ((c.y2 || 4) >= 3.9) return;                     // full-height = wall/frame
+            var dy = d.pos.y || 0;
+            if ((c.y2 || 4) - dy >= 3.9) return;                // full-height = wall/frame
+            if ((c.y2 || 4) < dy + 0.3 || (c.y1 || 0) > dy + 2.4) return;  // different storey
             var cx = Math.max(c.x1, Math.min(d.pos.x, c.x2));
             var cz = Math.max(c.z1, Math.min(d.pos.z, c.z2));
             var dd = Math.hypot(cx - d.pos.x, cz - d.pos.z);

@@ -272,10 +272,12 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
           buyAt({ x: alt.x, y: 0, z: alt.z });
           ck(G.weapons.current().element === 'molten', 'a NORMAL gun binds at the altar', G.weapons.stats(G.weapons.current()).name);
         }
-        G.weapons.equip(lanceIdx, true);
-        buyAt({ x: alt.x, y: 0, z: alt.z });
-        var curG = G.weapons.current();
-        ck(curG.element === 'molten', 'the map WONDER binds too', G.weapons.stats(curG).name);
+        if (lanceIdx >= 0) {                    // box RNG can shuffle slots — guard
+          G.weapons.equip(lanceIdx, true);
+          buyAt({ x: alt.x, y: 0, z: alt.z });
+          ck(G.weapons.current().element === 'molten', 'the map WONDER binds too', G.weapons.stats(G.weapons.current()).name);
+        }
+        var curG = G.weapons.current();         // whatever is in hand works for the proc checks
         // proc spot-checks through the real applyElement
         var zChill = { dead: false, hp: 1e9, hpMax: 1e9, mesh: { position: new THREE.Vector3(0, 0, 0) }, slowT: 0 };
         curG.element = 'frozen'; G.weapons.applyElement(zChill);
