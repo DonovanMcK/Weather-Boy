@@ -955,14 +955,37 @@
       var pd = P.doors[id], cd = CFG.DOORS[id];
       var cellCR = pd.cells[0];
       var wc = CFG.cellToWorld(cellCR[0], cellCR[1]);
-      var roomDirs = [];
-      ['N', 'S', 'E', 'W'].forEach(function (dir) {
+      // The passage axis is the one whose BOTH neighbours are DIFFERENT rooms
+      // (a room wrapping one corner of the junction must not decide the axis —
+      // that rotated doors 3 and 6 sideways and left their corridors exposed).
+      function nbRoom(dir) {
         var o = OFF[dir];
         var n = map.cellAt(cellCR[0] + o[0], cellCR[1] + o[1]);
-        if (n && n.type === 'room') roomDirs.push(dir);
-      });
-      var alongZ = roomDirs.indexOf('N') >= 0 || roomDirs.indexOf('S') >= 0;
+        return n && n.type === 'room' ? n.room : null;
+      }
+      var nr = nbRoom('N'), sr = nbRoom('S'), er = nbRoom('E'), wr = nbRoom('W');
+      var alongZ;
+      if (nr && sr && nr !== sr) alongZ = true;         // rooms above+below: N-S traffic
+      else if (er && wr && er !== wr) alongZ = false;   // rooms left+right: E-W traffic
+      else alongZ = !!(nr || sr);                       // dead-simple junctions keep the old rule
       buildBuyDoor(+id, cd.cost, cd.name, pd.rooms, wc.x, wc.z, 0, alongZ);
+      // CORNER junctions (a room wraps a perpendicular side of the door cell):
+      // the closed door would still leave that flank wide open into the next
+      // room. Seal every open perpendicular side with masonry so the door is
+      // the only way through.
+      (alongZ ? ['E', 'W'] : ['N', 'S']).forEach(function (dir) {
+        if (!nbRoom(dir)) return;
+        var o = OFF[dir];
+        if (dir === 'E' || dir === 'W') {
+          var wx = wc.x + o[0] * (CELL / 2 - 0.25);
+          addBox(0.5, WALL_H, CELL, wx, WALL_H / 2, wc.z, G.mats.wallA, { solid: true });
+          map.addCollider(wx - 0.25, wc.z - CELL / 2, wx + 0.25, wc.z + CELL / 2, 0, WALL_H);
+        } else {
+          var wz = wc.z + o[1] * (CELL / 2 - 0.25);
+          addBox(CELL, WALL_H, 0.5, wc.x, WALL_H / 2, wz, G.mats.wallA, { solid: true });
+          map.addCollider(wc.x - CELL / 2, wz - 0.25, wc.x + CELL / 2, wz + 0.25, 0, WALL_H);
+        }
+      });
     });
 
     /* ----------------------------------------------------- placed objects */
