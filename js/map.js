@@ -2486,6 +2486,9 @@
       var st = s.stairs;
       if (st) {
         var n = st.steps, run = (st.zBase - st.zTop) / n, sw = st.x2 - st.x1, scx = (st.x1 + st.x2) / 2;
+        // threshold plate where the run meets the landing — smooths the visual
+        // seam between stair top and the upper floor (playtest: abrupt joins)
+        addBox(sw + 0.24, 0.07, 0.55, scx, H + 0.045, st.zTop + 0.1, dBeam);
         map.addSurface({ x1: st.x1, x2: st.x2, z1: st.zTop, z2: st.zBase,
                          ramp: true, axis: 'z', c1: st.zTop, c2: st.zBase, h1: H, h2: 0 });
         for (var i = 1; i <= n; i++) {
@@ -2975,9 +2978,13 @@
         screenBank(18, 4, 0, 2, green, true);
 
         label('ANIMAL TESTING', 12, 15, 3.0, '#8ed4df');
+        // cages line the NORTH wall (they floated mid-room and players clipped
+        // straight through them) — solid now, like everything touchable
         for (var cg = 0; cg < 3; cg++) {
-          boxAt(8 + cg * 3, 14, 1.15, 1.6, 2.15, 0.65, steel, 0, -1.35);
-          for (var bar = -1; bar <= 1; bar++) boxAt(8 + cg * 3, 14, 1.15, 1.55, 0.04, 0.7, dark, 0, -1.7 + bar * 0.2);
+          var cgP = wc(8 + cg * 3, 10);
+          boxAt(8 + cg * 3, 10, 1.15, 1.6, 2.15, 0.65, steel, 0, -1.35);
+          for (var bar = -1; bar <= 1; bar++) boxAt(8 + cg * 3, 10, 1.15, 1.55, 0.04, 0.7, dark, 0, -1.7 + bar * 0.2);
+          map.addCollider(cgP.x - 0.85, cgP.z - 1.75, cgP.x + 0.85, cgP.z - 0.95, 0, 2.2);
         }
         label('A-LAB  /  TELEPORTER A', 21, 17, 3.0, '#79d5e8');
         screenBank(23, 16, 0, 3, cyan, true);
@@ -3054,6 +3061,18 @@
           addBox(wpA[2], 0.03, wpA[3], mfW.x + wpA[0], 0.045, mfW.z + wpA[1], amber);
         }
         symbolPlaque(mfW.x, 2.2, mfW.z - 1.9, 0);
+        // the service bridge gets a PURPOSE: a manned overlook at its south end
+        // watching the mainframe yard — searchlight, sandbags, the mark. It's
+        // an observation post now, not a rail to nowhere.
+        var obX = (xW(17) + xW(18)) / 2, obZ = zW(8) + 0.35, obY = 4.0;
+        addBox(2.4, 1.0, 0.14, obX, obY + 0.5, obZ + 0.75, steel);          // end parapet
+        addBox(0.6, 0.35, 0.42, obX - 0.75, obY + 0.18, obZ + 0.3, dark);   // sandbags
+        addBox(0.6, 0.35, 0.42, obX - 0.15, obY + 0.18, obZ + 0.42, dark);
+        addBox(0.14, 0.9, 0.14, obX + 0.7, obY + 0.45, obZ + 0.2, steel);   // searchlight mast
+        var sl2 = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.45, 10), steel);
+        sl2.position.set(obX + 0.7, obY + 1.05, obZ + 0.2); sl2.rotation.x = 1.15; G.scene.add(sl2);
+        addBox(0.26, 0.26, 0.05, obX + 0.7, obY + 0.95, obZ + 0.42, glowAmber); // lit lens
+        symbolPlaque(obX, obY + 1.35, obZ + 0.68, Math.PI);
         // BRIEFING [23,11]E: spotlight cone + dropped ID card + blood trail
         // heading for Animal Testing's east door [16,10]
         var brf = wc(23, 11);
@@ -3079,27 +3098,30 @@
         }
         var stampW = wc(7, 0);
         addBox(1.1, 0.9, 0.55, stampW.x, 0.45, stampW.z - 1.5, steel);      // stamp bench
+        map.addCollider(stampW.x - 0.6, stampW.z - 1.8, stampW.x + 0.6, stampW.z - 1.2, 0, 1.0);
         addBox(0.5, 0.05, 0.36, stampW.x - 0.1, 0.93, stampW.z - 1.5, new THREE.MeshLambertMaterial({ color: 0x6e4a2a })); // heat-stained tray
         addBox(0.16, 0.03, 0.26, stampW.x + 0.28, 0.92, stampW.z - 1.5, dark); // tag-shaped recess
         symbolPlaque(stampW.x, 2.1, stampW.z - 1.72, 0);
         // ANIMAL TESTING — numbered cages (plaques), the MARKED gurney, subject
         // records, and one WRECKED containment cage: the Iron Subject was here
         for (var cg2 = 0; cg2 < 3; cg2++) {
-          var cgW = wc(8 + cg2 * 3, 14);
+          var cgW = wc(8 + cg2 * 3, 10);
           addBox(0.3, 0.3, 0.04, cgW.x, 2.5, cgW.z - 1.7, paper);           // cage number plate
         }
-        symbolPlaque(wc(11, 14).x, 2.95, wc(11, 14).z - 1.7, 0);            // the marked cage
-        var gur = wc(13, 14);                                               // marked gurney, wall-flush
-        addBox(1.7, 0.08, 0.62, gur.x, 0.82, gur.z - 1.3, steel);
+        symbolPlaque(wc(11, 10).x, 2.95, wc(11, 10).z - 1.7, 0);            // the marked cage
+        var gur = wc(13, 18);                                               // marked gurney, SOUTH wall
+        addBox(1.7, 0.08, 0.62, gur.x, 0.82, gur.z + 1.3, steel);
         [[-0.7, 0], [0.7, 0]].forEach(function (gw) {
-          addBox(0.08, 0.78, 0.08, gur.x + gw[0], 0.4, gur.z - 1.1, dark);
-          addBox(0.08, 0.78, 0.08, gur.x + gw[0], 0.4, gur.z - 1.5, dark);
+          addBox(0.08, 0.78, 0.08, gur.x + gw[0], 0.4, gur.z + 1.1, dark);
+          addBox(0.08, 0.78, 0.08, gur.x + gw[0], 0.4, gur.z + 1.5, dark);
         });
-        addBox(0.5, 0.03, 0.5, gur.x - 0.2, 0.88, gur.z - 1.3, bloodM);     // stained sheet
-        symbolPlaque(gur.x + 0.55, 1.35, gur.z - 1.3, 0);
-        var wrk = wc(14, 17);                                               // wrecked containment cage
+        addBox(0.5, 0.03, 0.5, gur.x - 0.2, 0.88, gur.z + 1.3, bloodM);     // stained sheet
+        symbolPlaque(gur.x + 0.55, 1.35, gur.z + 1.3, Math.PI);
+        map.addCollider(gur.x - 0.9, gur.z + 0.95, gur.x + 0.9, gur.z + 1.6, 0, 1.0);
+        var wrk = wc(15, 18);                                               // wrecked containment cage, SOUTH wall
         var wCage = addBox(1.6, 2.1, 0.65, wrk.x, 1.05, wrk.z + 1.32, steel);
         wCage.rotation.z = 0.08;
+        map.addCollider(wrk.x - 0.9, wrk.z + 0.95, wrk.x + 0.9, wrk.z + 1.7, 0, 2.2);
         for (var wb2 = -1; wb2 <= 1; wb2++) {
           var bar2 = addBox(0.05, 1.9, 0.05, wrk.x + wb2 * 0.45, 1.0, wrk.z + 0.95, dark);
           bar2.rotation.x = 0.3 + Math.abs(wb2) * 0.25;                     // bars bent OUTWARD
@@ -3114,6 +3136,7 @@
           addBox(0.5, 0.3, 0.5, tkW.x, 0.15, tkW.z + 1.45, steel);
           var mass2 = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 8), dark);
           mass2.scale.y = 1.5; mass2.position.set(tkW.x, 1.0, tkW.z + 1.45); G.scene.add(mass2);
+          map.addCollider(tkW.x - 0.5, tkW.z + 0.95, tkW.x + 0.5, tkW.z + 1.95, 0, 2.0);
         });
         // UPPER ASSEMBLY — cable bundles CLIMB the garage stair wall to the
         // regulator; pulsing indicators (bright emissives) mark the console
@@ -3129,6 +3152,38 @@
         addBox(drB.x - drA.x, 0.04, 0.7, (drA.x + drB.x) / 2, 0.02, drA.z + 1.6, dark);
         addBox(0.9, 0.06, 0.9, drB.x + 0.6, 0.04, drA.z + 1.6, steel);      // grate
         addBox(0.55, 0.3, 0.32, drA.x + 1.2, 0.16, drA.z - 1.4, steel); // toolbox
+        // ---- density top-up (playtest: 'rooms too desolate') — every piece
+        // wall-flush AND solid, so nothing reads as a ghost you clip through
+        function solidProp(x, z, hw, hd, h) { map.addCollider(x - hw, z - hd, x + hw, z + hd, 0, h); }
+        // Garage: workbench + tool wall + electrical cabinets along the north wall
+        var gwb = wc(14, 2);
+        addBox(2.4, 0.9, 0.7, gwb.x, 0.45, gwb.z - 1.4, steel); solidProp(gwb.x, gwb.z - 1.4, 1.25, 0.4, 1.0);
+        addBox(2.2, 0.06, 0.6, gwb.x, 0.94, gwb.z - 1.4, dark);
+        for (var tw2 = 0; tw2 < 4; tw2++) addBox(0.14, 0.5 + (tw2 % 2) * 0.2, 0.06, gwb.x - 0.8 + tw2 * 0.5, 1.85, gwb.z - 1.85, dark);
+        var gcb = wc(13, 2);
+        addBox(0.9, 1.9, 0.5, gcb.x - 1.4, 0.95, gcb.z - 1.55, dark); solidProp(gcb.x - 1.4, gcb.z - 1.55, 0.5, 0.3, 2.0);
+        addBox(0.2, 0.2, 0.04, gcb.x - 1.4, 1.5, gcb.z - 1.28, glowAmber);   // live panel lamp
+        // Animal Testing: records desk on the west wall (papers + files)
+        var rdw = wc(8, 12);
+        addBox(1.6, 0.85, 0.6, rdw.x - 1.2, 0.42, rdw.z, steel); solidProp(rdw.x - 1.2, rdw.z, 0.85, 0.35, 0.95);
+        addBox(0.5, 0.14, 0.36, rdw.x - 1.3, 0.92, rdw.z - 0.1, paper);
+        addBox(0.4, 0.22, 0.3, rdw.x - 1.0, 0.96, rdw.z + 0.15, paper);
+        // Mainframe yard: cable drums + shipping crates hugging the east wall
+        var ydW = wc(23, 9);                                  // east wall: drum + crates
+        var drum2 = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 0.5, 12),
+          new THREE.MeshLambertMaterial({ color: 0x6e4a2e }));
+        drum2.rotation.z = Math.PI / 2; drum2.position.set(ydW.x + 1.1, 0.65, ydW.z - 1.6); G.scene.add(drum2);
+        solidProp(ydW.x + 1.1, ydW.z - 1.6, 0.55, 0.7, 1.3);
+        addBox(1.3, 1.0, 0.9, ydW.x + 1.15, 0.5, ydW.z + 0.4, dark); solidProp(ydW.x + 1.15, ydW.z + 0.4, 0.7, 0.5, 1.1);
+        addBox(0.9, 0.7, 0.7, ydW.x + 1.0, 1.35, ydW.z + 0.6, steel);
+        // Upper Assembly: two production benches with overhead tool rails
+        [[14, 3], [16, 3]].forEach(function (ub2) {
+          var ubW = wc(ub2[0], ub2[1]);
+          addBox(1.9, 0.9, 0.65, ubW.x, 4.45, ubW.z - 1.35, steel);
+          map.addCollider(ubW.x - 1.0, ubW.z - 1.7, ubW.x + 1.0, ubW.z - 1.0, 4, 5.0);
+          addBox(0.1, 0.7, 0.1, ubW.x, 5.6, ubW.z - 1.35, dark);
+          addBox(1.4, 0.08, 0.08, ubW.x, 6.0, ubW.z - 1.35, steel);        // tool rail
+        });
         // Real roof mass: uncovered ground cells receive a thick tar/concrete
         // cap, while every upper department receives a pitched industrial roof.
         // The roof volumes complete the building silhouette without adding any

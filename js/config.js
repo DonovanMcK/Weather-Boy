@@ -136,8 +136,8 @@
     sub: "The giant's factory — rebuilt courtyards, supported upper departments, and The Giant's Heart quest.",
     wonder: 'wunderwaffe',
     papRule: 'teleporters',
-    atmos: { sky: 0x12140f, fog: 0x15170f, density: 0.016,
-             amb: 0x3e4642, ambI: 0.5, hemiSky: 0x90a096, hemiGround: 0x252e28 },
+    atmos: { sky: 0x171a13, fog: 0x1a1c13, density: 0.013,
+             amb: 0x4c5450, ambI: 0.68, hemiSky: 0xa8b8ac, hemiGround: 0x323b34 },   // playtest: 'too dark' — lifted ~30%
     // dark wartime masonry rather than the rejected clean modular panels.
     palette: { wallA: 0x71594d, wallB: 0x5f5149, wood: 0x876b4c, plank: 0xa1835d,
                metal: 0x626a69, beam: 0x303638, rust: 0x70452d, conc: 0x696862,
@@ -201,14 +201,14 @@
       { perk: 'stamin', cell: [23, 18], off: [0, 0], y: 4.0 }
     ],
     WALLBUYS: [
-      { gun: 'm14',      cell: [22, 13], off: [0, 1.6], face: 'S' },
+      { gun: 'm14',      cell: [23, 7], off: [1.6, 0], face: 'E' },    // [22,13]S sat ON a window barricade
       { gun: 'olympia',  cell: [20, 7], off: [0, -1.6], face: 'N' },
       { gun: 'mp5k',     cell: [0, 10], off: [-1.6, 0], face: 'W' },
       { gun: 'mp40',     cell: [23, 17], off: [1.6, 0], face: 'E' },
       { gun: 'ak74u',    cell: [6, 0], off: [0, -1.6], face: 'N' },
       { gun: 'm16',      cell: [16, 2], off: [0, -1.6], face: 'N' },   // [18,3]E hid behind the garage stair
-      { gun: 'stakeout', cell: [7, 14], off: [-1.6, 0], face: 'W' },
-      { gun: 'frags',    cell: [12, 19], off: [0, 1.6], face: 'S' }
+      { gun: 'stakeout', cell: [7, 13], off: [-1.6, 0], face: 'W' },   // [7,14]W sat ON a window barricade
+      { gun: 'frags',    cell: [10, 19], off: [0, 1.6], face: 'S' }    // [12,19]S sat ON a window barricade
     ],
     BOX_SPOTS: [
       { cell: [9, 1], off: [0, 0] }, { cell: [16, 5], off: [0, 0] },
