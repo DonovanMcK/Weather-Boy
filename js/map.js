@@ -1068,7 +1068,13 @@
         zBase: zW(baseRow) + CELL / 2 - inset, steps: Math.max(18, (baseRow - topRow + 1) * 6) };
       return deck;
     }
-    // (Der Riese: verticality removed — flat factory floor per playtesting)
+    if (CFG.cur.id === 'derriese') {
+      // The only vertical layer is the authentic furnace/garage control block.
+      // Both flights occupy one exterior-wall cell and open into the same
+      // connected upper department; neither crosses a room centre or doorway.
+      stageSpecs.push(interiorStair(3, 3, 2, 4, false),
+                      interiorStair(19, 19, 7, 9, false));
+    }
     if (CFG.cur.id === 'wetterjunge') {
       // One narrow stair per northern wing, each tucked against its OUTER wall
       // (the old center-column flights bisected all three rooms and their side
@@ -1402,6 +1408,12 @@
       propSolids(mfRoot);
       var mc = mfRoot.userData.colliderBox;
       propCollider(mfl.x, mfl.z, mc.hw, mc.hd, mby + mc.y1, mby + mc.y2, mfl.yaw);
+      // The freestanding Der Riese pad is larger than its console. Give the nav
+      // sampler a pad-sized obstacle so it routes a horde around the landmark
+      // instead of aiming a node through the narrow console collider and
+      // wedging on its corner.
+      if (CFG.cur.id === 'derriese')
+        map.addCollider(mfl.x - 1.35, mfl.z - 1.15, mfl.x + 1.35, mfl.z + 1.15, mby, mby + 1.45);
       map.mainframe = { pos: mf, pad: mfRoot };
     }
 
@@ -2557,6 +2569,12 @@
             // doorway without reducing player/zombie headroom.
             addBox(st.x2 - st.x1 + 0.48, 0.35, 0.3, (st.x1 + st.x2) / 2,
                    H - 0.2, st.zBase, dBeam);
+            // Seal the dead pocket beneath the high landing. The upper opening
+            // remains clear; downstairs reads as an intentional stair tower.
+            addBox(st.x2 - st.x1 + 0.48, H - 0.45, 0.24,
+                   (st.x1 + st.x2) / 2, (H - 0.45) / 2, st.zTop - 0.12, G.mats.wallB);
+            map.addCollider(st.x1 - 0.24, st.zTop - 0.24, st.x2 + 0.24, st.zTop,
+                            0, H - 0.42);
           } else {
             // Open industrial stair hall (used by the weather station): the
             // same honest steel as the exterior flight — stringers, balusters
@@ -2583,8 +2601,8 @@
           [s.x1 + 0.08, s.x2 - 0.08].forEach(function (rx) {
             addBox(0.1, 1.05, Math.max(0.2, s.z2 - s.z1), rx, H + 0.52, (s.z1 + s.z2) / 2, railMat);
           });
-          addBox(st.x2 - st.x1, 1.05, 0.1, (st.x1 + st.x2) / 2, H + 0.52, st.zBase, railMat);
-          map.addCollider(st.x1, st.zBase - 0.08, st.x2, st.zBase + 0.08, H, H + 1.2);
+          // No upper cross-rail at the ground entrance: that was the isolated
+          // pole seen in the rejected versions.
         }
       }
       map.stages.push({
@@ -2955,432 +2973,358 @@
         for (var np = 0; np < 4; np++) boxAt(4, 9, 0.94, 0.28, 0.03, 0.38, paper, -0.15 + np * 0.34, -1.12);
       }
 
-      if (CFG.cur.id === 'derriese') {
-        // GROUND — recognizable functional wings, with props kept to walls or
-        // ceilings so every doorway and the main training routes stay open.
-        label('FURNACE  /  TELEPORTER B', 7, 2, 3.05, '#ff9a50');
-        for (var fc = 1; fc <= 3; fc += 2) {
-          var fpp = wc(4, fc);
-          var coil = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.09, 8, 18), amber);
-          coil.position.set(fpp.x - 1.35, 1.25, fpp.z); coil.rotation.y = Math.PI / 2; G.scene.add(coil);
-        }
-        pipeRun(5, 11, 0, 3.28, steel);
-        label('AUTO GARAGE  /  POWER', 16, 4, 3.0, '#a7d6bd');
-        addBox(xW(18) - xW(13), 0.22, 0.28, (xW(13) + xW(18)) / 2, 3.25, zW(4), steel);
-        addBox(0.1, 1.35, 0.1, xW(16), 2.55, zW(4), dark);
-        var garageHook = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.05, 7, 14, Math.PI * 1.45), steel);
-        garageHook.position.set(xW(16), 1.82, zW(4)); G.scene.add(garageHook);
-        screenBank(18, 4, 0, 2, green, true);
+      function buildDerRieseReborn() {
+        // This is the only Der Riese dressing path. It was authored against the
+        // new 28x24 blueprint and deliberately shares no placement coordinates
+        // with the retired map.
+        var brick = new THREE.MeshLambertMaterial({ map: G.tex.wall, color: 0x55443b });
+        var iron = new THREE.MeshLambertMaterial({ map: G.tex.metal, color: 0x4b5555 });
+        var soot = new THREE.MeshLambertMaterial({ color: 0x202424 });
+        var roof = new THREE.MeshLambertMaterial({ color: 0x252b2b, side: THREE.DoubleSide });
+        var glass = new THREE.MeshLambertMaterial({ color: 0x77c6c3, transparent: true, opacity: 0.34 });
+        var blood = new THREE.MeshLambertMaterial({ color: 0x481010 });
+        var orange = new THREE.MeshBasicMaterial({ color: 0xff7b2f });
+        var red = new THREE.MeshBasicMaterial({ color: 0xff4938 });
+        var DR = map.dAnim = { embers: [], steam: [], search: null, sparkT: 2.2, sparks: [] };
 
-        label('ANIMAL TESTING', 12, 15, 3.0, '#8ed4df');
-        // cages line the NORTH wall (they floated mid-room and players clipped
-        // straight through them) — solid now, like everything touchable
-        for (var cg = 0; cg < 3; cg++) {
-          var cgP = wc(8 + cg * 3, 10);
-          boxAt(8 + cg * 3, 10, 1.15, 1.6, 2.15, 0.65, steel, 0, -1.35);
-          for (var bar = -1; bar <= 1; bar++) boxAt(8 + cg * 3, 10, 1.15, 1.55, 0.04, 0.7, dark, 0, -1.7 + bar * 0.2);
-          map.addCollider(cgP.x - 0.85, cgP.z - 1.75, cgP.x + 0.85, cgP.z - 0.95, 0, 2.2);
+        function solid(x, z, hw, hd, h, y) {
+          y = y || 0; map.addCollider(x - hw, z - hd, x + hw, z + hd, y, y + h);
         }
-        label('A-LAB  /  TELEPORTER A', 21, 17, 3.0, '#79d5e8');
-        screenBank(23, 16, 0, 3, cyan, true);
-
-        // The cooling tower is beyond the west perimeter. Mainframe deliberately
-        // has no giant freestanding frame: the only overhead structure is the
-        // narrow supported service bridge authored above.
-        var towerX = xW(0) - 5.6, towerZ = zW(9);
-        var towerMat = new THREE.MeshLambertMaterial({ color: 0x4c514d });
-        var tower = new THREE.Mesh(new THREE.CylinderGeometry(2.15, 3.0, 10.5, 20), towerMat);
-        tower.position.set(towerX, 5.25, towerZ); G.scene.add(tower);
-        for (var tr = 0; tr < 3; tr++) {
-          var towerBand = new THREE.Mesh(new THREE.TorusGeometry(2.2 + tr * 0.18, 0.12, 8, 24), steel);
-          towerBand.position.set(towerX, 2.0 + tr * 3.1, towerZ); towerBand.rotation.x = Math.PI / 2; G.scene.add(towerBand);
+        function prop(type, c, r, ox, oz, y, rot, scale, footprint) {
+          var p = wc(c, r), root = G.Props.create(type, {
+            position: new THREE.Vector3(p.x + (ox || 0), y || 0, p.z + (oz || 0)),
+            rotationY: rot || 0, scale: scale || 1
+          });
+          propSolids(root);
+          if (footprint) solid(root.position.x, root.position.z,
+            footprint[0], footprint[1], footprint[2], y || 0);
+          return root;
         }
-        label('TELEPORTER C  /  COOLING YARD', 3, 9, 3.0, '#b8d2b0');
-        label('MAINFRAME', 20, 8, 3.1, '#b9e2bc');
-
-        // UPPER — four contained departments, each supported by its ground wing.
-        _fyByPos = true;
-        label('FURNACE ADMINISTRATION', 8, 1, 6.75, '#d3a06d');
-        screenBank(8, 0, 4, 3, amber, false);
-        label('UPPER ASSEMBLY', 16, 5, 6.8, '#8fe5bd');
-        screenBank(18, 4, 4, 2, green, true);
-        addBox(xW(18) - xW(13), 0.2, 0.2, (xW(13) + xW(18)) / 2, 7.35, zW(6), steel);
-        label('TESTING GALLERY', 12, 14, 6.75, '#91bdd0');
-        for (var zr = 13; zr <= 17; zr += 2) {
-          boxAt(8, zr, 5.15, 0.65, 2.0, 1.7, dark, -1.35, 0);
-          for (var sh = 0; sh < 3; sh++) boxAt(8, zr, 4.5 + sh * 0.5, 0.7, 0.05, 1.6, paper, -1.68, 0);
+        function line3(a, b, radius, material) {
+          var d = b.clone().sub(a), len = d.length();
+          var m = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 8), material);
+          m.position.copy(a).add(b).multiplyScalar(0.5);
+          m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+          G.scene.add(m); return m;
         }
-        label('A-LAB OBSERVATION', 21, 17, 6.75, '#82d4e5');
-        screenBank(23, 17, 4, 2, cyan, true);
-
-        /* ---- STORYTELLING + EASTER-EGG INSINUATION ----
-           Every quest stop shares one recurring mark — an amber triangle on a
-           dark plaque — and the world physically points at each step: a blood
-           trail leaves the briefing toward Animal Testing, the wrecked cage
-           foreshadows the Iron Subject, heat + a tag-shaped recess flag the
-           furnace stamp, cable bundles climb to the regulator, and three
-           color-coded conduits (A cyan / B amber / C green) cross the yard
-           and converge on the buried soul device. No floating text. */
-        var bloodM = new THREE.MeshLambertMaterial({ color: 0x4a1010 });
-        var glassM = new THREE.MeshLambertMaterial({ color: 0x7fd4c8, transparent: true, opacity: 0.35 });
-        var glowAmber = new THREE.MeshBasicMaterial({ color: 0xffb35a });
-        var glowRed = new THREE.MeshBasicMaterial({ color: 0xff4a3a });
-        function symbolPlaque(x, y, z, rotY) {
-          // the recurring Gruppe-935 mark: amber triangle on a dark plate
-          var g = new THREE.Group();
-          var plate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.05), dark); g.add(plate);
-          var tri = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.34, 3), glowAmber);
-          tri.position.z = 0.05; tri.rotation.x = Math.PI / 2; tri.rotation.z = Math.PI; g.add(tri);
-          g.position.set(x, y, z); g.rotation.y = rotY || 0; G.scene.add(g);
-          return g;
+        function floorLine(c1, r1, c2, r2, material, y, width) {
+          var a = wc(c1, r1), b = wc(c2, r2), dx = b.x - a.x, dz = b.z - a.z;
+          var m = addBox(width || 0.12, 0.045, Math.hypot(dx, dz),
+            (a.x + b.x) / 2, y == null ? 0.04 : y, (a.z + b.z) / 2, material);
+          m.rotation.y = Math.atan2(dx, dz); return m;
         }
-        function floorCable(x1, z1, x2, z2, mat, w) {
-          var dxc = x2 - x1, dzc = z2 - z1, lenC = Math.hypot(dxc, dzc);
-          var cb = addBox(w || 0.16, 0.05, lenC, (x1 + x2) / 2, 0.05, (z1 + z2) / 2, mat);
-          cb.rotation.y = Math.atan2(dxc, dzc);
-          return cb;
+        function plaque(c, r, face, y, material) {
+          var p = wc(c, r), o = OFF[face], yaw = { N: 0, S: Math.PI, E: -Math.PI / 2, W: Math.PI / 2 }[face] || 0;
+          var g = new THREE.Group(), plate = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.68, 0.07), soot);
+          var tri = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.36, 3), material || amber);
+          tri.position.z = 0.06; tri.rotation.x = Math.PI / 2; tri.rotation.z = Math.PI;
+          g.add(plate); g.add(tri); g.position.set(p.x + o[0] * 1.72, (y || 0) + 2.2, p.z + o[1] * 1.72);
+          g.rotation.y = yaw; G.scene.add(g); return g;
         }
-        // MAINFRAME YARD — the three wing conduits converge on the device cell
-        // [13,16]-adjacent yard route via the mainframe; warning paint squares
-        // the return pad. (Also the Overclock color key: A cyan, B amber, C green.)
-        var mfW = map.mainframe ? map.mainframe.pos : wc(20, 9);
-        var sbW = wc(13, 16);                                  // soul-device cell
-        floorCable(wc(20, 13).x, wc(20, 13).z, mfW.x, mfW.z + 1.2, cyan, 0.14);    // Tel-A wing
-        floorCable(wc(17, 7).x + 1.5, wc(17, 7).z, mfW.x - 1.0, mfW.z, amber, 0.14); // Tel-B via garage door
-        floorCable(wc(16, 10).x, wc(16, 10).z, mfW.x - 0.5, mfW.z + 0.8, green, 0.14); // Tel-C via L east door
-        [cyan, amber, green].forEach(function (cm, ci) {       // then on to the device
-          floorCable(mfW.x + (ci - 1) * 0.35, mfW.z + 1.4, sbW.x + (ci - 1) * 0.35, sbW.z - 0.8, cm, 0.12);
-        });
-        for (var wp2 = 0; wp2 < 4; wp2++) {                    // warning paint ring
-          var wpA = [[-2.2, 0, 4.4, 0.16], [2.2, 0, 4.4, 0.16], [0, -2.2, 0.16, 4.4], [0, 2.2, 0.16, 4.4]][wp2];
-          addBox(wpA[2], 0.03, wpA[3], mfW.x + wpA[0], 0.045, mfW.z + wpA[1], amber);
-        }
-        symbolPlaque(mfW.x, 2.2, mfW.z - 1.9, 0);
-        // BRIEFING [23,11]E: spotlight cone + dropped ID card + blood trail
-        // heading for Animal Testing's east door [16,10]
-        var brf = wc(23, 11);
-        addBox(0.5, 0.34, 0.05, brf.x + 1.7, 2.6, brf.z, glowAmber);        // lit order sheet
-        symbolPlaque(brf.x + 1.7, 1.6, brf.z + 0.75, -Math.PI / 2);
-        addBox(0.24, 0.02, 0.36, brf.x + 0.8, 0.05, brf.z + 0.7, paper);    // dropped ID card
-        for (var bt3 = 0; bt3 < 6; bt3++) {                                 // spatter trail west
-          var btT = bt3 / 5;
-          var btX = brf.x + 0.6 + (wc(16, 10).x + 1.5 - brf.x - 0.6) * btT;
-          var btZ = brf.z + 0.5 + (wc(16, 10).z - brf.z - 0.5) * btT;
-          var sp3 = addBox(0.34 - bt3 * 0.03, 0.02, 0.26 - bt3 * 0.02, btX, 0.04, btZ, bloodM);
-          sp3.rotation.y = bt3 * 0.9;
-        }
-        // FURNACE — iron door, glow slit, scorch plume, coal, and the tempering
-        // station: heat-stained tray with a TAG-SHAPED recess under the mark
-        var fdo = wc(6, 0);
-        addBox(2.2, 2.6, 0.3, fdo.x, 1.3, fdo.z - 1.55, dark);              // furnace door
-        addBox(1.5, 0.22, 0.1, fdo.x, 0.9, fdo.z - 1.38, glowAmber);        // glow slit
-        addBox(2.6, 1.4, 0.06, fdo.x, 3.2, fdo.z - 1.62, new THREE.MeshLambertMaterial({ color: 0x141414 })); // scorch plume
-        for (var cl2 = 0; cl2 < 5; cl2++) {                                 // coal spill
-          var clA = cl2 * 1.3;
-          addBox(0.34, 0.22, 0.3, fdo.x - 1.8 + Math.cos(clA) * 0.5, 0.11, fdo.z - 1.1 + Math.sin(clA) * 0.35, dark);
-        }
-        var stampW = wc(7, 0);
-        addBox(1.1, 0.9, 0.55, stampW.x, 0.45, stampW.z - 1.5, steel);      // stamp bench
-        map.addCollider(stampW.x - 0.6, stampW.z - 1.8, stampW.x + 0.6, stampW.z - 1.2, 0, 1.0);
-        addBox(0.5, 0.05, 0.36, stampW.x - 0.1, 0.93, stampW.z - 1.5, new THREE.MeshLambertMaterial({ color: 0x6e4a2a })); // heat-stained tray
-        addBox(0.16, 0.03, 0.26, stampW.x + 0.28, 0.92, stampW.z - 1.5, dark); // tag-shaped recess
-        symbolPlaque(stampW.x, 2.1, stampW.z - 1.72, 0);
-        // ANIMAL TESTING — numbered cages (plaques), the MARKED gurney, subject
-        // records, and one WRECKED containment cage: the Iron Subject was here
-        for (var cg2 = 0; cg2 < 3; cg2++) {
-          var cgW = wc(8 + cg2 * 3, 10);
-          addBox(0.3, 0.3, 0.04, cgW.x, 2.5, cgW.z - 1.7, paper);           // cage number plate
-        }
-        symbolPlaque(wc(11, 10).x, 2.95, wc(11, 10).z - 1.7, 0);            // the marked cage
-        var gur = wc(13, 18);                                               // marked gurney, SOUTH wall
-        addBox(1.7, 0.08, 0.62, gur.x, 0.82, gur.z + 1.3, steel);
-        [[-0.7, 0], [0.7, 0]].forEach(function (gw) {
-          addBox(0.08, 0.78, 0.08, gur.x + gw[0], 0.4, gur.z + 1.1, dark);
-          addBox(0.08, 0.78, 0.08, gur.x + gw[0], 0.4, gur.z + 1.5, dark);
-        });
-        addBox(0.5, 0.03, 0.5, gur.x - 0.2, 0.88, gur.z + 1.3, bloodM);     // stained sheet
-        symbolPlaque(gur.x + 0.55, 1.35, gur.z + 1.3, Math.PI);
-        map.addCollider(gur.x - 0.9, gur.z + 0.95, gur.x + 0.9, gur.z + 1.6, 0, 1.0);
-        var wrk = wc(15, 18);                                               // wrecked containment cage, SOUTH wall
-        var wCage = addBox(1.6, 2.1, 0.65, wrk.x, 1.05, wrk.z + 1.32, steel);
-        wCage.rotation.z = 0.08;
-        map.addCollider(wrk.x - 0.9, wrk.z + 0.95, wrk.x + 0.9, wrk.z + 1.7, 0, 2.2);
-        for (var wb2 = -1; wb2 <= 1; wb2++) {
-          var bar2 = addBox(0.05, 1.9, 0.05, wrk.x + wb2 * 0.45, 1.0, wrk.z + 0.95, dark);
-          bar2.rotation.x = 0.3 + Math.abs(wb2) * 0.25;                     // bars bent OUTWARD
-        }
-        addBox(1.9, 0.14, 0.1, wrk.x, 0.07, wrk.z + 0.6, amber);     // warning stripe
-        addBox(0.44, 0.3, 0.04, wrk.x - 1.1, 1.7, wrk.z + 1.5, glowRed);    // red warning record
-        // A-LAB — specimen tanks flanking the observation corner
-        [[19, 18], [22, 14]].forEach(function (tk2) {
-          var tkW = wc(tk2[0], tk2[1]);
-          var tank2 = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.7, 12), glassM);
-          tank2.position.set(tkW.x, 1.15, tkW.z + 1.45); G.scene.add(tank2);
-          addBox(0.5, 0.3, 0.5, tkW.x, 0.15, tkW.z + 1.45, steel);
-          var mass2 = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 8), dark);
-          mass2.scale.y = 1.5; mass2.position.set(tkW.x, 1.0, tkW.z + 1.45); G.scene.add(mass2);
-          map.addCollider(tkW.x - 0.5, tkW.z + 0.95, tkW.x + 0.5, tkW.z + 1.95, 0, 2.0);
-        });
-        // UPPER ASSEMBLY — cable bundles CLIMB the garage stair wall to the
-        // regulator; pulsing indicators (bright emissives) mark the console
-        var regW = wc(18, 4);
-        for (var cb2 = 0; cb2 < 3; cb2++)
-          addBox(0.12, 2.6, 0.12, regW.x + 1.7, 1.3, regW.z - 0.5 + cb2 * 0.35, [cyan, amber, green][cb2]);
-        for (var il2 = 0; il2 < 3; il2++)
-          addBox(0.14, 0.14, 0.06, regW.x + 1.55, 2.2 + il2 * 0.3, regW.z, il2 === 1 ? glowRed : glowAmber);
-        symbolPlaque(regW.x + 1.4, 2.6, regW.z + 0.7, -Math.PI / 2);
-        // COOLING YARD — drainage channel running from the tower line to a
-        // grate, plus a dripping condensate pipe and an abandoned toolbox
-        var drA = wc(1, 9), drB = wc(6, 9);
-        addBox(drB.x - drA.x, 0.04, 0.7, (drA.x + drB.x) / 2, 0.02, drA.z + 1.6, dark);
-        addBox(0.9, 0.06, 0.9, drB.x + 0.6, 0.04, drA.z + 1.6, steel);      // grate
-        addBox(0.55, 0.3, 0.32, drA.x + 1.2, 0.16, drA.z - 1.4, steel); // toolbox
-        // ---- density top-up (playtest: 'rooms too desolate') — every piece
-        // wall-flush AND solid, so nothing reads as a ghost you clip through
-        function solidProp(x, z, hw, hd, h) { map.addCollider(x - hw, z - hd, x + hw, z + hd, 0, h); }
-        // Garage: workbench + tool wall + electrical cabinets along the north wall
-        var gwb = wc(14, 2);
-        addBox(2.4, 0.9, 0.7, gwb.x, 0.45, gwb.z - 1.4, steel); solidProp(gwb.x, gwb.z - 1.4, 1.25, 0.4, 1.0);
-        addBox(2.2, 0.06, 0.6, gwb.x, 0.94, gwb.z - 1.4, dark);
-        for (var tw2 = 0; tw2 < 4; tw2++) addBox(0.14, 0.5 + (tw2 % 2) * 0.2, 0.06, gwb.x - 0.8 + tw2 * 0.5, 1.85, gwb.z - 1.85, dark);
-        var gcb = wc(13, 2);
-        addBox(0.9, 1.9, 0.5, gcb.x - 1.4, 0.95, gcb.z - 1.55, dark); solidProp(gcb.x - 1.4, gcb.z - 1.55, 0.5, 0.3, 2.0);
-        addBox(0.2, 0.2, 0.04, gcb.x - 1.4, 1.5, gcb.z - 1.28, glowAmber);   // live panel lamp
-        // Animal Testing: records desk on the west wall (papers + files)
-        var rdw = wc(8, 12);
-        addBox(1.6, 0.85, 0.6, rdw.x - 1.2, 0.42, rdw.z, steel); solidProp(rdw.x - 1.2, rdw.z, 0.85, 0.35, 0.95);
-        addBox(0.5, 0.14, 0.36, rdw.x - 1.3, 0.92, rdw.z - 0.1, paper);
-        addBox(0.4, 0.22, 0.3, rdw.x - 1.0, 0.96, rdw.z + 0.15, paper);
-        // Mainframe yard: cable drums + shipping crates hugging the east wall
-        var ydW = wc(23, 9);                                  // east wall: drum + crates
-        var drum2 = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 0.5, 12),
-          new THREE.MeshLambertMaterial({ color: 0x6e4a2e }));
-        drum2.rotation.z = Math.PI / 2; drum2.position.set(ydW.x + 1.1, 0.65, ydW.z - 1.6); G.scene.add(drum2);
-        solidProp(ydW.x + 1.1, ydW.z - 1.6, 0.55, 0.7, 1.3);
-        addBox(1.3, 1.0, 0.9, ydW.x + 1.15, 0.5, ydW.z + 0.4, dark); solidProp(ydW.x + 1.15, ydW.z + 0.4, 0.7, 0.5, 1.1);
-        addBox(0.9, 0.7, 0.7, ydW.x + 1.0, 1.35, ydW.z + 0.6, steel);
-
-        /* ---- CENTERPIECES: one trainable machine dead-centre in each hall
-           (footprint r<=1.6 at the ring's exact centre, so the R5 kite lane
-           always clears it) + truss-end columns that break the big volumes. */
-        function centerOf(rid) { return P.rooms[rid] && P.rooms[rid].center; }
-        var cL = centerOf('L'), cG = centerOf('G'), cF = centerOf('F'), cC = centerOf('C'), cA = centerOf('A');
-        if (cL) {   // Animal Testing: raised operating island + surgical light rig
-          addBox(3.0, 0.16, 3.0, cL.x, 0.08, cL.z, dConc);
-          addBox(1.9, 0.75, 0.8, cL.x, 0.55, cL.z, steel);
-          addBox(1.7, 0.05, 0.7, cL.x, 0.95, cL.z, bloodM);
-          addBox(0.08, 2.6, 0.08, cL.x + 1.2, 1.3, cL.z + 1.2, dark);
-          addBox(1.4, 0.08, 0.08, cL.x + 0.5, 2.6, cL.z + 1.2, dark);
-          addBox(0.5, 0.16, 0.5, cL.x, 2.5, cL.z, glowAmber);            // surgical lamp head
-          map.addCollider(cL.x - 1.0, cL.z - 0.45, cL.x + 1.0, cL.z + 0.45, 0, 1.0);
-        }
-        if (cG) {   // Garage: diesel generator block with exhaust stack
-          addBox(2.4, 1.5, 1.3, cG.x, 0.75, cG.z, steel);
-          addBox(2.5, 0.2, 1.4, cG.x, 1.6, cG.z, dark);
-          addBox(0.3, 2.4, 0.3, cG.x + 0.8, 2.6, cG.z, dark);            // stack
-          addBox(0.5, 0.5, 0.06, cG.x - 0.9, 1.0, cG.z + 0.68, glowAmber); // gauge glow
-          map.addCollider(cG.x - 1.25, cG.z - 0.7, cG.x + 1.25, cG.z + 0.7, 0, 1.8);
-        }
-        if (cF) {   // Furnace: crucible under a chain hoist
-          var cru = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.75, 1.5, 12),
-            new THREE.MeshLambertMaterial({ color: 0x3a3532 }));
-          cru.position.set(cF.x, 0.75, cF.z); G.scene.add(cru);
-          var melt = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.06, 12),
-            new THREE.MeshBasicMaterial({ color: 0xff7a2a }));
-          melt.position.set(cF.x, 1.53, cF.z); G.scene.add(melt);
-          addBox(0.05, 2.2, 0.05, cF.x, 2.8, cF.z, dark);                // hoist chain
-          map.addCollider(cF.x - 1.0, cF.z - 1.0, cF.x + 1.0, cF.z + 1.0, 0, 1.7);
-        }
-        if (cC) {   // Cooling yard: round condensate basin
-          var bas = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.8, 0.6, 16),
-            new THREE.MeshLambertMaterial({ color: 0x555c58 }));
-          bas.position.set(cC.x, 0.3, cC.z); G.scene.add(bas);
-          var wat = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.55, 0.05, 16), glassM);
-          wat.position.set(cC.x, 0.58, cC.z); G.scene.add(wat);
-          addBox(0.16, 1.4, 0.16, cC.x, 0.9, cC.z, dPipe);               // feed pipe
-          map.addCollider(cC.x - 1.7, cC.z - 1.7, cC.x + 1.7, cC.z + 1.7, 0, 0.62);
-        }
-        if (cA) {   // A-Lab: calibration island (console ring)
-          addBox(2.2, 0.95, 1.0, cA.x, 0.48, cA.z, steel);
-          addBox(2.0, 0.35, 0.1, cA.x, 1.15, cA.z - 0.4, cyan);
-          addBox(0.7, 1.5, 0.7, cA.x + 1.0, 0.75, cA.z + 0.5, dark);
-          map.addCollider(cA.x - 1.2, cA.z - 0.6, cA.x + 1.35, cA.z + 0.9, 0, 1.6);
-        }
-        // truss-end columns in the two biggest halls (visual rhythm off-lane)
-        [[8, 11], [15, 11], [8, 17], [16, 17]].forEach(function (pc2) {   // [16,11] crowded door 9
-          var pcW = wc(pc2[0], pc2[1]);
-          addBox(0.5, 3.6, 0.5, pcW.x - 1.4, 1.8, pcW.z, dConc);
-          map.addCollider(pcW.x - 1.65, pcW.z - 0.25, pcW.x - 1.15, pcW.z + 0.25, 0, 3.6);
-        });
-        [[10, 6], [16, 6]].forEach(function (pc3) {
-          var pcW2 = wc(pc3[0], pc3[1]);
-          addBox(0.5, 3.4, 0.5, pcW2.x, 1.7, pcW2.z - 1.4, dConc);
-          map.addCollider(pcW2.x - 0.25, pcW2.z - 1.65, pcW2.x + 0.25, pcW2.z - 1.15, 0, 3.4);
-        });
-        /* ---- EE HARDWARE: each quest station is a visible machine ---- */
-        // the briefing desk under the lit order
-        addBox(1.5, 0.85, 0.6, brf.x + 1.5, 0.42, brf.z + 1.1, dark);
-        map.addCollider(brf.x + 1.1, brf.z + 0.8, brf.x + 1.9, brf.z + 1.4, 0, 0.95);
-        // subject-tag specimen cabinet with a pulled drawer [7,15]W
-        var tagW = wc(7, 15);
-        addBox(0.8, 1.9, 0.9, tagW.x - 1.3, 0.95, tagW.z - 1.9, steel);
-        addBox(0.7, 0.16, 0.5, tagW.x - 0.85, 1.1, tagW.z - 1.9, dark);        // open drawer
-        addBox(0.18, 0.05, 0.28, tagW.x - 0.8, 1.16, tagW.z - 1.9, glowAmber); // the tag inside
-        map.addCollider(tagW.x - 1.7, tagW.z - 2.4, tagW.x - 0.85, tagW.z - 1.4, 0, 2.0);
-        // the GIANT'S HEART REGULATOR [18,4] y4 — riveted chamber + feed pipes
-        var hrt = new THREE.Mesh(new THREE.SphereGeometry(0.85, 12, 12),
-          new THREE.MeshLambertMaterial({ color: 0x5b3f38 }));
-        hrt.scale.y = 1.25; hrt.position.set(regW.x + 1.0, 1.75, regW.z + 1.6); G.scene.add(hrt);
-        addBox(0.7, 0.9, 0.7, regW.x + 1.0, 0.45, regW.z + 1.6, dark);
-        addBox(0.14, 0.14, 1.4, regW.x + 1.0, 2.45, regW.z + 0.8, dPipe);
-        addBox(0.3, 0.1, 0.34, regW.x + 0.6, 1.7, regW.z + 1.2, dark);   // the tag SLOT
-        map.addCollider(regW.x + 0.4, regW.z + 1.1, regW.x + 1.6, regW.z + 2.1, 0, 2.6);
-        // dormant soul-device emplacement at [13,16] — recessed ring + bolts
-        var sdW = wc(13, 16);
-        var sdr = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.1, 8, 20), dark);
-        sdr.rotation.x = Math.PI / 2; sdr.position.set(sdW.x, 0.06, sdW.z); G.scene.add(sdr);
-        for (var sb2 = 0; sb2 < 4; sb2++) {
-          var sba = sb2 / 4 * Math.PI * 2;
-          addBox(0.18, 0.22, 0.18, sdW.x + Math.cos(sba) * 1.1, 0.11, sdW.z + Math.sin(sba) * 1.1, steel);
-        }
-        // Overclock conduit stations, color-keyed to their wings
-        [[wc(12, 19), green, 0, 1.55], [wc(4, 3), amber, -1.55, 0]].forEach(function (oc2) {
-          var ocW = oc2[0];
-          addBox(0.5, 1.2, 0.5, ocW.x + oc2[2], 0.6, ocW.z + oc2[3], dark);
-          addBox(0.3, 0.5, 0.08, ocW.x + oc2[2], 1.0, ocW.z + oc2[3] * 0.72, oc2[1]);
-        });
-        var ocK = wc(23, 17);
-        addBox(0.5, 1.2, 0.5, ocK.x + 1.55, 0.6, ocK.z, dark);
-        addBox(0.08, 0.5, 0.3, ocK.x + 1.12, 1.0, ocK.z, cyan);
-        // Iron Subject aftermath: torn chain + drag gouges leaving the cage
-        addBox(0.06, 1.3, 0.06, wrk.x - 0.9, 0.65, wrk.z + 0.9, dark);
-        for (var dg2 = 0; dg2 < 3; dg2++)
-          addBox(0.1, 0.015, 2.2 - dg2 * 0.4, wrk.x - 0.3 + dg2 * 0.35, 0.035, wrk.z - 0.6, dark);
-        /* ---- LIFE + FILL: the map breathes and the halls earn their size ----
-           Anim registry (map.dAnim, driven from map.update): furnace embers
-           rise and die, cooling-yard steam drifts, the overlook searchlight
-           sweeps the yard, the mainframe conduits spark. Fill: overhead
-           gantries/trusses/wires (zero floor cost), painted floor guides that
-           lead to every stair bay, and edge-anchored set pieces — a car on a
-           lift, a coal cart on rails, a surgical corner. */
-        var DA = map.dAnim = { embers: [], steam: [], search: null, sparkT: 2.5, sparks: [] };
-        var emberM2 = new THREE.MeshBasicMaterial({ color: 0xff7a2a });
-        var steamM2 = new THREE.MeshBasicMaterial({ color: 0xcfd8d4, transparent: true, opacity: 0.2, depthWrite: false });
-        for (var em2 = 0; em2 < 5; em2++) {                    // furnace embers
-          var ebm = new THREE.Mesh(new THREE.SphereGeometry(0.06 + (em2 % 2) * 0.03, 6, 6), emberM2);
-          ebm.position.set(fdo.x - 0.8 + em2 * 0.4, 0.4, fdo.z - 1.2);
-          G.scene.add(ebm);
-          DA.embers.push({ m: ebm, x: ebm.position.x, z: ebm.position.z, spd: 0.5 + (em2 % 3) * 0.22, ph: em2 * 1.3 });
-        }
-        for (var sv2 = 0; sv2 < 4; sv2++) {                    // cooling-yard steam
-          var svm = new THREE.Mesh(new THREE.SphereGeometry(0.3, 7, 7), sv2 ? steamM2.clone() : steamM2);
-          svm.position.set(drA.x + 1 + sv2 * 3.2, 0.6, drA.z + 1.6);
-          G.scene.add(svm);
-          DA.steam.push({ m: svm, mat: svm.material, spd: 0.4 + (sv2 % 2) * 0.25, ph: sv2 * 1.7 });
-        }
-        DA.sparkMesh = addBox(0.3, 0.3, 0.2, mfW.x, 0.3, mfW.z + 1.4,
-          new THREE.MeshBasicMaterial({ color: 0x2a2d2f }));   // arcing conduit junction box
-        // overhead: gantry rail + chain hooks across the Garage, trusses over
-        // Animal Testing, catenary poles + wires across the open yard
-        var gzA = wc(10, 7), gzB = wc(16, 7);
-        addBox(gzB.x - gzA.x, 0.3, 0.34, (gzA.x + gzB.x) / 2, 3.4, gzA.z, steel);
-        for (var gh2 = 0; gh2 < 4; gh2++) {
-          var ghx = gzA.x + 2 + gh2 * 5.4;
-          addBox(0.06, 0.9, 0.06, ghx, 2.85, gzA.z, dark);
-          var hk2 = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.045, 6, 12, Math.PI * 1.4), steel);
-          hk2.position.set(ghx, 2.3, gzA.z); G.scene.add(hk2);
-        }
-        for (var tr2 = 11; tr2 <= 17; tr2 += 3) {              // L hall trusses
-          var trW = wc(12, tr2);
-          addBox(wc(16, tr2).x - wc(8, tr2).x, 0.26, 0.3, trW.x, 3.62, trW.z, dark);
-          addBox(wc(16, tr2).x - wc(8, tr2).x, 0.1, 0.1, trW.x, 3.3, trW.z, steel);
-        }
-        [[18, 8], [20, 10], [22, 8]].forEach(function (cp2, ci3) {   // yard catenary
-          var cpW = wc(cp2[0], cp2[1]);
-          addBox(0.16, 4.6, 0.16, cpW.x, 2.3, cpW.z, dark);
-          if (ci3) {
-            var ppW = wc([[18, 8], [20, 10], [22, 8]][ci3 - 1][0], [[18, 8], [20, 10], [22, 8]][ci3 - 1][1]);
-            floorCable(ppW.x, ppW.z, cpW.x, cpW.z, dark, 0.06).position.y = 4.35;
-          }
-        });
-        // painted guides: an amber lane from each stair base into its room, so
-        // 'upstairs' advertises itself from the floor
-        [[5, 3], [17, 4], [15, 15], [19, 17]].forEach(function (sg2) {
-          var sgW = wc(sg2[0], sg2[1]);
-          var sgz = sgW.z + 2.0;                               // just south of the stair base
-          addBox(0.5, 0.025, 3.2, sgW.x, 0.04, sgz + 1.7, amber);
-          addBox(1.4, 0.025, 0.5, sgW.x, 0.04, sgz + 3.2, amber);
-        });
-        // anchors: car on a lift (Garage south bay), coal cart on rails
-        // (Furnace east wall), surgical corner (Animal Testing SW)
-        var carW = wc(11, 9);
-        [[-1.1, 0], [1.1, 0]].forEach(function (lp2) {
-          addBox(0.5, 0.5, 0.5, carW.x + lp2[0], 0.25, carW.z + 1.25, steel);
-        });
-        addBox(2.9, 0.5, 1.25, carW.x, 1.05, carW.z + 1.25, new THREE.MeshLambertMaterial({ color: 0x4a4d42 }));
-        addBox(1.7, 0.42, 1.1, carW.x - 0.15, 1.5, carW.z + 1.25, dark);   // cabin
-        solidProp(carW.x, carW.z + 1.25, 1.5, 0.7, 1.8);
-        var cartW = wc(11, 1);
-        addBox(1.2, 0.65, 0.85, cartW.x + 1.15, 0.55, cartW.z, dark);      // coal cart
-        for (var cw2 = 0; cw2 < 4; cw2++)
-          addBox(0.28, 0.2, 0.24, cartW.x + 0.85 + (cw2 % 2) * 0.55, 0.95, cartW.z - 0.2 + ((cw2 / 2) | 0) * 0.35, dark);
-        solidProp(cartW.x + 1.15, cartW.z, 0.65, 0.5, 1.1);
-        floorCable(cartW.x + 1.15, cartW.z + 0.4, fdo.x, fdo.z - 1.0, dark, 0.08);  // cart rail
-        floorCable(cartW.x + 1.45, cartW.z + 0.4, fdo.x + 0.3, fdo.z - 1.0, dark, 0.08);
-        var surW = wc(8, 17);
-        addBox(0.1, 2.0, 0.1, surW.x - 1.2, 1.0, surW.z + 1.0, steel);     // IV stand
-        addBox(0.3, 0.24, 0.06, surW.x - 1.2, 1.85, surW.z + 1.0, glassM);
-        addBox(1.5, 0.06, 0.06, surW.x - 0.4, 2.3, surW.z + 1.3, dark);    // curtain rail
-        addBox(1.3, 1.4, 0.04, surW.x - 0.4, 1.55, surW.z + 1.3, new THREE.MeshLambertMaterial({ color: 0x8a9488 }));
-        solidProp(surW.x - 0.8, surW.z + 1.15, 0.9, 0.4, 1.2);
-        // Real roof mass: uncovered ground cells receive a thick tar/concrete
-        // cap, while every upper department receives a pitched industrial roof.
-        // The roof volumes complete the building silhouette without adding any
-        // walkable surfaces or navigation collision.
-        var roofSkin = new THREE.MeshLambertMaterial({ color: 0x292d2d });
-        for (var rr = 0; rr < P.rows; rr++) {
-          var run = -1;
-          for (var rc = 0; rc <= P.cols; rc++) {
-            var pc = rc < P.cols && P.cells[rr][rc];
-            var covered = pc && pc.type === 'room' && ['F', 'G', 'L', 'A'].indexOf(pc.room) >= 0 &&
-                          !map.floorCellAboveAt(rc, rr, 0);
-            if (covered && run < 0) run = rc;
-            if ((!covered || rc === P.cols) && run >= 0) {
-              var re = rc - 1, rwa = wc(run, rr), rwb = wc(re, rr);
-              addBox((re - run + 1) * CELL + 0.32, 0.32, CELL + 0.32,
-                     (rwa.x + rwb.x) / 2, 4.14, rwa.z, roofSkin);
-              run = -1;
-            }
-          }
-        }
-        function gable(c1, c2, r1, r2, rise) {
-          var a = wc(c1, r1), b = wc(c2, r2);
-          var x0 = a.x - CELL / 2 - 0.18, x1 = b.x + CELL / 2 + 0.18;
-          var z0 = a.z - CELL / 2 - 0.18, z1 = b.z + CELL / 2 + 0.18;
-          var zm = (z0 + z1) / 2, y0 = 8.3, y1 = y0 + rise;
-          var verts = new Float32Array([
-            x0,y0,z0, x0,y1,zm, x0,y0,z1,
-            x1,y0,z0, x1,y1,zm, x1,y0,z1
-          ]);
-          var geo = new THREE.BufferGeometry();
-          geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+        function roofPrism(c1, c2, r1, r2, base, rise) {
+          var a = wc(c1, r1), b = wc(c2, r2), x0 = a.x - CELL / 2 - 0.2, x1 = b.x + CELL / 2 + 0.2;
+          var z0 = a.z - CELL / 2 - 0.2, z1 = b.z + CELL / 2 + 0.2, zm = (z0 + z1) / 2;
+          var v = new Float32Array([
+            x0,base,z0, x0,base + rise,zm, x0,base,z1,
+            x1,base,z0, x1,base + rise,zm, x1,base,z1
+          ]), geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(v, 3));
           geo.setIndex([0,1,2, 3,5,4, 0,3,4, 0,4,1, 1,4,5, 1,5,2, 0,2,5, 0,5,3]);
-          geo.computeVertexNormals();
-          var gm = new THREE.Mesh(geo, roofSkin); G.scene.add(gm);
-          if (_multiFloor) { gm.userData.fy = 4; map.cullables.push(gm); }
-          addBox(x1 - x0, 0.18, 0.18, (x0 + x1) / 2, y1 + 0.02, zm, steel);
+          geo.computeVertexNormals(); var mesh = new THREE.Mesh(geo, roof); G.scene.add(mesh);
+          addBox(x1 - x0, 0.18, 0.18, (x0 + x1) / 2, base + rise + 0.02, zm, iron);
         }
-        gable(5, 11, 0, 4, 2.0);
-        gable(13, 18, 2, 6, 1.6);
-        gable(8, 15, 12, 17, 1.8);
-        gable(19, 23, 15, 19, 1.45);
-        [5, 10].forEach(function (sc) {
-          var stack = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.62, 5.2, 12), dark);
-          stack.position.set(xW(sc), 10.6, zW(0)); G.scene.add(stack);
-          var cap = new THREE.Mesh(new THREE.TorusGeometry(0.47, 0.09, 7, 14), steel);
-          cap.position.set(xW(sc), 13.2, zW(0)); cap.rotation.x = Math.PI / 2; G.scene.add(cap);
+        function taskLight(c, r, y, color) {
+          var p = wc(c, r); line3(new THREE.Vector3(p.x, y + 0.75, p.z), new THREE.Vector3(p.x, y + 0.28, p.z), 0.035, soot);
+          var shade = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.4, 0.25, 12), iron);
+          shade.position.set(p.x, y + 0.18, p.z); G.scene.add(shade);
+          var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), color || amber);
+          bulb.position.set(p.x, y, p.z); G.scene.add(bulb);
+        }
+        function workLight(c, r, y, color, intensity, distance) {
+          var p = wc(c, r), lamp = new THREE.PointLight(color, intensity || 0.72, distance || 17, 1.4);
+          lamp.position.set(p.x, y, p.z); G.scene.add(lamp); map.roomLights.push(lamp);
+          taskLight(c, r, y + 0.02, new THREE.MeshBasicMaterial({ color: color }));
+        }
+        function steelPost(c, r, ox, oz, h) {
+          var p = wc(c, r), x = p.x + (ox || 0), z = p.z + (oz || 0);
+          addBox(0.34, h || 3.6, 0.34, x, (h || 3.6) / 2, z, iron);
+          solid(x, z, 0.2, 0.2, h || 3.6);
+        }
+
+        // BUILDING SILHOUETTE — the courtyards stay open. The lower laboratory
+        // halls have their own roofs; Furnace Administration and Garage Control
+        // rise together as the only two-storey mass.
+        roofPrism(9, 19, 12, 22, 4.12, 1.65);
+        roofPrism(21, 27, 17, 23, 4.12, 1.35);
+        roofPrism(3, 10, 0, 5, 8.25, 1.9);
+        roofPrism(10, 19, 2, 10, 8.25, 1.65);
+        [5, 9].forEach(function (c) {
+          var p = wc(c, 0), stack = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.62, 5.5, 12), soot);
+          stack.position.set(p.x, 11.0, p.z); G.scene.add(stack);
+          var cap = new THREE.Mesh(new THREE.TorusGeometry(0.47, 0.09, 7, 16), iron);
+          cap.position.set(p.x, 13.75, p.z); cap.rotation.x = Math.PI / 2; G.scene.add(cap);
         });
+
+        // COOLING COURTYARD / TELEPORTER C — tower outside the west wall,
+        // condensate basin inside, and a pressure line along the north edge.
+        var yard = wc(0, 11), towerX = yard.x - 6.0;
+        var tower = new THREE.Mesh(new THREE.CylinderGeometry(2.35, 3.2, 12.4, 24),
+          new THREE.MeshLambertMaterial({ color: 0x49504c }));
+        tower.position.set(towerX, 6.2, yard.z); G.scene.add(tower);
+        [2.0, 5.9, 9.7].forEach(function (y, i) {
+          var band = new THREE.Mesh(new THREE.TorusGeometry(2.42 + i * 0.19, 0.11, 8, 24), iron);
+          band.position.set(towerX, y, yard.z); band.rotation.x = Math.PI / 2; G.scene.add(band);
+        });
+        prop('pressure_tank', 7, 7, 0.8, -1.1, 0, Math.PI / 2, 1.1, [0.7, 0.55, 2.0]);
+        prop('pipe_cluster', 8, 12, -1.1, 0, 0, -Math.PI / 2, 1.0, [0.5, 0.7, 1.8]);
+        var basinP = wc(6, 12), basin = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.72, 0.55, 18), iron);
+        basin.position.set(basinP.x, 0.28, basinP.z); G.scene.add(basin);
+        var water = new THREE.Mesh(new THREE.CylinderGeometry(1.42, 1.42, 0.05, 18), glass);
+        water.position.set(basinP.x, 0.57, basinP.z); G.scene.add(water); solid(basinP.x, basinP.z, 1.65, 1.65, 0.62);
+        for (var sv = 0; sv < 4; sv++) {
+          var sm = new THREE.Mesh(new THREE.SphereGeometry(0.28, 7, 7),
+            new THREE.MeshBasicMaterial({ color: 0xd4dcd8, transparent: true, opacity: 0.2, depthWrite: false }));
+          sm.position.set(wc(7, 8 + sv * 2).x + 0.8, 0.6, wc(7, 8 + sv * 2).z); G.scene.add(sm);
+          DR.steam.push({ m: sm, mat: sm.material, spd: 0.4 + sv * 0.06, ph: sv * 1.4 });
+        }
+
+        // FURNACE / TELEPORTER B — two complete firebox mouths, crucible and
+        // coal handling. All hard geometry stays north/east of the teleporter.
+        [5, 9].forEach(function (c) {
+          var p = wc(c, 0);
+          addBox(2.55, 2.75, 0.38, p.x, 1.38, p.z - 1.52, soot);
+          addBox(1.48, 0.24, 0.10, p.x, 0.9, p.z - 1.3, orange);
+          addBox(0.28, 1.5, 0.52, p.x - 0.92, 1.05, p.z - 1.3, brick);
+          addBox(0.28, 1.5, 0.52, p.x + 0.92, 1.05, p.z - 1.3, brick);
+          addBox(2.15, 0.32, 0.52, p.x, 1.83, p.z - 1.3, brick);
+          line3(new THREE.Vector3(p.x, 2.7, p.z - 1.45), new THREE.Vector3(p.x, 3.72, p.z - 1.45), 0.24, soot);
+          solid(p.x, p.z - 1.52, 1.3, 0.3, 2.8);
+        });
+        var cru = wc(10, 5), pot = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.65, 1.28, 14), soot);
+        pot.position.set(cru.x + 1.15, 0.64, cru.z); G.scene.add(pot);
+        var melt = new THREE.Mesh(new THREE.CylinderGeometry(0.69, 0.69, 0.06, 14), orange);
+        melt.position.set(cru.x + 1.15, 1.31, cru.z); G.scene.add(melt); solid(cru.x + 1.15, cru.z, 0.88, 0.88, 1.42);
+        prop('hoist', 10, 4, 1.0, 0, 2.55, 0, 1.05);
+        prop('tool_cart', 3, 5, 1.15, 0, 0, Math.PI / 2, 0.92, [0.48, 0.68, 1.0]);
+        prop('fuel_drum', 4, 1, -0.9, 0.85, 0, 0, 0.95);
+        prop('machinery_unit', 10, 4, 0.85, -0.95, 0, -Math.PI / 2, 0.9);
+        workLight(6, 3, 3.15, 0xff8a42, 0.86, 18);
+        workLight(9, 4, 3.1, 0xffb16a, 0.62, 14);
+        for (var em = 0; em < 7; em++) {
+          var ep = new THREE.Mesh(new THREE.SphereGeometry(0.055 + (em & 1) * 0.025, 6, 6), orange);
+          ep.position.set(wc(5, 0).x - 0.9 + em * 0.3, 0.4, wc(5, 0).z - 1.18); G.scene.add(ep);
+          DR.embers.push({ m: ep, x: ep.position.x, z: ep.position.z, spd: 0.5 + (em % 3) * 0.18, ph: em * 1.1 });
+        }
+
+        // AUTO GARAGE / POWER — the south service bay is a believable vehicle
+        // lift; power equipment and tool storage occupy the perimeter.
+        prop('generator', 17, 6, 0.8, 0, 0, -Math.PI / 2, 1.25, [1.0, 0.72, 1.55]);
+        prop('electrical_cabinet', 19, 3, 1.15, 0, 0, -Math.PI / 2, 1.05, [0.35, 0.62, 2.0]);
+        prop('tool_cart', 10, 9, 1.1, 0, 0, Math.PI / 2, 0.95, [0.48, 0.72, 1.0]);
+        var carP = wc(14, 9); prop('wrecked_car', 14, 9, 0, 0.25, 0, Math.PI / 2, 0.86, [1.7, 1.05, 1.5]);
+        [-1, 1].forEach(function (s) {
+          addBox(0.3, 3.2, 0.36, carP.x + s * 1.7, 1.6, carP.z + 0.25, iron);
+          addBox(1.05, 0.12, 0.42, carP.x + s * 0.85, 0.28, carP.z + 0.25, soot);
+        });
+        addBox(3.7, 0.28, 0.4, carP.x, 3.08, carP.z + 0.25, soot);
+        var ganA = wc(11, 7), ganB = wc(18, 7);
+        addBox(ganB.x - ganA.x, 0.26, 0.3, (ganA.x + ganB.x) / 2, 3.5, ganA.z, iron);
+        [0.2, 0.5, 0.8].forEach(function (t) {
+          var x = ganA.x + (ganB.x - ganA.x) * t;
+          line3(new THREE.Vector3(x, 3.42, ganA.z), new THREE.Vector3(x, 2.55, ganA.z), 0.04, soot);
+        });
+        prop('locker', 12, 2, -0.95, -0.72, 0, 0, 0.95);
+        prop('gas_cylinder', 19, 6, 0.85, -0.85, 0, Math.PI / 2, 0.95);
+        prop('machinery_unit', 11, 7, 0.75, 0.85, 0, Math.PI / 2, 0.88);
+        prop('barrel_cluster', 18, 9, 0.75, 0.7, 0, -Math.PI / 2, 0.9);
+        workLight(14, 5, 3.15, 0xffc67c, 0.62, 17);
+        workLight(17, 8, 3.15, 0xa8d7bc, 0.68, 18);
+
+        // ANIMAL TESTING — numbered containment runs lead to a central surgical
+        // island and one visibly ruptured cage. The three loop exits remain bare.
+        [11, 14, 17].forEach(function (c, i) {
+          var p = wc(c, 12);
+          addBox(1.6, 2.15, 0.74, p.x, 1.08, p.z - 1.3, iron);
+          [-0.5, 0, 0.5].forEach(function (o) { addBox(0.05, 1.9, 0.05, p.x + o, 1.06, p.z - 1.68, soot); });
+          addBox(0.38, 0.3, 0.05, p.x, 2.3, p.z - 1.68, i === 1 ? red : paper);
+          solid(p.x, p.z - 1.35, 0.84, 0.46, 2.22);
+        });
+        var op = wc(14, 16);
+        addBox(3.2, 0.15, 2.8, op.x, 0.075, op.z, G.MAT.get('concreteDark'));
+        addBox(2.0, 0.72, 0.84, op.x, 0.54, op.z, iron);
+        addBox(1.78, 0.05, 0.74, op.x, 0.93, op.z, blood);
+        line3(new THREE.Vector3(op.x + 1.22, 0.2, op.z + 1.22), new THREE.Vector3(op.x + 1.22, 3.45, op.z + 1.22), 0.05, soot);
+        line3(new THREE.Vector3(op.x + 1.22, 3.4, op.z + 1.22), new THREE.Vector3(op.x, 3.0, op.z), 0.05, soot);
+        solid(op.x, op.z, 1.1, 0.54, 1.02);
+        prop('lab_cabinet', 8, 21, -1.1, 0, 0, Math.PI / 2, 1.0, [0.42, 0.72, 1.8]);
+        var broken = wc(18, 21);
+        addBox(1.55, 2.05, 0.7, broken.x + 1.15, 1.03, broken.z, iron).rotation.z = 0.1;
+        [-0.45, 0, 0.45].forEach(function (o, i) {
+          var bar = addBox(0.05, 1.85, 0.05, broken.x + 1.15 + o, 1.0, broken.z - 0.36, soot);
+          bar.rotation.x = 0.18 + i * 0.18;
+        });
+        solid(broken.x + 1.15, broken.z, 0.82, 0.44, 2.12);
+        // Four structural posts and two equipment islands divide the long hall
+        // into recognisable testing bays while preserving a broad centre loop.
+        [[11, 14], [17, 14], [11, 20], [17, 20]].forEach(function (q) { steelPost(q[0], q[1], 0, 0, 3.65); });
+        prop('machinery_unit', 10, 17, -0.9, 0, 0, Math.PI / 2, 0.9);
+        prop('lab_cabinet', 18, 17, 0.9, 0, 0, -Math.PI / 2, 0.95);
+        prop('gas_cylinder', 9, 21, -0.75, 0.7, 0, Math.PI / 2, 0.9);
+        prop('supply_pallet', 18, 22, 0.65, 0.7, 0, -Math.PI / 2, 0.82);
+        var testA = wc(11, 18), testB = wc(17, 18);
+        [testA, testB].forEach(function (p) {
+          addBox(2.15, 0.16, 0.9, p.x, 0.88, p.z, iron);
+          addBox(0.22, 0.82, 0.22, p.x - 0.8, 0.41, p.z, soot);
+          addBox(0.22, 0.82, 0.22, p.x + 0.8, 0.41, p.z, soot);
+          solid(p.x, p.z, 1.1, 0.48, 1.0);
+        });
+        workLight(11, 16, 3.12, 0x8ccad2, 0.7, 18);
+        workLight(17, 19, 3.12, 0x8ccad2, 0.7, 18);
+
+        // TELEPORTER A LAB — specimen vessels and a north-wall wet bench frame
+        // the teleporter instead of competing with it.
+        [18, 20].forEach(function (r) {
+          var p = wc(21, r), tank = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 1.9, 14), glass);
+          tank.position.set(p.x - 1.18, 1.12, p.z); G.scene.add(tank);
+          addBox(0.58, 0.25, 0.58, p.x - 1.18, 0.13, p.z, iron);
+          var mass = new THREE.Mesh(new THREE.SphereGeometry(0.24, 9, 9), soot);
+          mass.scale.y = 1.55; mass.position.set(p.x - 1.18, 1.0, p.z); G.scene.add(mass);
+          solid(p.x - 1.18, p.z, 0.52, 0.52, 2.12);
+        });
+        var bench = wc(24, 17);
+        addBox(5.6, 0.16, 0.72, bench.x, 0.9, bench.z - 1.34, iron);
+        addBox(5.3, 0.1, 0.64, bench.x, 1.03, bench.z - 1.34, glass);
+        [-2, 0, 2].forEach(function (o, i) {
+          addBox(0.62, 0.65, 0.5, bench.x + o, 0.38, bench.z - 1.34, soot);
+          var vial = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.34, 8), i === 1 ? orange : cyan);
+          vial.position.set(bench.x + o, 1.24, bench.z - 1.34); G.scene.add(vial);
+        });
+        solid(bench.x, bench.z - 1.34, 2.85, 0.42, 1.15);
+        prop('lab_cabinet', 27, 18, 1.0, 0, 0, -Math.PI / 2, 0.95);
+        prop('server_rack', 27, 22, 1.0, 0, 0, -Math.PI / 2, 0.9);
+        prop('machinery_unit', 22, 23, 0, 0.8, 0, Math.PI, 0.86);
+        var islandA = wc(23, 22);
+        addBox(2.2, 0.16, 1.05, islandA.x, 0.9, islandA.z, iron);
+        addBox(1.9, 0.08, 0.84, islandA.x, 1.02, islandA.z, glass);
+        addBox(0.2, 0.82, 0.2, islandA.x - 0.8, 0.42, islandA.z, soot);
+        addBox(0.2, 0.82, 0.2, islandA.x + 0.8, 0.42, islandA.z, soot);
+        solid(islandA.x, islandA.z, 1.12, 0.55, 1.1);
+        workLight(23, 18, 3.15, 0x8edce2, 0.66, 17);
+        workLight(26, 21, 3.15, 0x8edce2, 0.66, 17);
+
+        // MAINFRAME YARD — open central movement, wall-side logistics, and three
+        // physical cable trenches that make the teleporter loop legible.
+        floorLine(24, 14, 24, 10, cyan, 0.045, 0.13);
+        floorLine(20, 8, 24, 10, amber, 0.045, 0.13);
+        floorLine(19, 13, 24, 10, green, 0.045, 0.13);
+        floorLine(24, 10, 14, 16, cyan, 0.045, 0.11);
+        prop('crate_stack', 27, 10, 1.0, 0.7, 0, -Math.PI / 2, 0.88, [0.74, 0.64, 1.42]);
+        prop('field_radio', 27, 13, 1.1, -0.8, 0, -Math.PI / 2, 0.95, [0.42, 0.38, 0.7]);
+        prop('supply_pallet', 21, 15, -0.7, 0.75, 0, Math.PI / 2, 0.86);
+        prop('barrel_cluster', 27, 15, 0.7, 0.6, 0, -Math.PI / 2, 0.84);
+        prop('concrete_barrier', 22, 7, -0.55, -0.7, 0, 0, 0.9);
+        prop('floodlight', 27, 8, 0.8, -0.55, 0, -Math.PI / 2, 0.95);
+        var mf = map.mainframe ? map.mainframe.pos : new THREE.Vector3(wc(24, 10).x, 0, wc(24, 10).z);
+        // The mainframe sits beneath a proper cable gantry. It is tall enough to
+        // dominate the yard without consuming the trainable ground around it.
+        [mf.x - 3.45, mf.x + 3.45].forEach(function (x) {
+          addBox(0.28, 3.7, 0.28, x, 1.85, mf.z, iron);
+          solid(x, mf.z, 0.17, 0.17, 3.7);
+        });
+        addBox(7.18, 0.28, 0.34, mf.x, 3.58, mf.z, iron);
+        addBox(6.0, 0.12, 0.24, mf.x, 2.98, mf.z, soot);
+        [-2.3, 0, 2.3].forEach(function (x) {
+          line3(new THREE.Vector3(mf.x + x, 3.45, mf.z), new THREE.Vector3(mf.x + x, 2.72, mf.z), 0.045, iron);
+        });
+        var plinth = addBox(5.2, 0.14, 5.2, mf.x, 0.07, mf.z, G.MAT.get('concreteDark'));
+        plinth.rotation.y = Math.PI / 4;
+        DR.sparkMesh = addBox(0.3, 0.3, 0.2, mf.x, 0.3, mf.z + 1.35,
+          new THREE.MeshBasicMaterial({ color: 0x2a2d2f }));
+        workLight(22, 12, 3.25, 0xffcf87, 0.5, 18);
+        workLight(26, 8, 3.25, 0x9adbd1, 0.52, 18);
+
+        // UPPER CONTROL BLOCK — two purpose-built departments, not a duplicate
+        // map. Administration is dense at the walls; Garage Control has one
+        // central island and the Giant's Heart hero assembly.
+        _fyByPos = true;
+        prop('locker', 4, 1, -1.05, 0, 4, Math.PI / 2, 1.0, [0.4, 0.62, 1.75]);
+        prop('crt_bank', 7, 0, 0, -1.25, 4, 0, 1.05, [0.9, 0.45, 1.6]);
+        prop('lab_cabinet', 8, 4, 0, 0.65, 4, Math.PI, 1.0, [0.9, 0.58, 1.1]);
+        prop('locker', 10, 5, 0.75, 0.65, 4, Math.PI, 0.9);
+        prop('crt_bank', 5, 5, 0, 0.7, 4, Math.PI, 0.9);
+        prop('field_radio', 9, 1, 0.7, -0.75, 4, -Math.PI / 2, 0.9);
+        prop('server_rack', 12, 2, 0, -1.24, 4, 0, 1.0, [0.58, 0.45, 2.0]);
+        prop('radar_console', 17, 3, 0.9, 0, 4, -Math.PI / 2, 0.95, [0.55, 0.9, 1.5]);
+        prop('server_rack', 10, 8, -1.05, 0, 4, Math.PI / 2, 0.95, [0.45, 0.6, 1.9]);
+        prop('electrical_cabinet', 19, 9, 0.85, 0.65, 4, -Math.PI / 2, 0.92);
+        prop('radar_console', 12, 9, -0.8, 0.65, 4, Math.PI / 2, 0.88);
+        prop('server_rack', 14, 10, 0, 0.75, 4, Math.PI, 0.88);
+        var island = wc(15, 6);
+        addBox(3.0, 0.18, 1.2, island.x, 4.9, island.z, iron);
+        addBox(2.65, 0.1, 1.02, island.x, 5.04, island.z, glass);
+        addBox(0.22, 0.9, 0.22, island.x - 1.05, 4.44, island.z, soot);
+        addBox(0.22, 0.9, 0.22, island.x + 1.05, 4.44, island.z, soot);
+        var scope = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.72, 10), soot);
+        scope.rotation.z = -0.45; scope.position.set(island.x, 5.5, island.z); G.scene.add(scope);
+        solid(island.x, island.z, 1.52, 0.62, 1.58, 4);
+        [[6, 3], [14, 5], [17, 8]].forEach(function (p) { taskLight(p[0], p[1], 7.02, amber); });
+        workLight(6, 2, 7.0, 0xffb36a, 0.66, 17);
+        workLight(14, 5, 7.0, 0x8fd8cf, 0.7, 18);
+        workLight(17, 8, 7.0, 0x8fd8cf, 0.64, 17);
+
+        // Giant's Heart regulator — complete chamber at the upper east wall.
+        var reg = wc(19, 6), heart = new THREE.Mesh(new THREE.SphereGeometry(0.84, 16, 14),
+          new THREE.MeshLambertMaterial({ color: 0x603c37 }));
+        heart.scale.set(1, 1.25, 0.82); heart.position.set(reg.x + 1.08, 5.72, reg.z); G.scene.add(heart);
+        addBox(1.5, 2.8, 0.32, reg.x + 1.52, 5.42, reg.z, soot);
+        addBox(0.9, 0.82, 0.7, reg.x + 1.05, 4.42, reg.z, iron);
+        addBox(0.32, 0.12, 0.36, reg.x + 0.62, 5.65, reg.z, soot);
+        [cyan, amber, green].forEach(function (m, i) {
+          addBox(0.16, 0.16, 0.06, reg.x + 0.57, 6.25 + i * 0.28, reg.z - 0.32 + i * 0.32, m);
+          line3(new THREE.Vector3(reg.x + 1.18, 6.25 + i * 0.22, reg.z - 0.45 + i * 0.45),
+                new THREE.Vector3(reg.x - 0.5 - i * 0.45, 7.5, reg.z - 0.45 + i * 0.45), 0.07, m);
+        });
+        // Only the rear housing blocks movement. The organ chamber projects
+        // visually into the room, but its quest interaction approach stays
+        // clear instead of pushing the player out of range.
+        solid(reg.x + 1.47, reg.z, 0.22, 0.78, 2.8, 4);
         _fyByPos = false;
+
+        // Stair entrances have complete amber frames at ground level. They make
+        // vertical circulation obvious without signs floating across rooms.
+        [[3, 4], [19, 9]].forEach(function (s) {
+          var p = wc(s[0], s[1]);
+          addBox(2.55, 0.16, 0.12, p.x, 3.45, p.z + 1.76, amber);
+          addBox(0.12, 1.62, 0.12, p.x - 1.18, 2.56, p.z + 1.76, amber);
+          addBox(0.12, 1.62, 0.12, p.x + 1.18, 2.56, p.z + 1.76, amber);
+        });
+
+        // Easter-egg stations share one amber 935 plaque and exist as physical
+        // objects in the named rooms before the player ever sees a prompt.
+        plaque(27, 12, 'E', 0, amber); plaque(8, 19, 'W', 0, amber);
+        plaque(10, 1, 'E', 0, amber); plaque(19, 6, 'E', 4, amber);
+        plaque(14, 22, 'S', 0, green); plaque(3, 4, 'W', 0, amber); plaque(10, 8, 'W', 4, cyan);
+        var brief = wc(27, 12);
+        addBox(1.5, 0.84, 0.62, brief.x + 1.1, 0.42, brief.z + 0.65, soot);
+        addBox(0.58, 0.04, 0.42, brief.x + 0.72, 0.86, brief.z + 0.65, paper);
+        solid(brief.x + 1.1, brief.z + 0.65, 0.76, 0.34, 0.92);
+        var tag = wc(8, 19);
+        addBox(0.84, 1.92, 0.74, tag.x - 1.27, 0.96, tag.z, iron);
+        addBox(0.72, 0.16, 0.5, tag.x - 0.82, 1.1, tag.z, soot);
+        addBox(0.18, 0.05, 0.28, tag.x - 0.78, 1.17, tag.z, amber);
+        solid(tag.x - 1.25, tag.z, 0.48, 0.45, 2.02);
+        var stamp = wc(10, 1);
+        addBox(0.58, 0.9, 1.18, stamp.x + 1.3, 0.45, stamp.z, iron);
+        addBox(0.38, 0.05, 0.52, stamp.x + 1.02, 0.93, stamp.z, orange);
+        addBox(0.28, 0.035, 0.16, stamp.x + 1.0, 0.95, stamp.z + 0.25, soot);
+        solid(stamp.x + 1.3, stamp.z, 0.34, 0.62, 0.98);
+        var soul = wc(14, 16), ring = new THREE.Mesh(new THREE.TorusGeometry(1.08, 0.1, 8, 24), soot);
+        ring.rotation.x = Math.PI / 2; ring.position.set(soul.x, 0.07, soul.z); G.scene.add(ring);
+      }
+
+      if (CFG.cur.id === 'derriese') {
+        buildDerRieseReborn();
+        return;
       }
 
       if (CFG.cur.id === 'wetterjunge') {

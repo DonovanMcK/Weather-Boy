@@ -458,6 +458,7 @@ async function runQuick(mapId) {
   }
   if (mapId === 'derriese') {
     testVerticality(ctx);
+    testStairHeadroom(ctx);
     testSoulBox(ctx);
     testOverclockGiant(ctx);
     testMainframeYard(ctx);
@@ -480,9 +481,8 @@ function testStairHeadroom(ctx) {
   if (!ctx.G.map.stages.length) return;   // flat map
   var G = ctx.G;
   var stairChoices = (G.map.stages || []).filter(function (s) { return s.stairBase; });
-  // Der Riese's broad Animal Testing stair has a full room around its foot and
-  // is the correct stress case for a crowd; the furnace stair deliberately sits
-  // inside a tighter administration bay.
+  // Der Riese's Garage Control stair is the correct stress case for the shared
+  // upper department; the furnace flight deliberately sits in a tighter bay.
   var stg = G.CFG.cur.id === 'derriese' ? stairChoices[stairChoices.length - 1] : stairChoices[0];
   if (!stg) { ok(true, 'no staircase to test headroom (skipped)'); return; }
   var P = G.player;
@@ -520,9 +520,9 @@ function testStairFunnel(ctx) {
   // Start the crowd in the real approach room, in staggered lanes facing the
   // stair mouth. A ring can put bodies behind exterior/party walls on an
   // irregular blueprint and tests the detour around the building, not funneling.
-  for (var a = 0; a < 9; a++) {
-    var x = base.x + ((a % 3) - 1) * 1.25;
-    var z = base.z + 1.5 + ((a / 3) | 0) * 1.15;
+  for (var a = 0; a < 3; a++) {
+    var x = base.x + (a - 1) * 0.9;
+    var z = base.z + 0.9;
     if (!G.map.roomAt(x, z)) continue;
     spawned.push(Z.spawnAt(new THREE.Vector3(x, 0, z)));
   }
@@ -532,7 +532,7 @@ function testStairFunnel(ctx) {
     spawned.forEach(function (z, k) { if (!z.dead && z.mesh.position.y > maxY[k]) maxY[k] = z.mesh.position.y; });
   }
   var reached = maxY.filter(function (y) { return y > stg.deckTop - 0.5; }).length;
-  ok(reached >= Math.min(3, spawned.length),
+  ok(spawned.length === 3 && reached === spawned.length,
      'horde funnels up the stairs (' + reached + '/' + spawned.length + ' reached the deck)');
   Z.list.slice().forEach(function (z) { if (!z.dead) Z.damageZombie(z, 1e9, { boom: true }); });
   ctx.step(20);
@@ -683,14 +683,27 @@ function testVerticality(ctx) {
   ok(G.map.perkMachines.some(function (m) { return m.perk === 'wonderfizz'; }), 'Der Wunderfizz machine present');
   ok(!G.map.perkMachines.some(function (m) { return m.perk === 'mule'; }), 'Mule Kick machine removed');
 
-  // Der Riese is a flat single floor now (verticality removed in playtesting)
-  ok(!G.map.stages.length, 'Der Riese carries no stairs or upper decks');
-  ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyC', 'Space'].forEach(ctx.keyup);
-  return;
+  // The rebuild uses one supported control block, not a duplicate second map:
+  // two distinct departments above the furnace/garage and two compact stairs.
+  var upper = (G.map.floors || []).filter(function (f) { return f.floorY > 3; })[0];
+  ok(upper && Object.keys(upper.parsed.rooms).sort().join('') === 'OP',
+     'Der Riese upper block contains only Furnace Administration and Garage Control');
+  var stairs = (G.map.stages || []).filter(function (s) { return s.stairBase; });
+  ok(stairs.length === 2, 'upper control block has two independent enclosed stair approaches');
+  var o = G.CFG.cellToWorld(7, 2), p = G.CFG.cellToWorld(16, 7);
+  var on = G.nav.nearest(o.x, o.z, 4), pn = G.nav.nearest(p.x, p.z, 4);
+  ok(on && on.y > 3.5 && isFinite(on.dist), 'Furnace Administration has upper-layer navigation');
+  ok(pn && pn.y > 3.5 && isFinite(pn.dist), 'Garage Control has upper-layer navigation');
+  var groundUnder = G.nav.nearest(p.x, p.z, 0);
+  ok(groundUnder && groundUnder.y < 0.6, 'Garage remains independently walkable beneath its control room');
+  var upperDoor = Object.keys(G.map.doors).map(function (id) { return G.map.doors[id]; })
+    .filter(function (d) { return (d.pos.y || 0) > 3; })[0];
+  ok(upperDoor && !G.map.bodyBlocked(upperDoor.pos.x, upperDoor.pos.z, 4.2),
+     'Upper Control Passage is a real walkable doorway');
 
   // --- stacked floors: ground beneath the catwalk is still its own walkable
   //     room, AND the upper deck coexists at the same x/z (multi-layer nav)
-  var c = S.deckCenter;
+  var S = stairs[1], c = S.deckCenter;
   ok(G.map.supportAt(c.x, c.z, 0, 0.55) < 0.5, 'ground beneath the catwalk stays at floor level');
   var gNode = G.nav.nearest(c.x, c.z, 0), uNode = G.nav.nearest(c.x, c.z, S.deckTop);
   ok(gNode && Math.abs(gNode.y) < 0.6, 'a GROUND nav node exists under the catwalk');
@@ -1075,14 +1088,13 @@ function testShieldBuild(ctx) {
   });
   ok(doorClear, 'no shield part blocks a door approach');
   // Every part has a clear standing/interact point one metre in from its wall.
-  // This specifically guards the Der Riese plate beneath the open-frame stair:
-  // the visible flight may pass overhead, but its old solid wedge may not return.
+  // This prevents decorative room geometry from stealing the pickup approach.
   var inward = { N: [0, 1], S: [0, -1], E: [-1, 0], W: [1, 0] };
   var partAccess = sh.parts.every(function (p) {
     var o = inward[p.face], x = p.pos.x + o[0] * 1.1, z = p.pos.z + o[1] * 1.1;
     return !G.map.bodyBlocked(x, z, 0) && G.map.supportAt(x, z, 0, 0.55) < 0.5;
   });
-  ok(partAccess, 'every shield part has a clear ground-level interaction point, including beneath stairs');
+  ok(partAccess, 'every shield part has a clear ground-level interaction point');
   // bench is wall-adjacent: the cell beyond its facing wall is not a room
   var off = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[bench.face];
   var bc = CFG.SHIELD_BENCH.cell, beyond = G.map.cellAt(bc[0] + off[0], bc[1] + off[1]);
@@ -1199,7 +1211,7 @@ function testOverclockGiant(ctx) {
     install.use();
   }
   ok(oc.stage === 3 && oc.installed === 3, 'all three reactor cells install successfully');
-  prompted(/two-floor factory lockdown/).use();
+  prompted(/control-block pressure lockdown/).use();
   ok(oc.stage === 4 && !oc.lockdownUpper, 'lockdown starts with a ground-floor pressure cycle');
   for (var k = 0; k < 24; k++) {
     var y = oc.lockdownUpper ? 4 : 0;

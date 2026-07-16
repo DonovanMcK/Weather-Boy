@@ -373,16 +373,16 @@
       var rm = wallMount(def.regulator.cell, def.regulator.face, 0.3, def.regulator.y || 0);
       oc.regulatorPos = rm.pos;
       oc.regulatorMarker = ocMarker('OPTIONAL  OVERCLOCK THE GIANT', rm.pos, '#79ffe0');
-      var ground = CFG.cellToWorld(8, 8), upper = CFG.cellToWorld(8, 3);
-      oc.lockdownGroundMarker = ocMarker('LOCKDOWN  GROUND FLOOR', new THREE.Vector3(ground.x, 0, ground.z), '#ffb46b');
-      oc.lockdownUpperMarker = ocMarker('LOCKDOWN  UPPER FLOOR', new THREE.Vector3(upper.x, 4, upper.z), '#79ffe0');
+      var ground = CFG.cellToWorld(14, 16), upper = CFG.cellToWorld(15, 7);
+      oc.lockdownGroundMarker = ocMarker('LOCKDOWN  ANIMAL TESTING', new THREE.Vector3(ground.x, 0, ground.z), '#ffb46b');
+      oc.lockdownUpperMarker = ocMarker('LOCKDOWN  GARAGE CONTROL', new THREE.Vector3(upper.x, 4, upper.z), '#79ffe0');
       oc.bossMarker = ocMarker('THE IRON SUBJECT', new THREE.Vector3(ground.x, 0, ground.z), '#79ffe0');
       add({ pos: rm.pos, r: 2.3, y: def.regulator.y || 0,
         prompt: function () {
           if (!oc.available || oc.done) return null;
           if (oc.stage === 0) return 'Begin optional quest — Overclock the Giant';
           if (oc.stage === 2 && oc.carrying && oc.carrying.primed) return 'Install phase-primed reactor cell';
-          if (oc.stage === 3) return 'Initiate the two-floor factory lockdown';
+          if (oc.stage === 3) return 'Initiate the control-block pressure lockdown';
           if (oc.stage === 6) return 'Place ' + CFG.WEAPONS[oc.reward].name + ' into the Giant\'s Heart';
           return null;
         },
@@ -399,7 +399,7 @@
             G.audio.teleLink();
             if (oc.installed >= oc.cells.length) {
               oc.stage = 3; hideOcMarkers(); oc.regulatorMarker.visible = true;
-              ocObjective('Upper Assembly — initiate the factory lockdown', oc.regulatorMarker);
+              ocObjective('Garage Control — initiate the factory lockdown', oc.regulatorMarker);
               G.hud.banner('REACTOR CELLS INSTALLED', '#79ffe0', 3, 'The Giant is ready for a live pressure test');
             } else {
               G.hud.banner('CELL ' + oc.installed + '/3 INSTALLED', '#79ffe0', 2.5);
@@ -432,8 +432,8 @@
         var c = oc.carrying;
         if (oc.stage !== 2 || !c || c.primed || c.teleporter !== teleporterId) return false;
         c.primed = true; oc.cellTimer = 0;
-        ocObjective('Upper Assembly — install the phase-primed cell', oc.regulatorMarker);
-        G.audio.teleLink(); G.hud.banner('CELL PHASE-PRIMED', '#79ffe0', 3, 'Return it to the upper regulator');
+        ocObjective('Garage Control — install the phase-primed cell', oc.regulatorMarker);
+        G.audio.teleLink(); G.hud.banner('CELL PHASE-PRIMED', '#79ffe0', 3, 'Return it to the Garage Control regulator');
         return true;
       };
     }
@@ -801,9 +801,9 @@
         if (I.overclock && I.overclock.on) {
           I.overclock.available = true; I.overclock.reward = reward;
           I.overclock.regulatorMarker.visible = true;
-          I.ee.objective = 'OPTIONAL — Upper Assembly: Overclock the Giant';
+          I.ee.objective = 'OPTIONAL — Garage Control: Overclock the Giant';
           G.hud.banner('THE GIANT\'S HEART — BASE COMPLETE', '#b6f', 6,
-            CFG.WEAPONS[reward].name + ' acquired — optional signal detected upstairs');
+            CFG.WEAPONS[reward].name + ' acquired — optional signal detected in Garage Control');
         }
       } else { G.weapons.maxAmmo(); G.player.addPoints(2000); }
     }
@@ -837,8 +837,8 @@
         } else G.hud.banner('LOCKDOWN ' + oc.lockdownKills + '/24', '#79ffe0', 0.8);
       } else if (oc.stage === 5 && killed && killed === oc.boss) {
         oc.stage = 6; hideOcMarkers(); oc.regulatorMarker.visible = true;
-        ocObjective('Upper Assembly — place the awarded weapon into the Giant\'s Heart', oc.regulatorMarker);
-        G.hud.banner('THE IRON SUBJECT FALLS', '#79ffe0', 4, 'Return the weapon to Upper Assembly');
+        ocObjective('Garage Control — place the awarded weapon into the Giant\'s Heart', oc.regulatorMarker);
+        G.hud.banner('THE IRON SUBJECT FALLS', '#79ffe0', 4, 'Return the weapon to Garage Control');
       }
     };
 

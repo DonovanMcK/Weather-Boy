@@ -11,18 +11,28 @@ var CELL = 44, PAD = 70, LEG = 250;
 // upper-floor (stage) footprints per map: cells of the deck/loft + stair cells
 var UPPER = {
   derriese: {
-    label: 'UPPER CATWALK  +3.2m  (open, no rails)',
-    deck: cellsOf([[3, 5], [3, 6], [3, 7], [12, 5], [12, 6], [12, 7]])
-      .concat(rangeRow(5, 3, 12)),                 // W strip, E strip, N strip
-    stairs: [[3, 8], [3, 9], [12, 8], [12, 9]]
+    label: 'FURNACE ADMIN + GARAGE CONTROL  +4m  (enclosed)',
+    deck: floorCells('derriese'),
+    stairs: [[3, 2], [3, 3], [3, 4], [19, 7], [19, 8], [19, 9]]
   },
   wetterjunge: {
-    label: 'STORAGE LOFT  +3.4m  (enclosed room)',
-    deck: rect(11, 5, 14, 6),
-    stairs: [[14, 7], [14, 8]]
+    label: 'WEATHER CONTROL DECK  +4m',
+    deck: floorCells('wetterjunge'),
+    stairs: [[5, 1], [5, 2], [5, 3], [0, 3], [0, 4], [0, 5], [14, 3], [14, 4], [14, 5]]
   },
   nacht: null
 };
+function floorCells(id) {
+  var floors = CFG.MAPS[id] && CFG.MAPS[id].FLOORS;
+  var f = floors && floors.filter(function (x) { return (x.floorY || 0) > 0; })[0];
+  if (!f) return [];
+  var omit = {}; (f.FLOOR_OMIT || []).forEach(function (c) { omit[c[0] + ',' + c[1]] = true; });
+  var out = [];
+  f.GRID.forEach(function (row, r) {
+    for (var c = 0; c < row.length; c++) if (row[c] !== '.' && !omit[c + ',' + r]) out.push([c, r]);
+  });
+  return out;
+}
 function cellsOf(a) { return a.slice(); }
 function rangeRow(r, c0, c1) { var o = []; for (var c = c0; c <= c1; c++) o.push([c, r]); return o; }
 function rect(c0, r0, c1, r1) { var o = []; for (var r = r0; r <= r1; r++) for (var c = c0; c <= c1; c++) o.push([c, r]); return o; }

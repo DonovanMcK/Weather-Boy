@@ -6,12 +6,15 @@
 'use strict';
 var puppeteer = require('puppeteer'), path = require('path');
 var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
+var ONLY = process.argv[2] || null;
 (async function () {
   var b = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   var bad = 0;
   try {
-    for (var mi = 0; mi < 4; mi++) {
-      var mapId = ['kurhaus', 'nacht', 'derriese', 'wetterjunge'][mi];
+    var maps = ['kurhaus', 'nacht', 'derriese', 'wetterjunge'];
+    if (ONLY) maps = maps.filter(function (id) { return id === ONLY; });
+    for (var mi = 0; mi < maps.length; mi++) {
+      var mapId = maps[mi];
       var p = await b.newPage();
       await p.goto(URL, { waitUntil: 'load' });
       await p.waitForFunction('window.G && G.startGame');

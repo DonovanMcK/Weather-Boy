@@ -92,6 +92,8 @@
 <text x="180" y="273" fill="#ffd76e" font-size="16" text-anchor="middle" font-weight="700">2</text>
 <rect x="384" y="252" width="32" height="32" fill="none" stroke="#e0c060" stroke-width="2" stroke-dasharray="4 3"/>
 <text x="400" y="273" fill="#ffd76e" font-size="16" text-anchor="middle" font-weight="700">7</text>
+<rect x="428" y="252" width="32" height="32" fill="none" stroke="#e0c060" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="444" y="273" fill="#ffd76e" font-size="16" text-anchor="middle" font-weight="700">9</text>
 <rect x="604" y="252" width="32" height="32" fill="none" stroke="#e0c060" stroke-width="2" stroke-dasharray="4 3"/>
 <text x="620" y="273" fill="#ffd76e" font-size="16" text-anchor="middle" font-weight="700">5</text>
 <rect x="70" y="290" width="44" height="44" fill="rgb(101,118,140)" opacity="0.5"/>
@@ -205,13 +207,13 @@
 <text x="136" y="423" fill="#44ee66" font-size="9" text-anchor="middle" font-weight="700">Speed Cola</text>
 <circle cx="620" cy="312" r="10" fill="#ffaa22" stroke="#06121c" stroke-width="2"/>
 <text x="620" y="315" fill="#06121c" font-size="8" text-anchor="middle" font-weight="800">DT</text>
-<text x="620" y="335" fill="#ffaa22" font-size="9" text-anchor="middle" font-weight="700">Double Tap (UP)</text>
-<circle cx="180" cy="136" r="10" fill="#eeee44" stroke="#06121c" stroke-width="2"/>
-<text x="180" y="139" fill="#06121c" font-size="8" text-anchor="middle" font-weight="800">SU</text>
-<text x="180" y="159" fill="#eeee44" font-size="9" text-anchor="middle" font-weight="700">Stamin-Up</text>
+<text x="620" y="335" fill="#ffaa22" font-size="9" text-anchor="middle" font-weight="700">Double Tap</text>
+<circle cx="136" cy="224" r="10" fill="#eeee44" stroke="#06121c" stroke-width="2"/>
+<text x="136" y="227" fill="#06121c" font-size="8" text-anchor="middle" font-weight="800">SU</text>
+<text x="136" y="247" fill="#eeee44" font-size="9" text-anchor="middle" font-weight="700">Stamin-Up (UP)</text>
 <circle cx="664" cy="180" r="10" fill="#c59b3a" stroke="#06121c" stroke-width="2"/>
 <text x="664" y="183" fill="#06121c" font-size="8" text-anchor="middle" font-weight="800">?</text>
-<text x="664" y="203" fill="#c59b3a" font-size="9" text-anchor="middle" font-weight="700">Der Wunderfizz</text>
+<text x="664" y="203" fill="#c59b3a" font-size="9" text-anchor="middle" font-weight="700">Der Wunderfizz (UP)</text>
 <rect x="349" y="657" width="14" height="14" fill="#8a8f98" stroke="#06121c"/>
 <text x="356" y="684" fill="#b9c0ca" font-size="9" text-anchor="middle" font-weight="700">m14</text>
 <rect x="437" y="657" width="14" height="14" fill="#8a8f98" stroke="#06121c"/>
@@ -229,17 +231,17 @@
 <rect x="85" y="173" width="14" height="14" fill="#8a8f98" stroke="#06121c"/>
 <text x="92" y="200" fill="#b9c0ca" font-size="9" text-anchor="middle" font-weight="700">Frags</text>
 <rect x="657" y="305" width="14" height="14" fill="#8a8f98" stroke="#06121c"/>
-<text x="664" y="332" fill="#b9c0ca" font-size="9" text-anchor="middle" font-weight="700">rpk (UP)</text>
-<rect x="172" y="172" width="16" height="16" fill="#1c3a6e" stroke="#6ea8ff" stroke-width="2" rx="2"/>
-<text x="180" y="184" fill="#9ec5ff" font-size="12" text-anchor="middle" font-weight="800">?</text>
-<rect x="612" y="172" width="16" height="16" fill="#1c3a6e" stroke="#6ea8ff" stroke-width="2" rx="2"/>
-<text x="620" y="184" fill="#9ec5ff" font-size="12" text-anchor="middle" font-weight="800">?</text>
+<text x="664" y="332" fill="#b9c0ca" font-size="9" text-anchor="middle" font-weight="700">rpk</text>
+<rect x="128" y="172" width="16" height="16" fill="#1c3a6e" stroke="#6ea8ff" stroke-width="2" rx="2"/>
+<text x="136" y="184" fill="#9ec5ff" font-size="12" text-anchor="middle" font-weight="800">?</text>
+<rect x="656" y="216" width="16" height="16" fill="#1c3a6e" stroke="#6ea8ff" stroke-width="2" rx="2"/>
+<text x="664" y="228" fill="#9ec5ff" font-size="12" text-anchor="middle" font-weight="800">?</text>
 <rect x="172" y="436" width="16" height="16" fill="#1c3a6e" stroke="#6ea8ff" stroke-width="2" rx="2"/>
 <text x="180" y="448" fill="#9ec5ff" font-size="12" text-anchor="middle" font-weight="800">?</text>
 <rect x="656" y="436" width="16" height="16" fill="#1c3a6e" stroke="#6ea8ff" stroke-width="2" rx="2"/>
 <text x="664" y="448" fill="#9ec5ff" font-size="12" text-anchor="middle" font-weight="800">?</text>
-<rect x="392" y="172" width="16" height="16" fill="#1c3a6e" stroke="#6ea8ff" stroke-width="2" rx="2"/>
-<text x="400" y="184" fill="#9ec5ff" font-size="12" text-anchor="middle" font-weight="800">?</text>
+<rect x="480" y="216" width="16" height="16" fill="#1c3a6e" stroke="#6ea8ff" stroke-width="2" rx="2"/>
+<text x="488" y="228" fill="#9ec5ff" font-size="12" text-anchor="middle" font-weight="800">?</text><text x="488" y="245" fill="#6ea8ff" font-size="8" text-anchor="middle" font-weight="700">(UP)</text>
 <rect x="392" y="612" width="16" height="16" fill="#1c3a6e" stroke="#6ea8ff" stroke-width="2" rx="2"/>
 <text x="400" y="624" fill="#9ec5ff" font-size="12" text-anchor="middle" font-weight="800">?</text>
 <rect x="392" y="436" width="16" height="16" fill="#1c3a6e" stroke="#6ea8ff" stroke-width="2" rx="2"/>
@@ -248,32 +250,18 @@
 <text x="136" y="466" fill="#22ddff" font-size="9" text-anchor="middle" font-weight="700">TELE A</text>
 <circle cx="664" cy="356" r="10" fill="none" stroke="#22ddff" stroke-width="3"/>
 <text x="664" y="378" fill="#22ddff" font-size="9" text-anchor="middle" font-weight="700">TELE B</text>
-<circle cx="444" cy="136" r="10" fill="none" stroke="#22ddff" stroke-width="3"/>
-<text x="444" y="158" fill="#22ddff" font-size="9" text-anchor="middle" font-weight="700">TELE C</text>
+<circle cx="356" cy="180" r="10" fill="none" stroke="#22ddff" stroke-width="3"/>
+<text x="356" y="202" fill="#22ddff" font-size="9" text-anchor="middle" font-weight="700">TELE C</text>
 <circle cx="356" cy="356" r="10" fill="none" stroke="#22cc66" stroke-width="3"/>
 <text x="356" y="378" fill="#22cc66" font-size="9" text-anchor="middle" font-weight="700">MAINFRAME</text>
 <circle cx="444" cy="356" r="10" fill="none" stroke="#9a55ff" stroke-width="3"/>
 <text x="444" y="378" fill="#9a55ff" font-size="9" text-anchor="middle" font-weight="700">PACK-A-PUNCH</text>
-<circle cx="620" cy="136" r="10" fill="none" stroke="#ffdd44" stroke-width="3"/>
-<text x="620" y="158" fill="#ffdd44" font-size="9" text-anchor="middle" font-weight="700">POWER</text>
+<circle cx="664" cy="136" r="10" fill="none" stroke="#ffdd44" stroke-width="3"/>
+<text x="664" y="158" fill="#ffdd44" font-size="9" text-anchor="middle" font-weight="700">POWER</text>
 <circle cx="400" cy="576" r="10" fill="none" stroke="#ffffff" stroke-width="3"/>
 <text x="400" y="598" fill="#ffffff" font-size="9" text-anchor="middle" font-weight="700">SPAWN</text>
-<rect x="130" y="482" width="12" height="12" fill="#33ddaa" transform="rotate(45 136 488)"/>
-<text x="136" y="508" fill="#33ddaa" font-size="8" text-anchor="middle" font-weight="600">relic</text>
-<rect x="614" y="482" width="12" height="12" fill="#33ddaa" transform="rotate(45 620 488)"/>
-<text x="620" y="508" fill="#33ddaa" font-size="8" text-anchor="middle" font-weight="600">relic</text>
-<rect x="350" y="174" width="12" height="12" fill="#33ddaa" transform="rotate(45 356 180)"/>
-<text x="356" y="200" fill="#33ddaa" font-size="8" text-anchor="middle" font-weight="600">relic</text>
 <rect x="394" y="394" width="12" height="12" fill="#9933ff" transform="rotate(45 400 400)"/>
 <text x="400" y="420" fill="#9933ff" font-size="8" text-anchor="middle" font-weight="600">soul chest</text>
-<rect x="218" y="482" width="12" height="12" fill="#1f9fd0" transform="rotate(45 224 488)"/>
-<text x="224" y="508" fill="#1f9fd0" font-size="8" text-anchor="middle" font-weight="600">WW part</text>
-<rect x="570" y="482" width="12" height="12" fill="#1f9fd0" transform="rotate(45 576 488)"/>
-<text x="576" y="508" fill="#1f9fd0" font-size="8" text-anchor="middle" font-weight="600">WW part</text>
-<rect x="482" y="174" width="12" height="12" fill="#1f9fd0" transform="rotate(45 488 180)"/>
-<text x="488" y="200" fill="#1f9fd0" font-size="8" text-anchor="middle" font-weight="600">WW part</text>
-<rect x="438" y="614" width="12" height="12" fill="#2a6f9a" transform="rotate(45 444 620)"/>
-<text x="444" y="640" fill="#2a6f9a" font-size="8" text-anchor="middle" font-weight="600">WW bench</text>
 <rect x="67" y="126" width="6" height="20" fill="#b07a3a"/>
 <rect x="170" y="67" width="20" height="6" fill="#b07a3a"/>
 <rect x="390" y="67" width="20" height="6" fill="#b07a3a"/>
@@ -286,25 +274,132 @@
 <rect x="302" y="683" width="20" height="6" fill="#b07a3a"/>
 <rect x="478" y="683" width="20" height="6" fill="#b07a3a"/>
 <defs><pattern id="hatch" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="8" stroke="#ff9a3c" stroke-width="2" opacity="0.5"/></pattern></defs>
+<rect x="70" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="114" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="158" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="202" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="290" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="334" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="378" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="422" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="466" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="554" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="598" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="642" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="686" y="70" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="70" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="114" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="158" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="202" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="246" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="334" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="378" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="422" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="466" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="510" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="554" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="598" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="642" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="686" y="114" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="70" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="114" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="158" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="202" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="334" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="378" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="422" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="466" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="554" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="598" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="642" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="686" y="158" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="114" y="202" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="158" y="202" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="202" y="202" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="334" y="202" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="378" y="202" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="422" y="202" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="466" y="202" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="554" y="202" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="598" y="202" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="642" y="202" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="114" y="246" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="158" y="246" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="202" y="246" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="290" y="246" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="334" y="246" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="378" y="246" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="422" y="246" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="466" y="246" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="554" y="246" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="598" y="246" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="642" y="246" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="114" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="158" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="202" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="246" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="290" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="334" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="378" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="422" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="466" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="510" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
 <rect x="554" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
 <rect x="598" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
 <rect x="642" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
-<rect x="686" y="290" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
-<rect x="554" y="334" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
-<rect x="598" y="334" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
-<rect x="642" y="334" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
-<rect x="686" y="334" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
-<rect x="686" y="378" width="44" height="44" fill="#5a3a18" stroke="#ff9a3c" stroke-width="1.5" opacity="0.85"/>
-<line x1="686" y1="389" x2="730" y2="389" stroke="#ff9a3c" stroke-width="1.2"/>
-<line x1="686" y1="400" x2="730" y2="400" stroke="#ff9a3c" stroke-width="1.2"/>
-<line x1="686" y1="411" x2="730" y2="411" stroke="#ff9a3c" stroke-width="1.2"/>
-<rect x="686" y="422" width="44" height="44" fill="#5a3a18" stroke="#ff9a3c" stroke-width="1.5" opacity="0.85"/>
-<line x1="686" y1="433" x2="730" y2="433" stroke="#ff9a3c" stroke-width="1.2"/>
-<line x1="686" y1="444" x2="730" y2="444" stroke="#ff9a3c" stroke-width="1.2"/>
-<line x1="686" y1="455" x2="730" y2="455" stroke="#ff9a3c" stroke-width="1.2"/>
-<text x="708" y="436" fill="#ff9a3c" font-size="9" text-anchor="middle" font-weight="700">STAIRS</text>
+<rect x="246" y="334" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="290" y="334" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="334" y="334" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="378" y="334" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="422" y="334" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="466" y="334" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="510" y="334" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="246" y="378" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="290" y="378" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="334" y="378" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="378" y="378" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="422" y="378" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="466" y="378" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="510" y="378" width="44" height="44" fill="url(#hatch)" stroke="#ff9a3c" stroke-width="2" opacity="0.9"/>
+<rect x="290" y="114" width="44" height="44" fill="#5a3a18" stroke="#ff9a3c" stroke-width="1.5" opacity="0.85"/>
+<line x1="290" y1="125" x2="334" y2="125" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="290" y1="136" x2="334" y2="136" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="290" y1="147" x2="334" y2="147" stroke="#ff9a3c" stroke-width="1.2"/>
+<rect x="290" y="158" width="44" height="44" fill="#5a3a18" stroke="#ff9a3c" stroke-width="1.5" opacity="0.85"/>
+<line x1="290" y1="169" x2="334" y2="169" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="290" y1="180" x2="334" y2="180" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="290" y1="191" x2="334" y2="191" stroke="#ff9a3c" stroke-width="1.2"/>
+<rect x="290" y="202" width="44" height="44" fill="#5a3a18" stroke="#ff9a3c" stroke-width="1.5" opacity="0.85"/>
+<line x1="290" y1="213" x2="334" y2="213" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="290" y1="224" x2="334" y2="224" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="290" y1="235" x2="334" y2="235" stroke="#ff9a3c" stroke-width="1.2"/>
+<rect x="70" y="202" width="44" height="44" fill="#5a3a18" stroke="#ff9a3c" stroke-width="1.5" opacity="0.85"/>
+<line x1="70" y1="213" x2="114" y2="213" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="70" y1="224" x2="114" y2="224" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="70" y1="235" x2="114" y2="235" stroke="#ff9a3c" stroke-width="1.2"/>
+<rect x="70" y="246" width="44" height="44" fill="#5a3a18" stroke="#ff9a3c" stroke-width="1.5" opacity="0.85"/>
+<line x1="70" y1="257" x2="114" y2="257" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="70" y1="268" x2="114" y2="268" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="70" y1="279" x2="114" y2="279" stroke="#ff9a3c" stroke-width="1.2"/>
+<rect x="70" y="290" width="44" height="44" fill="#5a3a18" stroke="#ff9a3c" stroke-width="1.5" opacity="0.85"/>
+<line x1="70" y1="301" x2="114" y2="301" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="70" y1="312" x2="114" y2="312" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="70" y1="323" x2="114" y2="323" stroke="#ff9a3c" stroke-width="1.2"/>
+<rect x="686" y="202" width="44" height="44" fill="#5a3a18" stroke="#ff9a3c" stroke-width="1.5" opacity="0.85"/>
+<line x1="686" y1="213" x2="730" y2="213" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="686" y1="224" x2="730" y2="224" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="686" y1="235" x2="730" y2="235" stroke="#ff9a3c" stroke-width="1.2"/>
+<rect x="686" y="246" width="44" height="44" fill="#5a3a18" stroke="#ff9a3c" stroke-width="1.5" opacity="0.85"/>
+<line x1="686" y1="257" x2="730" y2="257" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="686" y1="268" x2="730" y2="268" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="686" y1="279" x2="730" y2="279" stroke="#ff9a3c" stroke-width="1.2"/>
+<rect x="686" y="290" width="44" height="44" fill="#5a3a18" stroke="#ff9a3c" stroke-width="1.5" opacity="0.85"/>
+<line x1="686" y1="301" x2="730" y2="301" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="686" y1="312" x2="730" y2="312" stroke="#ff9a3c" stroke-width="1.2"/>
+<line x1="686" y1="323" x2="730" y2="323" stroke="#ff9a3c" stroke-width="1.2"/>
+<text x="312" y="172" fill="#ff9a3c" font-size="9" text-anchor="middle" font-weight="700">STAIRS</text>
 <text x="70" y="40" fill="#ff5a5a" font-size="24" text-anchor="start" font-weight="900">TOTENSTURM  ·  DER WETTERJUNGE</text>
-<text x="70" y="58" fill="#8fa9c0" font-size="12" text-anchor="start">Storm research station — custom map. Wonder weapon: the Wettermacher.</text>
+<text x="70" y="58" fill="#8fa9c0" font-size="12" text-anchor="start">Storm station with a dual-access radar weather deck and the Eye of the Storm quest.</text>
 <text x="754" y="58" fill="#ffd76e" font-size="13" text-anchor="start" font-weight="800">LEGEND</text>
 <rect x="754" y="81" width="14" height="14" fill="#ff9a3c"/>
 <text x="776" y="92" fill="#cfe" font-size="11" text-anchor="start" font-weight="600">Upper floor (catwalk/loft)</text>
@@ -330,5 +425,5 @@
 <text x="776" y="332" fill="#cfe" font-size="11" text-anchor="start" font-weight="600">Wonder-weapon part</text>
 <rect x="754" y="345" width="14" height="14" fill="#b07a3a"/>
 <text x="776" y="356" fill="#cfe" font-size="11" text-anchor="start" font-weight="600">Window (barrier)</text>
-<text x="754" y="384" fill="#ff9a3c" font-size="11" text-anchor="start" font-weight="700">STORAGE LOFT  +3.4m  (enclosed room)</text>
+<text x="754" y="384" fill="#ff9a3c" font-size="11" text-anchor="start" font-weight="700">WEATHER CONTROL DECK  +4m</text>
 </svg>

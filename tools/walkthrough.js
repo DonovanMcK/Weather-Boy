@@ -61,7 +61,7 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         }
         return { reached: false, timeout: true, dist: +Math.hypot(tx - P.pos.x, tz - P.pos.z).toFixed(1), pos: { x: +P.pos.x.toFixed(1), z: +P.pos.z.toFixed(1) } };
       }
-      function tp(x, z) { P.pos.set(x, 0.2, z); P.vel.set(0, 0, 0); G.player.update(DT); }
+      function tp(x, z, y) { P.pos.set(x, (y || 0) + 0.2, z); P.vel.set(0, 0, 0); G.player.update(DT); }
 
       var rooms = G.map.floors[0].parsed.rooms;
       function ctr(rid) { return rooms[rid].center; }
@@ -103,36 +103,38 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
       });
 
       // ---- 3. REACHABILITY of every interactable (walk to it from room centre) --
-      function roomAt(x, z) {
+      function roomAt(x, z, y) {
         // the room the CELL actually belongs to (not the nearest centre, which
         // mis-assigns edge cells of a big concourse to a neighbouring room)
-        var rc = CFG.worldToCell(x, z), grid = G.map.floors[0].parsed.cells;
+        var parsed = G.map.parsedAtY(y || 0), rc = CFG.worldToCell(x, z), grid = parsed.cells;
         if (grid[rc.row] && grid[rc.row][rc.col] && grid[rc.row][rc.col].type === 'room')
           return grid[rc.row][rc.col].room;
         var best = null, bd = 1e9;
-        Object.keys(rooms).forEach(function (rid) { var c = ctr(rid), d = Math.hypot(c.x - x, c.z - z); if (d < bd) { bd = d; best = rid; } });
+        var candidates = parsed.rooms || rooms;
+        Object.keys(candidates).forEach(function (rid) { var c = candidates[rid].center, d = Math.hypot(c.x - x, c.z - z); if (d < bd) { bd = d; best = rid; } });
         return best;
       }
       var inter = [];
-      function reachCheck(label, cell, off) {
+      function reachCheck(label, cell, off, y) {
         var w = CFG.cellToWorld(cell[0], cell[1]);
         var tx = w.x + (off ? off[0] : 0), tz = w.z + (off ? off[1] : 0);
-        var rid = roomAt(tx, tz), c = ctr(rid);
+        y = y || 0;
+        var parsed = G.map.parsedAtY(y), rid = roomAt(tx, tz, y), c = parsed.rooms[rid].center;
         // start a step off the exact centre toward the target — some rooms have a
         // centrepiece prop (e.g. the Caldera drill) that a real player would
         // never be standing inside; the beeline bot must not spawn wedged in it
         var sdx = tx - c.x, sdz = tz - c.z, sd = Math.hypot(sdx, sdz) || 1;
-        tp(c.x + sdx / sd * 2.0, c.z + sdz / sd * 2.0);
+        tp(c.x + sdx / sd * 2.0, c.z + sdz / sd * 2.0, y);
         var r = goTo(tx, tz, 2.2, 500);
         inter.push({ label: label, ok: r.reached });
         if (!r.reached) bugs.push('UNREACHABLE ' + label + ' @cell' + JSON.stringify(cell) + ' in room ' + rid + ': ' + JSON.stringify(r));
       }
-      (CFG.PERK_MACHINES || []).forEach(function (m) { reachCheck('perk:' + m.perk, m.cell, m.off); });
-      (CFG.WALLBUYS || []).forEach(function (m) { reachCheck('wall:' + m.gun, m.cell, m.off); });
-      (CFG.BOX_SPOTS || []).forEach(function (m, i) { reachCheck('box' + i, m.cell, m.off); });
-      (CFG.TRAPS || []).forEach(function (m) { reachCheck('trap:' + m.type, m.cell, m.off); });
-      if (CFG.POWER) reachCheck('POWER', CFG.POWER.cell, CFG.POWER.off);
-      if (CFG.PAP) reachCheck('PaP', CFG.PAP.cell, CFG.PAP.off);
+      (CFG.PERK_MACHINES || []).forEach(function (m) { reachCheck('perk:' + m.perk, m.cell, m.off, m.y); });
+      (CFG.WALLBUYS || []).forEach(function (m) { reachCheck('wall:' + m.gun, m.cell, m.off, m.y); });
+      (CFG.BOX_SPOTS || []).forEach(function (m, i) { reachCheck('box' + i, m.cell, m.off, m.y); });
+      (CFG.TRAPS || []).forEach(function (m) { reachCheck('trap:' + m.type, m.cell, m.off, m.y); });
+      if (CFG.POWER) reachCheck('POWER', CFG.POWER.cell, CFG.POWER.off, CFG.POWER.y);
+      if (CFG.PAP) reachCheck('PaP', CFG.PAP.cell, CFG.PAP.off, CFG.PAP.y);
 
       // ---- 4. ZOMBIE NAV: standing in each room, every spawn window must have
       // a finite path to the player (else the horde can't follow you there) ----

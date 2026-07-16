@@ -125,155 +125,193 @@
   };
 
   /* ------------------------------------------------------- DER RIESE --- */
-  // Blueprint-led rebuild: recognizable Der Riese circulation at 120% movement
-  // scale. The Mainframe yard anchors the east side, Teleporter C owns the west
-  // cooling yard, B sits in the north furnace, and A terminates the south-east
-  // laboratory wing. Upper rooms are deliberately partial and always sit over
-  // believable ground-floor buildings; the courtyards remain open to the sky.
+  // Ground-up blueprint replacement. None of the previous Der Riese grid,
+  // stairs, prop coordinates or room proportions are retained. The Mainframe
+  // anchors an open east yard; three looping factory routes terminate at A, B
+  // and C; the only upper storey is the supported furnace/garage control block.
   CFG.MAPS.derriese = {
     id: 'derriese',
     name: 'DER RIESE',
-    sub: "The giant's factory — rebuilt courtyards, supported upper departments, and The Giant's Heart quest.",
+    sub: "The Giant rebuilt — three teleporter wings, eight looping gates, and one authentic upper control block.",
     wonder: 'wunderwaffe',
     papRule: 'teleporters',
-    atmos: { sky: 0x171a13, fog: 0x1a1c13, density: 0.013,
-             amb: 0x4c5450, ambI: 0.68, hemiSky: 0xa8b8ac, hemiGround: 0x323b34 },   // playtest: 'too dark' — lifted ~30%
-    // dark wartime masonry rather than the rejected clean modular panels.
-    palette: { wallA: 0x71594d, wallB: 0x5f5149, wood: 0x876b4c, plank: 0xa1835d,
-               metal: 0x626a69, beam: 0x303638, rust: 0x70452d, conc: 0x696862,
-               deck: 0x454c4e, ceil: 0x3e403d, accent: 0x43b99f, lampTint: 0xffc982 },
+    atmos: { sky: 0x151914, fog: 0x191d17, density: 0.011,
+             amb: 0x515b54, ambI: 0.72, hemiSky: 0xaab8ad, hemiGround: 0x303a32 },
+    palette: { wallA: 0x675044, wallB: 0x574942, wood: 0x826447, plank: 0x9b7a54,
+               metal: 0x606b69, beam: 0x2c3434, rust: 0x70462e, conc: 0x666862,
+               deck: 0x414a4b, ceil: 0x383d3b, accent: 0x47bca4, lampTint: 0xffc47b },
     OUTDOOR: ['S', 'C'],
     GRID: [
-      '.....FFFFFFF............',
-      '....FFFFFFFF............',
-      '....FFFFFFFF.GGGGGG.....',
-      '....FFFFFFFF5GGGGGG.....',
-      '....FFFFFFFF.GGGGGG.....',
-      '.......1....GGGGGGG.....',
-      'CCCCCCCC.GGGGGGGGG......',
-      'CCCCCCCC.GGGGGGGG6SSSSSS',
-      'CCCCCCCC2GGGGGGG.SSSSSS.',
-      'CCCCCCCC.GGGGGGG.SSSSSS.',
-      'CCCCCCCC.........SSSSSS.',
-      'CCCCCCC3LLLLLLLL9SSSSSS.',
-      'CCCCCCC.LLLLLLLL.SSSSSS.',
-      '.......LLLLLLLLL.SSSSSS.',
-      '.......LLLLLLLLLL...4...',
-      '.......LLLLLLLLLL7AAAAAA',
-      '.......LLLLLLLLLL.AAAAAA',
-      '.......LLLLLLLLLL.AAAAAA',
-      '........LLLLLLLLL.AAAAAA',
-      '........LLLLLLLLL.AAAAAA'
+      '....FFFFFFF.................',
+      '...FFFFFFFF.................',
+      '...FFFFFFFF.GGGGGGGG........',
+      '...FFFFFFFF5GGGGGGGG........',
+      '...FFFFFFFF.GGGGGGGG........',
+      '...FFFFFFFF.GGGGGGGG........',
+      '......1.....GGGGGGGG........',
+      'CCCCCCCCC.GGGGGGGGGG.SSSSSSS',
+      'CCCCCCCCC2GGGGGGGGGG6SSSSSSS',
+      'CCCCCCCCC.GGGGGGGGGG.SSSSSSS',
+      'CCCCCCCCC.GGGGGGGGGG.SSSSSSS',
+      'CCCCCCCCC............SSSSSSS',
+      'CCCCCCCCC.LLLLLLLLL.SSSSSSSS',
+      'CCCCCCCCC.LLLLLLLLL8SSSSSSSS',
+      'CCCCCCCCC.LLLLLLLLL.SSSSSSSS',
+      'CCCCCCCCC3LLLLLLLLL.SSSSSSSS',
+      '..........LLLLLLLLL.....4...',
+      '........LLLLLLLLLLLL.AAAAAAA',
+      '........LLLLLLLLLLLL.AAAAAAA',
+      '........LLLLLLLLLLLL7AAAAAAA',
+      '........LLLLLLLLLLLL.AAAAAAA',
+      '........LLLLLLLLLLLL.AAAAAAA',
+      '.........LLLLLLLLLL..AAAAAAA',
+      '.....................AAAAAAA'
     ],
     ROOMS: {
-      S: { name: 'Mainframe Yard',          floor: 0x33352e, light: 0xa5b28e },
-      C: { name: 'Teleporter-C Courtyard',  floor: 0x37382f, light: 0xa8b890 },
-      L: { name: 'Animal Testing',          floor: 0x2e3640, light: 0x66bbcc },
-      A: { name: 'Teleporter-A Laboratory', floor: 0x29343b, light: 0x6fb8ce },
-      F: { name: 'Furnace and Teleporter B',floor: 0x3b2c24, light: 0xff7733 },
-      G: { name: 'Auto Garage and Power',   floor: 0x30322e, light: 0x88aa99 }
+      S: { name: 'Mainframe Yard',           floor: 0x34372f, light: 0xb0b99c },
+      C: { name: 'Cooling Courtyard',        floor: 0x393b31, light: 0xaaba96 },
+      L: { name: 'Animal Testing Complex',   floor: 0x2d3740, light: 0x6bbac8 },
+      A: { name: 'Teleporter A Laboratory',  floor: 0x29363d, light: 0x75c4d2 },
+      F: { name: 'Furnace and Teleporter B', floor: 0x3c2c23, light: 0xff7b35 },
+      G: { name: 'Auto Garage and Power',    floor: 0x30342f, light: 0x94b29c }
     },
     DOORS: {
-      1: { cost: 1000, name: 'Furnace Courtyard Stair Hall' },
-      2: { cost: 750,  name: 'West Garage Shutter' },
-      3: { cost: 1000, name: 'Animal Testing West' },
-      4: { cost: 1250, name: 'Mainframe Laboratory Gate' },
+      1: { cost: 1000, name: 'Furnace Courtyard Gate' },
+      2: { cost: 750,  name: 'Cooling Garage Shutter' },
+      3: { cost: 1000, name: 'Animal Testing West Gate' },
+      4: { cost: 1250, name: 'Mainframe A-Lab Gate' },
       5: { cost: 1250, name: 'Furnace Power Passage' },
       6: { cost: 1000, name: 'Mainframe Garage Shutter' },
-      7: { cost: 1000, name: 'Teleporter A Laboratory' },
-      9: { cost: 1000, name: 'Animal Testing East' }
+      7: { cost: 1000, name: 'Animal Testing A-Lab Door' },
+      8: { cost: 1000, name: 'Mainframe Testing Gate' }
     },
     WINDOWS: [
-      { cell: [5, 0],  dir: 'N' }, { cell: [10, 0], dir: 'N' },
-      { cell: [4, 2],  dir: 'W' }, { cell: [18, 5], dir: 'E' },
-      { cell: [0, 8],  dir: 'W' }, { cell: [3, 6],  dir: 'N' },
-      { cell: [22, 8], dir: 'E' }, { cell: [22, 13],dir: 'S' },
-      { cell: [7, 14], dir: 'W' }, { cell: [12, 19],dir: 'S' },
-      { cell: [23, 16],dir: 'E' }, { cell: [21, 19],dir: 'S' }
+      { cell: [5, 0], dir: 'N' }, { cell: [9, 0], dir: 'N' }, { cell: [3, 2], dir: 'W' },
+      { cell: [13, 2], dir: 'N' }, { cell: [19, 5], dir: 'E' },
+      { cell: [0, 9], dir: 'W' }, { cell: [4, 7], dir: 'N' }, { cell: [0, 14], dir: 'W' },
+      { cell: [27, 9], dir: 'E' }, { cell: [27, 14], dir: 'E' },
+      { cell: [8, 17], dir: 'W' }, { cell: [15, 22], dir: 'S' },
+      { cell: [27, 18], dir: 'E' }, { cell: [24, 23], dir: 'S' }
     ],
-    RISERS: [[3, 10], [22, 10]],
+    RISERS: [[6, 12], [26, 13]],
     PERK_MACHINES: [
-      { perk: 'revive', cell: [22, 12], off: [0, 0] },
-      { perk: 'jugg',   cell: [7, 16],  off: [0, 0] },
-      { perk: 'speed',  cell: [18, 2],  off: [0, 0] },
-      { perk: 'dtap',   cell: [0, 9],   off: [0, 0] },
-      { perk: 'wonderfizz', cell: [6, 0], off: [0, 0] },
-      { perk: 'stamin', cell: [23, 18], off: [0, 0] }
+      { perk: 'revive', cell: [21, 11], off: [0, 0] },
+      { perk: 'jugg', cell: [19, 21], off: [0, 0] },
+      { perk: 'speed', cell: [19, 4], off: [0, 0] },
+      { perk: 'dtap', cell: [0, 15], off: [0, 0] },
+      { perk: 'wonderfizz', cell: [4, 0], off: [0, 0], y: 4 },
+      { perk: 'stamin', cell: [18, 10], off: [0, 0], y: 4 }
     ],
     WALLBUYS: [
-      { gun: 'm14',      cell: [23, 7], off: [1.6, 0], face: 'E' },    // [22,13]S sat ON a window barricade
-      { gun: 'olympia',  cell: [20, 7], off: [0, -1.6], face: 'N' },
-      { gun: 'mp5k',     cell: [0, 10], off: [-1.6, 0], face: 'W' },
-      { gun: 'mp40',     cell: [23, 17], off: [1.6, 0], face: 'E' },
-      { gun: 'ak74u',    cell: [6, 0], off: [0, -1.6], face: 'N' },
-      { gun: 'm16',      cell: [16, 2], off: [0, -1.6], face: 'N' },   // [18,3]E hid behind the garage stair
-      { gun: 'stakeout', cell: [7, 13], off: [-1.6, 0], face: 'W' },   // [7,14]W sat ON a window barricade
-      { gun: 'frags',    cell: [10, 19], off: [0, 1.6], face: 'S' }    // [12,19]S sat ON a window barricade
+      { gun: 'm14', cell: [27, 8], off: [1.6, 0], face: 'E' },
+      { gun: 'olympia', cell: [24, 7], off: [0, -1.6], face: 'N' },
+      { gun: 'mp5k', cell: [0, 13], off: [-1.6, 0], face: 'W' },
+      { gun: 'mp40', cell: [14, 10], off: [0, 1.6], face: 'S', y: 4 },
+      { gun: 'ak74u', cell: [7, 0], off: [0, -1.6], face: 'N' },
+      { gun: 'm16', cell: [16, 2], off: [0, -1.6], face: 'N' },
+      { gun: 'stakeout', cell: [8, 19], off: [-1.6, 0], face: 'W' },
+      { gun: 'frags', cell: [12, 22], off: [0, 1.6], face: 'S' }
     ],
     BOX_SPOTS: [
-      { cell: [9, 1], off: [0, 0] }, { cell: [16, 5], off: [0, 0] },
-      { cell: [2, 11],off: [0, 0] }, { cell: [20, 12],off: [0, 0] },
-      { cell: [9, 17],off: [0, 0] }, { cell: [21, 17],off: [0, 0] },
-      { cell: [2, 7], off: [0, 0] }
+      { cell: [8, 2], off: [0, 0] }, { cell: [15, 8], off: [0, 0] },
+      { cell: [2, 12], off: [0, 0] }, { cell: [24, 12], off: [0, 0] },
+      { cell: [12, 18], off: [0, 0] }, { cell: [24, 20], off: [0, 0] },
+      { cell: [7, 4], off: [0, 0], y: 4 }, { cell: [16, 7], off: [0, 0], y: 4 }
     ],
     TELEPORTERS: [
-      { id: 'A', cell: [21, 18], off: [0, 0] },
-      { id: 'B', cell: [7, 1],   off: [0, 0] },
-      { id: 'C', cell: [2, 9],   off: [0, 0] }
+      { id: 'A', cell: [24, 20], off: [0, 0] },
+      { id: 'B', cell: [7, 2], off: [0, 0] },
+      { id: 'C', cell: [3, 11], off: [0, 0] }
     ],
-    MAINFRAME: { cell: [20, 9], off: [0, 0] },
-    PAP: { cell: [22, 9], off: [0, 0] },
-    POWER: { cell: [15, 2], off: [0, 0] },   // north wall, in the open — the old
-                                             // [18,4] spot hid behind the garage stair
-    PLAYER_SPAWN: { cell: [20, 12], off: [0, 0.5] },
-    RELIC_SPOTS: [{ cell: [5, 0], face: 'N' }, { cell: [4, 3], face: 'W' }, { cell: [18, 3], face: 'E' }, { cell: [0, 8], face: 'W' }, { cell: [3, 6], face: 'N' }, { cell: [7, 14], face: 'W' }, { cell: [12, 19], face: 'S' }, { cell: [23, 16], face: 'E' }, { cell: [21, 19], face: 'S' }],
-    EE_SOULBOX: [13, 16],
+    MAINFRAME: { cell: [24, 10], off: [0, 0] },
+    PAP: { cell: [26, 10], off: [0, 0] },
+    POWER: { cell: [16, 4], off: [0, 0] },
+    PLAYER_SPAWN: { cell: [24, 13], off: [0, 0.5] },
+    RELIC_SPOTS: [
+      { cell: [4, 0], face: 'N' }, { cell: [3, 5], face: 'W' }, { cell: [19, 6], face: 'E' },
+      { cell: [0, 12], face: 'W' }, { cell: [7, 7], face: 'N' }, { cell: [8, 21], face: 'W' },
+      { cell: [17, 22], face: 'S' }, { cell: [27, 21], face: 'E' }, { cell: [22, 23], face: 'S' }
+    ],
+    EE_SOULBOX: [14, 16],
     eeName: "THE GIANT'S HEART",
     eeNode: 'factory identification card',
     eeRewards: ['seelenmotor', 'nachbildner115'],
-    EE_START: { cell: [23, 11], face: 'E', title: 'GRUPPE 935 SHUTDOWN ORDER',
-      prompt: "Read the Giant's shutdown order",
-      intro: 'SUBJECT RECORDS — Begin in Animal Testing' },
+    EE_START: { cell: [27, 12], face: 'E', title: 'GRUPPE 935 SHUTDOWN ORDER',
+      prompt: "Read the Giant's shutdown order", intro: 'ANIMAL TESTING — Recover the marked subject tag' },
     EE_STEPS: [
-      { cell: [7, 15], face: 'W', room: 'Animal Testing', kind: 'subject tag',
-        prompt: 'Recover the marked subject tag', clue: 'FURNACE — Temper the tag in Teleporter B' },
-      { cell: [7, 0], face: 'N', room: 'Furnace Room', kind: 'heat stamp',
-        prompt: 'Temper the tag in the furnace stamp', clue: 'GARAGE — Carry it to the heart regulator' },
-      { cell: [18, 4], face: 'E', room: 'Garage Control', kind: 'heart regulator',
-        prompt: "Install the tag in the Giant's regulator", clue: 'COURTYARD — The buried reactor is awake' }
+      { cell: [8, 19], face: 'W', room: 'Animal Testing', kind: 'subject tag',
+        prompt: 'Recover the marked subject tag', clue: 'FURNACE — Temper it beside Teleporter B' },
+      { cell: [10, 1], face: 'E', room: 'Furnace Room', kind: 'heat stamp',
+        prompt: 'Temper the tag in the furnace stamp', clue: 'UPPER GARAGE — Carry it to the Giant regulator' },
+      { cell: [19, 6], face: 'E', y: 4, room: 'Garage Control', kind: 'heart regulator',
+        prompt: "Install the tag in the Giant's regulator", clue: 'ANIMAL TESTING — The buried reactor is awake below' }
     ],
-    // Optional prestige continuation after the normal Giant's Heart reward.
-    // It deliberately revisits both floors and all three teleporter wings.
     OVERCLOCK: {
-      regulator: { cell: [18, 4], face: 'E' },
+      regulator: { cell: [19, 6], face: 'E', y: 4 },
       conduits: [
-        { cell: [12, 19], face: 'S', y: 0, room: 'Animal Testing' },
-        { cell: [4, 3], face: 'W', y: 0, room: 'Furnace Room' },
-        { cell: [23, 17], face: 'E', room: 'A-Lab' }
+        { cell: [14, 22], face: 'S', y: 0, room: 'Animal Testing' },
+        { cell: [3, 4], face: 'W', y: 0, room: 'Furnace Room' },
+        { cell: [10, 8], face: 'W', y: 4, room: 'Garage Control' }
       ],
       cells: [
-        { cell: [21, 18], y: 0, room: 'Teleporter A Laboratory', teleporter: 'A' },
-        { cell: [7, 1], y: 0, room: 'Furnace Room', teleporter: 'B' },
-        { cell: [2, 9], y: 0, room: 'West Courtyard', teleporter: 'C' }
+        { cell: [24, 20], y: 0, room: 'Teleporter A Laboratory', teleporter: 'A' },
+        { cell: [7, 2], y: 0, room: 'Furnace Room', teleporter: 'B' },
+        { cell: [3, 11], y: 0, room: 'Cooling Courtyard', teleporter: 'C' }
       ],
       lockdownKills: 24,
       cellTime: 60
     },
-    // All parts are on genuine perimeter walls and clear of the three stairs.
     SHIELD_PARTS: {
-      frame: { room: 'G', spots: [{ cell: [18, 3], face: 'E' }, { cell: [16, 9], face: 'S' }, { cell: [9, 7], face: 'W' }] },
-      plate: { room: 'C', spots: [{ cell: [0, 9], face: 'W' }, { cell: [3, 6], face: 'N' }, { cell: [4, 12], face: 'S' }] },
-      glass: { room: 'L', spots: [{ cell: [7, 15], face: 'W' }, { cell: [12, 19], face: 'S' }, { cell: [16, 17], face: 'E' }] }
+      frame: { room: 'G', spots: [{ cell: [19, 3], face: 'E' }, { cell: [18, 10], face: 'S' }, { cell: [12, 6], face: 'W' }] },
+      plate: { room: 'C', spots: [{ cell: [0, 13], face: 'W' }, { cell: [2, 7], face: 'N' }, { cell: [8, 10], face: 'E' }] },
+      glass: { room: 'L', spots: [{ cell: [8, 18], face: 'W' }, { cell: [10, 22], face: 'S' }, { cell: [19, 20], face: 'E' }] }
     },
-    SHIELD_BENCH: { cell: [16, 16], face: 'E' }
+    SHIELD_BENCH: { cell: [19, 17], face: 'E' }
   };
 
-  // Authentic partial verticality: four self-contained upper departments sit
-  // directly on their supporting buildings. A narrow, supported service bridge
-  // extends from Upper Assembly toward the Mainframe; the yards never receive a
-  // second building stacked over them.
-  // (Der Riese is a single flat floor — verticality removed in playtesting)
-  
+  CFG.MAPS.derriese.FLOORS = [
+    { id: '1', floorY: 0, primary: true, GRID: CFG.MAPS.derriese.GRID,
+      ROOMS: CFG.MAPS.derriese.ROOMS, OUTDOOR: CFG.MAPS.derriese.OUTDOOR,
+      WINDOWS: CFG.MAPS.derriese.WINDOWS, RISERS: CFG.MAPS.derriese.RISERS },
+    { id: '2', floorY: 4,
+      FLOOR_OMIT: [[3, 2], [3, 3], [3, 4], [19, 7], [19, 8], [19, 9]],
+      GRID: [
+        '....OOOOOOO.................',
+        '...OOOOOOOO.................',
+        '...OOOOOOOO.PPPPPPPP........',
+        '...OOOOOOOO1PPPPPPPP........',
+        '...OOOOOOOO.PPPPPPPP........',
+        '...OOOOOOOO.PPPPPPPP........',
+        '............PPPPPPPP........',
+        '..........PPPPPPPPPP........',
+        '..........PPPPPPPPPP........',
+        '..........PPPPPPPPPP........',
+        '..........PPPPPPPPPP........',
+        '............................',
+        '............................',
+        '............................',
+        '............................',
+        '............................',
+        '............................',
+        '............................',
+        '............................',
+        '............................',
+        '............................',
+        '............................',
+        '............................',
+        '............................'
+      ],
+      ROOMS: {
+        O: { name: 'Furnace Administration', floor: 0x363438, light: 0xe09a66 },
+        P: { name: 'Garage Control', floor: 0x2f3b3c, light: 0x78b8ad }
+      },
+      DOORS: { 1: { cost: 750, name: 'Upper Control Passage' } },
+      WINDOWS: [
+        { cell: [6, 0], dir: 'N' }, { cell: [9, 0], dir: 'N' }, { cell: [3, 2], dir: 'W' },
+        { cell: [15, 2], dir: 'N' }, { cell: [19, 5], dir: 'E' }, { cell: [14, 10], dir: 'S' }
+      ]
+    }
+  ];
 
   /* -------------------------------------------------- DER WETTERJUNGE --- */
   // Showpiece custom map: a huge OUTDOOR courtyard hub (C) ringed by indoor

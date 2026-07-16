@@ -168,22 +168,8 @@
 <text x="444" y="554" fill="#ffdd44" font-size="9" text-anchor="middle" font-weight="700">POWER</text>
 <circle cx="356" cy="356" r="10" fill="none" stroke="#ffffff" stroke-width="3"/>
 <text x="356" y="378" fill="#ffffff" font-size="9" text-anchor="middle" font-weight="700">SPAWN</text>
-<rect x="174" y="262" width="12" height="12" fill="#33ddaa" transform="rotate(45 180 268)"/>
-<text x="180" y="288" fill="#33ddaa" font-size="8" text-anchor="middle" font-weight="600">relic</text>
-<rect x="526" y="262" width="12" height="12" fill="#33ddaa" transform="rotate(45 532 268)"/>
-<text x="532" y="288" fill="#33ddaa" font-size="8" text-anchor="middle" font-weight="600">relic</text>
-<rect x="482" y="482" width="12" height="12" fill="#33ddaa" transform="rotate(45 488 488)"/>
-<text x="488" y="508" fill="#33ddaa" font-size="8" text-anchor="middle" font-weight="600">relic</text>
 <rect x="350" y="306" width="12" height="12" fill="#9933ff" transform="rotate(45 356 312)"/>
 <text x="356" y="332" fill="#9933ff" font-size="8" text-anchor="middle" font-weight="600">soul chest</text>
-<rect x="130" y="394" width="12" height="12" fill="#1f9fd0" transform="rotate(45 136 400)"/>
-<text x="136" y="420" fill="#1f9fd0" font-size="8" text-anchor="middle" font-weight="600">WW part</text>
-<rect x="570" y="394" width="12" height="12" fill="#1f9fd0" transform="rotate(45 576 400)"/>
-<text x="576" y="420" fill="#1f9fd0" font-size="8" text-anchor="middle" font-weight="600">WW part</text>
-<rect x="218" y="482" width="12" height="12" fill="#1f9fd0" transform="rotate(45 224 488)"/>
-<text x="224" y="508" fill="#1f9fd0" font-size="8" text-anchor="middle" font-weight="600">WW part</text>
-<rect x="394" y="306" width="12" height="12" fill="#2a6f9a" transform="rotate(45 400 312)"/>
-<text x="400" y="332" fill="#2a6f9a" font-size="8" text-anchor="middle" font-weight="600">WW bench</text>
 <rect x="214" y="67" width="20" height="6" fill="#b07a3a"/>
 <rect x="478" y="67" width="20" height="6" fill="#b07a3a"/>
 <rect x="67" y="302" width="6" height="20" fill="#b07a3a"/>
@@ -194,7 +180,7 @@
 <rect x="214" y="595" width="20" height="6" fill="#b07a3a"/>
 <rect x="478" y="595" width="20" height="6" fill="#b07a3a"/>
 <text x="70" y="40" fill="#ff5a5a" font-size="24" text-anchor="start" font-weight="900">TOTENSTURM  ·  NACHT DER UNTOTEN</text>
-<text x="70" y="58" fill="#8fa9c0" font-size="12" text-anchor="start">Where it all began — a bombed-out bunker. Wonder weapon: Thundergun.</text>
+<text x="70" y="58" fill="#8fa9c0" font-size="12" text-anchor="start">Bombed-out bunker. Complete Dead Air for the Nachtlicht or Minenwerfer 115.</text>
 <text x="666" y="58" fill="#ffd76e" font-size="13" text-anchor="start" font-weight="800">LEGEND</text>
 <rect x="666" y="81" width="14" height="14" fill="#ff9a3c"/>
 <text x="688" y="92" fill="#cfe" font-size="11" text-anchor="start" font-weight="600">Upper floor (catwalk/loft)</text>

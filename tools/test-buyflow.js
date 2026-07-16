@@ -31,7 +31,15 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
       function pressF() { window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF' })); window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyF' })); }
       function at(pos, dx, dz) { P.pos.set(pos.x + (dx || 0), (pos.y || 0) + 0.1, pos.z + (dz || 0)); P.vel.set(0, 0, 0); }
       function tick(n) { for (var i = 0; i < (n || 1); i++) { P.update(1 / 60); G.weapons.update(1 / 60); G.interact.update(1 / 60); G.map.update(1 / 60); } }
-      function buyAt(pos) { at(pos); tick(2); pressF(); tick(2); }
+      function faceToward(pos) { P.yaw = Math.atan2(-(pos.x - P.pos.x), -(pos.z - P.pos.z)); }
+      function buyAt(pos) { at(pos); faceToward(pos); tick(2); pressF(); tick(2); }
+      function buyAtWall(pos, face) {
+        var o = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[face] || [0, 0];
+        at(pos, -o[0] * 1.05, -o[1] * 1.05); faceToward(pos); tick(2);
+        var el = document.getElementById('hud-prompt');
+        window.__lastWallPrompt = el && el.style.display !== 'none' ? el.textContent : '(no prompt)';
+        pressF(); tick(2);
+      }
       // approach a door like a player would — from each side until it opens
       function buyDoor(d) {
         var offs = [[0, 1.4], [0, -1.4], [1.4, 0], [-1.4, 0], [0, 0]];
@@ -317,12 +325,13 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
       if ((!I.quest || !I.quest.on) && CFG.RELIC_SPOTS && CFG.RELIC_SPOTS.length && CFG.EE_SOULBOX) {
         var briefing = I.list.filter(function (it) { return it.prompt && it.prompt() === CFG.cur.EE_START.prompt; })[0];
         ck(!!briefing, 'the named Easter-egg briefing is visible');
-        if (briefing) buyAt(briefing.pos);
+        if (briefing) buyAtWall(briefing.pos, CFG.cur.EE_START.face);
         ck(I.ee.started, 'briefing starts ' + CFG.cur.eeName, I.ee.objective);
         I.ee.relics.slice().sort(function (a, b) { return a.order - b.order; }).forEach(function (r, si) {
-          buyAt(r.pos);
+          buyAtWall(r.pos, CFG.cur.EE_STEPS[si].face);
           ck(I.ee.activated === si + 1, 'guided step ' + (si + 1) + ' completed in ' + r.room,
-             si + 1 < CFG.cur.EE_STEPS.length ? I.ee.objective : 'final device awake');
+             (si + 1 < CFG.cur.EE_STEPS.length ? I.ee.objective : 'final device awake') +
+             ' | prompt=' + window.__lastWallPrompt + ' | y=' + P.pos.y.toFixed(1));
         });
         ck(!!I.ee.box, 'marked final defense device awakened in the map');
         for (var k3 = 0; k3 < I.ee.need && I.ee.box && !I.ee.done; k3++) I.onKill(I.ee.box);
@@ -333,8 +342,8 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         if (CFG.cur.id === 'derriese') {
           var oc = I.overclock;
           ck(oc.available && !!oc.reward, 'base reward reveals Overclock the Giant', oc.reward);
-          buyAt(oc.regulatorPos);
-          ck(oc.stage === 1, 'optional continuation accepted at Upper Assembly');
+          buyAtWall(oc.regulatorPos, CFG.cur.OVERCLOCK.regulator.face);
+          ck(oc.stage === 1, 'optional continuation accepted in Garage Control', 'stage=' + oc.stage);
           oc.conduits.forEach(function (c4) {
             var origin = c4.pos.clone(); origin.z += 3; origin.y += 1;
             I.onWonderFire(oc.reward, origin, new THREE.Vector3(0, 0, -1), 8);
@@ -346,16 +355,18 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
             var tp4 = G.map.teleporters.filter(function (t4) { return t4.id === oc.cells[ci].teleporter; })[0];
             buyAt(tp4.pos);
             ck(oc.carrying && oc.carrying.primed, 'cell ' + (ci + 1) + ' phase-primed at Teleporter ' + tp4.id);
-            buyAt(oc.regulatorPos);
+            buyAtWall(oc.regulatorPos, CFG.cur.OVERCLOCK.regulator.face);
           }
           ck(oc.stage === 3 && oc.installed === 3, 'all three phase-routed cells installed');
-          buyAt(oc.regulatorPos);
+          buyAtWall(oc.regulatorPos, CFG.cur.OVERCLOCK.regulator.face);
           for (var lk = 0; lk < 24; lk++) I.onKill(new THREE.Vector3(0, oc.lockdownUpper ? 4 : 0, 0), { dead: true });
-          ck(oc.stage === 5 && oc.boss && oc.boss.questBoss, 'two-floor lockdown awakens the Iron Subject');
-          for (var ah = 0; ah < 6; ah++) G.zombies.damageZombie(oc.boss, 1000, { boom: true, weaponId: oc.reward });
-          G.zombies.damageZombie(oc.boss, 1e9, { boom: true, weaponId: oc.reward });
+          ck(oc.stage === 5 && oc.boss && oc.boss.questBoss, 'control-block lockdown awakens the Iron Subject', 'stage=' + oc.stage);
+          if (oc.boss) {
+            for (var ah = 0; ah < 6; ah++) G.zombies.damageZombie(oc.boss, 1000, { boom: true, weaponId: oc.reward });
+            G.zombies.damageZombie(oc.boss, 1e9, { boom: true, weaponId: oc.reward });
+          }
           ck(oc.stage === 6, 'awarded weapon breaks and defeats the Iron Subject');
-          buyAt(oc.regulatorPos);
+          buyAtWall(oc.regulatorPos, CFG.cur.OVERCLOCK.regulator.face);
           ck(oc.done && G.player.heart.has, 'prestige ending grants the super variant and Heart of the Giant',
              G.weapons.stats(G.weapons.current()).name);
         }
