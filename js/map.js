@@ -3209,6 +3209,102 @@
           addBox(0.1, 0.7, 0.1, ubW.x, 5.6, ubW.z - 1.35, dark);
           addBox(1.4, 0.08, 0.08, ubW.x, 6.0, ubW.z - 1.35, steel);        // tool rail
         });
+        /* ---- CENTERPIECES: one trainable machine dead-centre in each hall
+           (footprint r<=1.6 at the ring's exact centre, so the R5 kite lane
+           always clears it) + truss-end columns that break the big volumes. */
+        function centerOf(rid) { return P.rooms[rid] && P.rooms[rid].center; }
+        var cL = centerOf('L'), cG = centerOf('G'), cF = centerOf('F'), cC = centerOf('C'), cA = centerOf('A');
+        if (cL) {   // Animal Testing: raised operating island + surgical light rig
+          addBox(3.0, 0.16, 3.0, cL.x, 0.08, cL.z, dConc);
+          addBox(1.9, 0.75, 0.8, cL.x, 0.55, cL.z, steel);
+          addBox(1.7, 0.05, 0.7, cL.x, 0.95, cL.z, bloodM);
+          addBox(0.08, 2.6, 0.08, cL.x + 1.2, 1.3, cL.z + 1.2, dark);
+          addBox(1.4, 0.08, 0.08, cL.x + 0.5, 2.6, cL.z + 1.2, dark);
+          addBox(0.5, 0.16, 0.5, cL.x, 2.5, cL.z, glowAmber);            // surgical lamp head
+          map.addCollider(cL.x - 1.0, cL.z - 0.45, cL.x + 1.0, cL.z + 0.45, 0, 1.0);
+        }
+        if (cG) {   // Garage: diesel generator block with exhaust stack
+          addBox(2.4, 1.5, 1.3, cG.x, 0.75, cG.z, steel);
+          addBox(2.5, 0.2, 1.4, cG.x, 1.6, cG.z, dark);
+          addBox(0.3, 2.4, 0.3, cG.x + 0.8, 2.6, cG.z, dark);            // stack
+          addBox(0.5, 0.5, 0.06, cG.x - 0.9, 1.0, cG.z + 0.68, glowAmber); // gauge glow
+          map.addCollider(cG.x - 1.25, cG.z - 0.7, cG.x + 1.25, cG.z + 0.7, 0, 1.8);
+        }
+        if (cF) {   // Furnace: crucible under a chain hoist
+          var cru = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.75, 1.5, 12),
+            new THREE.MeshLambertMaterial({ color: 0x3a3532 }));
+          cru.position.set(cF.x, 0.75, cF.z); G.scene.add(cru);
+          var melt = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.06, 12),
+            new THREE.MeshBasicMaterial({ color: 0xff7a2a }));
+          melt.position.set(cF.x, 1.53, cF.z); G.scene.add(melt);
+          addBox(0.05, 2.2, 0.05, cF.x, 2.8, cF.z, dark);                // hoist chain
+          map.addCollider(cF.x - 1.0, cF.z - 1.0, cF.x + 1.0, cF.z + 1.0, 0, 1.7);
+        }
+        if (cC) {   // Cooling yard: round condensate basin
+          var bas = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.8, 0.6, 16),
+            new THREE.MeshLambertMaterial({ color: 0x555c58 }));
+          bas.position.set(cC.x, 0.3, cC.z); G.scene.add(bas);
+          var wat = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.55, 0.05, 16), glassM);
+          wat.position.set(cC.x, 0.58, cC.z); G.scene.add(wat);
+          addBox(0.16, 1.4, 0.16, cC.x, 0.9, cC.z, dPipe);               // feed pipe
+          map.addCollider(cC.x - 1.7, cC.z - 1.7, cC.x + 1.7, cC.z + 1.7, 0, 0.62);
+        }
+        if (cA) {   // A-Lab: calibration island (console ring)
+          addBox(2.2, 0.95, 1.0, cA.x, 0.48, cA.z, steel);
+          addBox(2.0, 0.35, 0.1, cA.x, 1.15, cA.z - 0.4, cyan);
+          addBox(0.7, 1.5, 0.7, cA.x + 1.0, 0.75, cA.z + 0.5, dark);
+          map.addCollider(cA.x - 1.2, cA.z - 0.6, cA.x + 1.35, cA.z + 0.9, 0, 1.6);
+        }
+        // truss-end columns in the two biggest halls (visual rhythm off-lane)
+        [[8, 11], [15, 11], [8, 17], [16, 17]].forEach(function (pc2) {   // [16,11] crowded door 9
+          var pcW = wc(pc2[0], pc2[1]);
+          addBox(0.5, 3.6, 0.5, pcW.x - 1.4, 1.8, pcW.z, dConc);
+          map.addCollider(pcW.x - 1.65, pcW.z - 0.25, pcW.x - 1.15, pcW.z + 0.25, 0, 3.6);
+        });
+        [[10, 6], [16, 6]].forEach(function (pc3) {
+          var pcW2 = wc(pc3[0], pc3[1]);
+          addBox(0.5, 3.4, 0.5, pcW2.x, 1.7, pcW2.z - 1.4, dConc);
+          map.addCollider(pcW2.x - 0.25, pcW2.z - 1.65, pcW2.x + 0.25, pcW2.z - 1.15, 0, 3.4);
+        });
+        /* ---- EE HARDWARE: each quest station is a visible machine ---- */
+        // the briefing desk under the lit order
+        addBox(1.5, 0.85, 0.6, brf.x + 1.5, 0.42, brf.z + 1.1, dark);
+        map.addCollider(brf.x + 1.1, brf.z + 0.8, brf.x + 1.9, brf.z + 1.4, 0, 0.95);
+        // subject-tag specimen cabinet with a pulled drawer [7,15]W
+        var tagW = wc(7, 15);
+        addBox(0.8, 1.9, 0.9, tagW.x - 1.3, 0.95, tagW.z, steel);
+        addBox(0.7, 0.16, 0.5, tagW.x - 0.85, 1.1, tagW.z, dark);        // open drawer
+        addBox(0.18, 0.05, 0.28, tagW.x - 0.8, 1.16, tagW.z, glowAmber); // the tag inside
+        map.addCollider(tagW.x - 1.7, tagW.z - 0.5, tagW.x - 0.85, tagW.z + 0.5, 0, 2.0);
+        // the GIANT'S HEART REGULATOR [18,4] y4 — riveted chamber + feed pipes
+        var hrt = new THREE.Mesh(new THREE.SphereGeometry(0.85, 12, 12),
+          new THREE.MeshLambertMaterial({ color: 0x5b3f38 }));
+        hrt.scale.y = 1.25; hrt.position.set(regW.x + 1.0, 5.4, regW.z + 1.6); G.scene.add(hrt);
+        addBox(0.5, 0.9, 0.5, regW.x + 1.0, 4.35, regW.z + 1.6, dark);
+        addBox(0.14, 0.14, 1.4, regW.x + 1.0, 5.9, regW.z + 0.8, dPipe);
+        addBox(0.3, 0.1, 0.34, regW.x + 0.6, 5.3, regW.z + 1.2, dark);   // the tag SLOT
+        map.addCollider(regW.x + 0.4, regW.z + 1.1, regW.x + 1.6, regW.z + 2.1, 4, 6.4);
+        // dormant soul-device emplacement at [13,16] — recessed ring + bolts
+        var sdW = wc(13, 16);
+        var sdr = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.1, 8, 20), dark);
+        sdr.rotation.x = Math.PI / 2; sdr.position.set(sdW.x, 0.06, sdW.z); G.scene.add(sdr);
+        for (var sb2 = 0; sb2 < 4; sb2++) {
+          var sba = sb2 / 4 * Math.PI * 2;
+          addBox(0.18, 0.22, 0.18, sdW.x + Math.cos(sba) * 1.1, 0.11, sdW.z + Math.sin(sba) * 1.1, steel);
+        }
+        // Overclock conduit stations, color-keyed to their wings
+        [[wc(12, 19), green, 0, 1.55], [wc(4, 3), amber, -1.55, 0]].forEach(function (oc2) {
+          var ocW = oc2[0];
+          addBox(0.5, 1.2, 0.5, ocW.x + oc2[2], 0.6, ocW.z + oc2[3], dark);
+          addBox(0.3, 0.5, 0.08, ocW.x + oc2[2], 1.0, ocW.z + oc2[3] * 0.72, oc2[1]);
+        });
+        var ocK = wc(23, 17);
+        addBox(0.5, 1.2, 0.5, ocK.x + 1.55, 4.6, ocK.z, dark);
+        addBox(0.08, 0.5, 0.3, ocK.x + 1.12, 5.0, ocK.z, cyan);
+        // Iron Subject aftermath: torn chain + drag gouges leaving the cage
+        addBox(0.06, 1.3, 0.06, wrk.x - 0.9, 0.65, wrk.z + 0.9, dark);
+        for (var dg2 = 0; dg2 < 3; dg2++)
+          addBox(0.1, 0.015, 2.2 - dg2 * 0.4, wrk.x - 0.3 + dg2 * 0.35, 0.035, wrk.z - 0.6, dark);
         /* ---- LIFE + FILL: the map breathes and the halls earn their size ----
            Anim registry (map.dAnim, driven from map.update): furnace embers
            rise and die, cooling-yard steam drifts, the overlook searchlight
