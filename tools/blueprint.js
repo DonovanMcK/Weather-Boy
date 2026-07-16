@@ -10,11 +10,7 @@ var CELL = 44, PAD = 70, LEG = 250;
 
 // upper-floor (stage) footprints per map: cells of the deck/loft + stair cells
 var UPPER = {
-  derriese: {
-    label: 'FURNACE ADMIN + GARAGE CONTROL  +4m  (enclosed)',
-    deck: floorCells('derriese'),
-    stairs: [[3, 2], [3, 3], [3, 4], [19, 7], [19, 8], [19, 9]]
-  },
+  derriese: null,
   wetterjunge: {
     label: 'WEATHER CONTROL DECK  +4m',
     deck: floorCells('wetterjunge'),

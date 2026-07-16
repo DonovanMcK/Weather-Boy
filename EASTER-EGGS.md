@@ -19,26 +19,26 @@ Reward: **Nachtlicht**, a flare that attracts zombies before detonating, or **Mi
 1. At Spawn, read the marked **Gruppe 935 Shutdown Order**.
 2. In **Animal Testing**, recover the marked subject tag.
 3. In the **Furnace Room**, temper the tag in the furnace stamp.
-4. Use either enclosed factory stair to reach the supported control block. In **Garage Control**, install the tag in the Giant's Heart regulator.
+4. In the ground-floor **Power Garage**, install the tag in the Giant's Heart regulator beside the generator bank.
 5. Return to **Animal Testing** and defend the buried reactor. Feed the factory heart **30 nearby kills**.
 
 Reward: **Seelenmotor**, an industrial soul piston, or **Nachbildner 115**, an echo cannon.
 
 ### Optional continuation — Overclock the Giant
 
-The normal reward above is yours immediately. To pursue the prestige ending, take the awarded weapon into Garage Control and use the newly marked regulator.
+The normal reward above is yours immediately. To pursue the prestige ending, take the awarded weapon into the Power Garage and use the newly marked regulator.
 
-1. Accept **Overclock the Giant** at the Garage Control regulator.
+1. Accept **Overclock the Giant** at the Power Garage regulator.
 2. Shoot the three marked 935 conduits with the wonder weapon you just earned:
    - Animal Testing
    - Furnace Room
-   - Garage Control in the upper control block
-3. Recover the first unstable reactor cell in the Teleporter A Laboratory. Carry it to **Teleporter A** within 60 seconds, phase-prime it, then install it at the Garage Control regulator.
+   - Power Garage control bay
+3. Recover the first unstable reactor cell in the Teleporter A Laboratory. Carry it to **Teleporter A** within 60 seconds, phase-prime it, then install it at the Power Garage regulator.
 4. Repeat that process for the Furnace Room cell through **Teleporter B**.
-5. Recover the final cell in the Cooling Courtyard and route it through **Teleporter C**, then install it in Garage Control.
-6. Start the factory lockdown at the regulator. Complete four six-kill pressure cycles, alternating between **Animal Testing** and **Garage Control** whenever the objective changes.
+5. Recover the final cell in the Cooling Courtyard and route it through **Teleporter C**, then install it in the Power Garage.
+6. Start the factory lockdown at the regulator. Complete four six-kill pressure cycles, alternating between **Animal Testing** and the **Power Garage** whenever the objective changes.
 7. Fight **The Iron Subject** in Animal Testing. Ordinary weapons cannot penetrate its sealed armor. Strike it six times with the awarded Easter-egg weapon to split the plating, then finish it.
-8. Return to Garage Control and place the awarded weapon into the Giant's Heart.
+8. Return to the Power Garage and place the awarded weapon into the Giant's Heart.
 
 The weapon transforms according to the base reward:
 
@@ -47,7 +47,7 @@ The weapon transforms according to the base reward:
 
 Full-completion reward: **Heart of the Giant**. Its HUD icon shows whether its emergency charge is ready. At the beginning of every round it repairs any Zombie Shield you have assembled and recharges one fatal-damage save. When triggered, it leaves you at one health, grants a brief mercy window, and releases a large electrical stun. It can activate once per round.
 
-The upper level is deliberately not a second copy of the whole map. **Furnace Administration** and **Garage Control** form one believable, fully roofed department supported directly by the furnace and garage below. Two enclosed one-cell stair towers provide separate approaches without consuming either ground-floor room, and the main courtyards remain open to the sky.
+Der Riese is deliberately a single playable level. The former upper department added empty travel and one stair tower obstructed the Mainframe-to-Garage entrance. Its perks, box locations, control conduit, and Giant's Heart regulator are now integrated into distinct wall-side stations on the ground loop.
 
 ## Der Wetterjunge — Eye of the Storm
 

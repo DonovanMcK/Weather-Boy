@@ -127,16 +127,21 @@
   /* ------------------------------------------------------- DER RIESE --- */
   // Ground-up blueprint replacement. None of the previous Der Riese grid,
   // stairs, prop coordinates or room proportions are retained. The Mainframe
-  // anchors an open east yard; three looping factory routes terminate at A, B
-  // and C; the only upper storey is the supported furnace/garage control block.
+  // anchors an open east yard and three looping factory routes terminate at A,
+  // B and C. The playable route is intentionally one floor: the former upper
+  // control block added travel without improving the loop and obstructed the
+  // Garage entrance, so its functions now live in distinct ground-floor bays.
   CFG.MAPS.derriese = {
     id: 'derriese',
     name: 'DER RIESE',
-    sub: "The Giant rebuilt — three teleporter wings, eight looping gates, and one authentic upper control block.",
+    sub: "The Giant rebuilt — a tight three-wing factory loop with distinct furnace, power, cooling, and testing districts.",
+    // The 28x24 plan keeps its authored topology, while a tighter cell scale
+    // removes roughly 23% of the empty floor area and shortens dead travel.
+    cellSize: 3.5,
     wonder: 'wunderwaffe',
     papRule: 'teleporters',
-    atmos: { sky: 0x151914, fog: 0x191d17, density: 0.011,
-             amb: 0x515b54, ambI: 0.72, hemiSky: 0xaab8ad, hemiGround: 0x303a32 },
+    atmos: { sky: 0x101714, fog: 0x172018, density: 0.011,
+             amb: 0x3e4b42, ambI: 0.62, hemiSky: 0x82998d, hemiGround: 0x252e28 },
     palette: { wallA: 0x675044, wallB: 0x574942, wood: 0x826447, plank: 0x9b7a54,
                metal: 0x606b69, beam: 0x2c3434, rust: 0x70462e, conc: 0x666862,
                deck: 0x414a4b, ceil: 0x383d3b, accent: 0x47bca4, lampTint: 0xffc47b },
@@ -168,12 +173,12 @@
       '.....................AAAAAAA'
     ],
     ROOMS: {
-      S: { name: 'Mainframe Yard',           floor: 0x34372f, light: 0xb0b99c },
-      C: { name: 'Cooling Courtyard',        floor: 0x393b31, light: 0xaaba96 },
-      L: { name: 'Animal Testing Complex',   floor: 0x2d3740, light: 0x6bbac8 },
-      A: { name: 'Teleporter A Laboratory',  floor: 0x29363d, light: 0x75c4d2 },
-      F: { name: 'Furnace and Teleporter B', floor: 0x3c2c23, light: 0xff7b35 },
-      G: { name: 'Auto Garage and Power',    floor: 0x30342f, light: 0x94b29c }
+      S: { name: 'Mainframe Yard',           floor: 0x3e3a2b, light: 0xe7b85d },
+      C: { name: 'Cooling Courtyard',        floor: 0x263b39, light: 0x68c3ae },
+      L: { name: 'Animal Testing Complex',   floor: 0x402b31, light: 0xd96370 },
+      A: { name: 'Teleporter A Laboratory',  floor: 0x243947, light: 0x66c7e7 },
+      F: { name: 'Furnace and Teleporter B', floor: 0x48271c, light: 0xff6d31 },
+      G: { name: 'Auto Garage and Power',    floor: 0x293b31, light: 0x72d39b }
     },
     DOORS: {
       1: { cost: 1000, name: 'Furnace Courtyard Gate' },
@@ -195,18 +200,18 @@
     ],
     RISERS: [[6, 12], [26, 13]],
     PERK_MACHINES: [
-      { perk: 'revive', cell: [21, 11], off: [0, 0] },
+      { perk: 'revive', cell: [21, 13], off: [0, 0] },
       { perk: 'jugg', cell: [19, 21], off: [0, 0] },
       { perk: 'speed', cell: [19, 4], off: [0, 0] },
       { perk: 'dtap', cell: [0, 15], off: [0, 0] },
-      { perk: 'wonderfizz', cell: [4, 0], off: [0, 0], y: 4 },
-      { perk: 'stamin', cell: [18, 10], off: [0, 0], y: 4 }
+      { perk: 'wonderfizz', cell: [4, 0], off: [0, 0] },
+      { perk: 'stamin', cell: [18, 10], off: [0, 0] }
     ],
     WALLBUYS: [
       { gun: 'm14', cell: [27, 8], off: [1.6, 0], face: 'E' },
-      { gun: 'olympia', cell: [24, 7], off: [0, -1.6], face: 'N' },
+      { gun: 'olympia', cell: [27, 14], off: [1.6, 0], face: 'E' },
       { gun: 'mp5k', cell: [0, 13], off: [-1.6, 0], face: 'W' },
-      { gun: 'mp40', cell: [14, 10], off: [0, 1.6], face: 'S', y: 4 },
+      { gun: 'mp40', cell: [14, 10], off: [0, 1.25], face: 'S' },
       { gun: 'ak74u', cell: [7, 0], off: [0, -1.6], face: 'N' },
       { gun: 'm16', cell: [16, 2], off: [0, -1.6], face: 'N' },
       { gun: 'stakeout', cell: [8, 19], off: [-1.6, 0], face: 'W' },
@@ -216,15 +221,17 @@
       { cell: [8, 2], off: [0, 0] }, { cell: [15, 8], off: [0, 0] },
       { cell: [2, 12], off: [0, 0] }, { cell: [24, 12], off: [0, 0] },
       { cell: [12, 18], off: [0, 0] }, { cell: [24, 20], off: [0, 0] },
-      { cell: [7, 4], off: [0, 0], y: 4 }, { cell: [16, 7], off: [0, 0], y: 4 }
+      { cell: [7, 4], off: [0, 0] }, { cell: [16, 7], off: [0, 0] }
     ],
     TELEPORTERS: [
       { id: 'A', cell: [24, 20], off: [0, 0] },
       { id: 'B', cell: [7, 2], off: [0, 0] },
       { id: 'C', cell: [3, 11], off: [0, 0] }
     ],
-    MAINFRAME: { cell: [24, 10], off: [0, 0] },
-    PAP: { cell: [26, 10], off: [0, 0] },
+    // Slightly west of the yard's geometric centre: it keeps the iconic
+    // Mainframe sightline clear while preserving a full north-south train lane.
+    MAINFRAME: { cell: [23, 11], off: [0, 0] },
+    PAP: { cell: [25, 11], off: [0, 0] },
     POWER: { cell: [16, 4], off: [0, 0] },
     PLAYER_SPAWN: { cell: [24, 13], off: [0, 0.5] },
     RELIC_SPOTS: [
@@ -232,7 +239,7 @@
       { cell: [0, 12], face: 'W' }, { cell: [7, 7], face: 'N' }, { cell: [8, 21], face: 'W' },
       { cell: [17, 22], face: 'S' }, { cell: [27, 21], face: 'E' }, { cell: [22, 23], face: 'S' }
     ],
-    EE_SOULBOX: [14, 16],
+    EE_SOULBOX: [14, 19],
     eeName: "THE GIANT'S HEART",
     eeNode: 'factory identification card',
     eeRewards: ['seelenmotor', 'nachbildner115'],
@@ -242,16 +249,16 @@
       { cell: [8, 19], face: 'W', room: 'Animal Testing', kind: 'subject tag',
         prompt: 'Recover the marked subject tag', clue: 'FURNACE — Temper it beside Teleporter B' },
       { cell: [10, 1], face: 'E', room: 'Furnace Room', kind: 'heat stamp',
-        prompt: 'Temper the tag in the furnace stamp', clue: 'UPPER GARAGE — Carry it to the Giant regulator' },
-      { cell: [19, 6], face: 'E', y: 4, room: 'Garage Control', kind: 'heart regulator',
+        prompt: 'Temper the tag in the furnace stamp', clue: 'POWER GARAGE — Carry it to the Giant regulator' },
+      { cell: [19, 6], face: 'E', room: 'Power Garage', kind: 'heart regulator',
         prompt: "Install the tag in the Giant's regulator", clue: 'ANIMAL TESTING — The buried reactor is awake below' }
     ],
     OVERCLOCK: {
-      regulator: { cell: [19, 6], face: 'E', y: 4 },
+      regulator: { cell: [19, 6], face: 'E' },
       conduits: [
         { cell: [14, 22], face: 'S', y: 0, room: 'Animal Testing' },
         { cell: [3, 4], face: 'W', y: 0, room: 'Furnace Room' },
-        { cell: [10, 8], face: 'W', y: 4, room: 'Garage Control' }
+        { cell: [14, 2], face: 'N', y: 0, room: 'Power Garage' }
       ],
       cells: [
         { cell: [24, 20], y: 0, room: 'Teleporter A Laboratory', teleporter: 'A' },
@@ -268,50 +275,6 @@
     },
     SHIELD_BENCH: { cell: [19, 17], face: 'E' }
   };
-
-  CFG.MAPS.derriese.FLOORS = [
-    { id: '1', floorY: 0, primary: true, GRID: CFG.MAPS.derriese.GRID,
-      ROOMS: CFG.MAPS.derriese.ROOMS, OUTDOOR: CFG.MAPS.derriese.OUTDOOR,
-      WINDOWS: CFG.MAPS.derriese.WINDOWS, RISERS: CFG.MAPS.derriese.RISERS },
-    { id: '2', floorY: 4,
-      FLOOR_OMIT: [[3, 2], [3, 3], [3, 4], [19, 7], [19, 8], [19, 9]],
-      GRID: [
-        '....OOOOOOO.................',
-        '...OOOOOOOO.................',
-        '...OOOOOOOO.PPPPPPPP........',
-        '...OOOOOOOO1PPPPPPPP........',
-        '...OOOOOOOO.PPPPPPPP........',
-        '...OOOOOOOO.PPPPPPPP........',
-        '............PPPPPPPP........',
-        '..........PPPPPPPPPP........',
-        '..........PPPPPPPPPP........',
-        '..........PPPPPPPPPP........',
-        '..........PPPPPPPPPP........',
-        '............................',
-        '............................',
-        '............................',
-        '............................',
-        '............................',
-        '............................',
-        '............................',
-        '............................',
-        '............................',
-        '............................',
-        '............................',
-        '............................',
-        '............................'
-      ],
-      ROOMS: {
-        O: { name: 'Furnace Administration', floor: 0x363438, light: 0xe09a66 },
-        P: { name: 'Garage Control', floor: 0x2f3b3c, light: 0x78b8ad }
-      },
-      DOORS: { 1: { cost: 750, name: 'Upper Control Passage' } },
-      WINDOWS: [
-        { cell: [6, 0], dir: 'N' }, { cell: [9, 0], dir: 'N' }, { cell: [3, 2], dir: 'W' },
-        { cell: [15, 2], dir: 'N' }, { cell: [19, 5], dir: 'E' }, { cell: [14, 10], dir: 'S' }
-      ]
-    }
-  ];
 
   /* -------------------------------------------------- DER WETTERJUNGE --- */
   // Showpiece custom map: a huge OUTDOOR courtyard hub (C) ringed by indoor

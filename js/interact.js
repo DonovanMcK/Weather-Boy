@@ -250,7 +250,7 @@
     I.overclock = { on: CFG.cur.id === 'derriese' && !!CFG.cur.OVERCLOCK,
       available: false, stage: 0, reward: null, conduits: [], exposed: 0,
       cells: [], installed: 0, carrying: null, cellTimer: 0,
-      lockdownKills: 0, lockdownUpper: false, boss: null, done: false,
+      lockdownKills: 0, lockdownRoom: 'L', boss: null, done: false,
       markers: [], objective: '' };
     function chooseEeReward() {
       var pool = (CFG.cur.eeRewards || (CFG.cur.eeWonder ? [CFG.cur.eeWonder] : [])).slice();
@@ -304,9 +304,9 @@
       }
     }
     function beginLockdown() {
-      var oc = I.overclock; oc.stage = 4; oc.lockdownKills = 0; oc.lockdownUpper = false;
-      ocObjective('GROUND FLOOR — kill 6 enemies to drive the first pressure cycle', oc.lockdownGroundMarker);
-      G.hud.banner('FACTORY LOCKDOWN', '#79ffe0', 4, 'Cycle 1/4 — fight on the ground floor');
+      var oc = I.overclock; oc.stage = 4; oc.lockdownKills = 0; oc.lockdownRoom = 'L';
+      ocObjective('ANIMAL TESTING — kill 6 enemies to drive the first pressure cycle', oc.lockdownTestingMarker);
+      G.hud.banner('FACTORY LOCKDOWN', '#79ffe0', 4, 'Cycle 1/4 — fight in Animal Testing');
     }
     function spawnIronSubject() {
       var oc = I.overclock; oc.stage = 5; hideOcMarkers();
@@ -373,9 +373,9 @@
       var rm = wallMount(def.regulator.cell, def.regulator.face, 0.3, def.regulator.y || 0);
       oc.regulatorPos = rm.pos;
       oc.regulatorMarker = ocMarker('OPTIONAL  OVERCLOCK THE GIANT', rm.pos, '#79ffe0');
-      var ground = CFG.cellToWorld(14, 16), upper = CFG.cellToWorld(15, 7);
-      oc.lockdownGroundMarker = ocMarker('LOCKDOWN  ANIMAL TESTING', new THREE.Vector3(ground.x, 0, ground.z), '#ffb46b');
-      oc.lockdownUpperMarker = ocMarker('LOCKDOWN  GARAGE CONTROL', new THREE.Vector3(upper.x, 4, upper.z), '#79ffe0');
+      var ground = CFG.cellToWorld(14, 19), garage = CFG.cellToWorld(15, 7);
+      oc.lockdownTestingMarker = ocMarker('LOCKDOWN  ANIMAL TESTING', new THREE.Vector3(ground.x, 0, ground.z), '#ff6977');
+      oc.lockdownGarageMarker = ocMarker('LOCKDOWN  POWER GARAGE', new THREE.Vector3(garage.x, 0, garage.z), '#79ffe0');
       oc.bossMarker = ocMarker('THE IRON SUBJECT', new THREE.Vector3(ground.x, 0, ground.z), '#79ffe0');
       add({ pos: rm.pos, r: 2.3, y: def.regulator.y || 0,
         prompt: function () {
@@ -399,7 +399,7 @@
             G.audio.teleLink();
             if (oc.installed >= oc.cells.length) {
               oc.stage = 3; hideOcMarkers(); oc.regulatorMarker.visible = true;
-              ocObjective('Garage Control — initiate the factory lockdown', oc.regulatorMarker);
+              ocObjective('Power Garage — initiate the factory lockdown', oc.regulatorMarker);
               G.hud.banner('REACTOR CELLS INSTALLED', '#79ffe0', 3, 'The Giant is ready for a live pressure test');
             } else {
               G.hud.banner('CELL ' + oc.installed + '/3 INSTALLED', '#79ffe0', 2.5);
@@ -432,8 +432,8 @@
         var c = oc.carrying;
         if (oc.stage !== 2 || !c || c.primed || c.teleporter !== teleporterId) return false;
         c.primed = true; oc.cellTimer = 0;
-        ocObjective('Garage Control — install the phase-primed cell', oc.regulatorMarker);
-        G.audio.teleLink(); G.hud.banner('CELL PHASE-PRIMED', '#79ffe0', 3, 'Return it to the Garage Control regulator');
+        ocObjective('Power Garage — install the phase-primed cell', oc.regulatorMarker);
+        G.audio.teleLink(); G.hud.banner('CELL PHASE-PRIMED', '#79ffe0', 3, 'Return it to the Power Garage regulator');
         return true;
       };
     }
@@ -801,9 +801,9 @@
         if (I.overclock && I.overclock.on) {
           I.overclock.available = true; I.overclock.reward = reward;
           I.overclock.regulatorMarker.visible = true;
-          I.ee.objective = 'OPTIONAL — Garage Control: Overclock the Giant';
+          I.ee.objective = 'OPTIONAL — Power Garage: Overclock the Giant';
           G.hud.banner('THE GIANT\'S HEART — BASE COMPLETE', '#b6f', 6,
-            CFG.WEAPONS[reward].name + ' acquired — optional signal detected in Garage Control');
+            CFG.WEAPONS[reward].name + ' acquired — optional signal detected in the Power Garage');
         }
       } else { G.weapons.maxAmmo(); G.player.addPoints(2000); }
     }
@@ -819,26 +819,26 @@
       var oc = I.overclock;
       if (!oc || !oc.on || oc.done) return;
       if (oc.stage === 4) {
-        var upperKill = (pos.y || 0) > 2;
-        if (upperKill !== oc.lockdownUpper) return;
+        if (G.map.roomAt(pos.x, pos.z) !== oc.lockdownRoom) return;
         oc.lockdownKills++;
         var inCycle = oc.lockdownKills % 6;
         if (oc.lockdownKills >= (CFG.cur.OVERCLOCK.lockdownKills || 24)) {
           G.hud.banner('PRESSURE TEST COMPLETE', '#79ffe0', 3, 'Something tears free in the courtyard');
           spawnIronSubject();
         } else if (inCycle === 0) {
-          oc.lockdownUpper = !oc.lockdownUpper;
+          oc.lockdownRoom = oc.lockdownRoom === 'L' ? 'G' : 'L';
           var cycle = Math.floor(oc.lockdownKills / 6) + 1;
-          ocObjective((oc.lockdownUpper ? 'UPPER FLOOR' : 'GROUND FLOOR') +
+          var nextRoom = oc.lockdownRoom === 'G' ? 'POWER GARAGE' : 'ANIMAL TESTING';
+          ocObjective(nextRoom +
             ' — kill 6 enemies for pressure cycle ' + cycle + '/4',
-            oc.lockdownUpper ? oc.lockdownUpperMarker : oc.lockdownGroundMarker);
+            oc.lockdownRoom === 'G' ? oc.lockdownGarageMarker : oc.lockdownTestingMarker);
           G.hud.banner('PRESSURE CYCLE ' + cycle + '/4', '#79ffe0', 2.5,
-            'Move to the ' + (oc.lockdownUpper ? 'upper floor' : 'ground floor'));
+            'Move to ' + (oc.lockdownRoom === 'G' ? 'the Power Garage' : 'Animal Testing'));
         } else G.hud.banner('LOCKDOWN ' + oc.lockdownKills + '/24', '#79ffe0', 0.8);
       } else if (oc.stage === 5 && killed && killed === oc.boss) {
         oc.stage = 6; hideOcMarkers(); oc.regulatorMarker.visible = true;
-        ocObjective('Garage Control — place the awarded weapon into the Giant\'s Heart', oc.regulatorMarker);
-        G.hud.banner('THE IRON SUBJECT FALLS', '#79ffe0', 4, 'Return the weapon to Garage Control');
+        ocObjective('Power Garage — place the awarded weapon into the Giant\'s Heart', oc.regulatorMarker);
+        G.hud.banner('THE IRON SUBJECT FALLS', '#79ffe0', 4, 'Return the weapon to the Power Garage');
       }
     };
 

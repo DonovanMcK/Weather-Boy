@@ -457,12 +457,10 @@ async function runQuick(mapId) {
     testDetail(ctx);
   }
   if (mapId === 'derriese') {
-    testVerticality(ctx);
-    testStairHeadroom(ctx);
+    testDerRieseGroundLoop(ctx);
     testSoulBox(ctx);
     testOverclockGiant(ctx);
     testMainframeYard(ctx);
-    testStairFunnel(ctx);
   }
   if (mapId === 'wetterjunge') {
     var wu = G.map.floors && G.map.floors.filter(function (f) { return f.floorY > 3; })[0];
@@ -587,7 +585,9 @@ function testWallAlignment(ctx, mapId) {
     cells.forEach(function (cr) { if (cr[0] < minc) minc = cr[0]; if (cr[0] > maxc) maxc = cr[0]; if (cr[1] < minr) minr = cr[1]; if (cr[1] > maxr) maxr = cr[1]; });
     var a = G.CFG.cellToWorld(minc, minr), b = G.CFG.cellToWorld(maxc, maxr);
     // REAL inner wall surfaces (wall is WALL_T=0.35 thick, centred on the cell edge)
-    return { x0: a.x - 2 + 0.175, x1: b.x + 2 - 0.175, z0: a.z - 2 + 0.175, z1: b.z + 2 - 0.175 };
+    var half = G.CFG.CELL / 2;
+    return { x0: a.x - half + 0.175, x1: b.x + half - 0.175,
+             z0: a.z - half + 0.175, z1: b.z + half - 0.175 };
   }
   function backGap(mesh, hd) {
     var yaw = mesh.rotation.y, p = mesh.position;
@@ -674,148 +674,57 @@ function testPowerups(ctx) {
      'loadout is restored when the Death Machine expires');
 }
 
-// verticality: a raised catwalk you climb, fall off, and that zombies must
-// ascend by the stairs — with no melee hits landing through the deck floor
-function testVerticality(ctx) {
-  var G = ctx.G, step = ctx.step, win = ctx.win;
-  var P = G.player;
-  // Der Wunderfizz replaced the Mule Kick machine
-  ok(G.map.perkMachines.some(function (m) { return m.perk === 'wonderfizz'; }), 'Der Wunderfizz machine present');
-  ok(!G.map.perkMachines.some(function (m) { return m.perk === 'mule'; }), 'Mule Kick machine removed');
+// Der Riese deliberately trades its awkward second floor for one dense,
+// readable factory loop. Verify that every displaced function is on the ground,
+// the former stair-blocked spawn exit is genuinely traversable, and each sector
+// has its authored colour aura.
+function testDerRieseGroundLoop(ctx) {
+  var G = ctx.G, step = ctx.step, win = ctx.win, P = G.player;
+  ok(Math.abs(G.CFG.CELL - 3.5) < 0.01, 'Der Riese uses the tightened 3.5m grid scale');
+  ok((G.map.floors || []).filter(function (f) { return f.floorY > 0.5; }).length === 0,
+     'Der Riese has no orphaned playable upper floor');
+  ok((G.map.stages || []).filter(function (s) { return s.stairBase; }).length === 0,
+     'the two awkward factory stairs are completely removed');
+  ok(G.map.derRieseAuras && G.map.derRieseAuras.length === 6,
+     'all six factory districts have distinct colour auras');
 
-  // The rebuild uses one supported control block, not a duplicate second map:
-  // two distinct departments above the furnace/garage and two compact stairs.
-  var upper = (G.map.floors || []).filter(function (f) { return f.floorY > 3; })[0];
-  ok(upper && Object.keys(upper.parsed.rooms).sort().join('') === 'OP',
-     'Der Riese upper block contains only Furnace Administration and Garage Control');
-  var stairs = (G.map.stages || []).filter(function (s) { return s.stairBase; });
-  ok(stairs.length === 2, 'upper control block has two independent enclosed stair approaches');
-  var o = G.CFG.cellToWorld(7, 2), p = G.CFG.cellToWorld(16, 7);
-  var on = G.nav.nearest(o.x, o.z, 4), pn = G.nav.nearest(p.x, p.z, 4);
-  ok(on && on.y > 3.5 && isFinite(on.dist), 'Furnace Administration has upper-layer navigation');
-  ok(pn && pn.y > 3.5 && isFinite(pn.dist), 'Garage Control has upper-layer navigation');
-  var groundUnder = G.nav.nearest(p.x, p.z, 0);
-  ok(groundUnder && groundUnder.y < 0.6, 'Garage remains independently walkable beneath its control room');
-  var upperDoor = Object.keys(G.map.doors).map(function (id) { return G.map.doors[id]; })
-    .filter(function (d) { return (d.pos.y || 0) > 3; })[0];
-  ok(upperDoor && !G.map.bodyBlocked(upperDoor.pos.x, upperDoor.pos.z, 4.2),
-     'Upper Control Passage is a real walkable doorway');
+  ok(G.map.perkMachines.some(function (m) { return m.perk === 'wonderfizz'; }),
+     'Der Wunderfizz machine remains present');
+  ok(!G.map.perkMachines.some(function (m) { return m.perk === 'mule'; }),
+     'Mule Kick machine remains removed');
+  ok(G.map.perkMachines.every(function (m) { return Math.abs(m.pos.y || 0) < 0.5; }),
+     'every Der Riese perk machine is usable on the ground floor');
+  ok((G.CFG.cur.BOX_SPOTS || []).every(function (s) { return !(s.y > 0.5); }),
+     'every mystery-box location is on the ground loop');
+  ok((G.CFG.cur.EE_STEPS || []).every(function (s) { return !(s.y > 0.5); }) &&
+     !(G.CFG.cur.OVERCLOCK.regulator.y > 0.5),
+     'the full Giant\'s Heart quest no longer requires an upper floor');
 
-  // --- stacked floors: ground beneath the catwalk is still its own walkable
-  //     room, AND the upper deck coexists at the same x/z (multi-layer nav)
-  var S = stairs[1], c = S.deckCenter;
-  ok(G.map.supportAt(c.x, c.z, 0, 0.55) < 0.5, 'ground beneath the catwalk stays at floor level');
-  var gNode = G.nav.nearest(c.x, c.z, 0), uNode = G.nav.nearest(c.x, c.z, S.deckTop);
-  ok(gNode && Math.abs(gNode.y) < 0.6, 'a GROUND nav node exists under the catwalk');
-  ok(uNode && uNode.y > S.deckTop - 0.5, 'an UPPER nav node exists at the same x/z (layers coexist)');
-
-  ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyC', 'Space'].forEach(ctx.keyup);
-  G.player.damage = function () {};
-
-  // player climbs the staircase onto the upper floor (yaw 0 = up the ramp) and
-  // the ascent is SMOOTH — a continuous slope, not discrete step-jumps
-  P.pos.set(S.stairBase.x, 0, S.stairBase.z + 1.0); P.vel.set(0, 0, 0); P.yaw = 0;
-  win.dispatch('keydown', { code: 'KeyW' });
-  var prevY = P.pos.y, maxJump = 0;
-  for (var sc = 0; sc < 220; sc++) { step(1); maxJump = Math.max(maxJump, Math.abs(P.pos.y - prevY)); prevY = P.pos.y; }
-  ctx.keyup('KeyW');
-  ok(P.pos.y > 3.0, 'player climbs to the upper floor (y=' + P.pos.y.toFixed(2) + ')');
-  ok(maxJump < 0.18, 'stair ascent is a smooth ramp, not bumpy steps (max ' + maxJump.toFixed(2) + 'm/frame)');
-  P.yaw = Math.PI; win.dispatch('keydown', { code: 'KeyW' }); step(260); ctx.keyup('KeyW');
-  ok(P.pos.y < 0.5, 'walking off the upper floor drops you to the ground');
-
-  // VALIDATION 2/4 — player upstairs, zombie on the ground: it finds the stairs
-  P.pos.copy(S.deckCenter); P.vel.set(0, 0, 0);
-  clearHorde(G); step(30);
-  var zc = G.zombies.spawnAt(new THREE.Vector3(S.stairBase.x, 0, S.stairBase.z));
-  var maxY = 0;
-  for (var i = 0; i < 60 * 13 && !zc.dead; i++) { step(1); if (zc.mesh.position.y > maxY) maxY = zc.mesh.position.y; }
-  ok(maxY > 3.0, 'zombie climbs the stairs to a player on the upper floor (y=' + maxY.toFixed(1) + ')');
-
-  // VALIDATION 1/3 — player on the ground beneath, zombie on the upper floor:
-  // it descends and reaches the player
-  P.pos.set(S.stairBase.x, 0, S.stairBase.z + 1.4); P.vel.set(0, 0, 0);
-  clearHorde(G); step(30);
-  var zd = G.zombies.spawnAt(new THREE.Vector3(S.deckCenter.x, 0, S.deckCenter.z));
-  zd.mesh.position.y = S.deckTop;            // standing on the upper floor
-  var minY = 99, reached = false;
-  for (var k = 0; k < 60 * 26 && !zd.dead; k++) {
-    step(1);
-    if (zd.mesh.position.y < minY) minY = zd.mesh.position.y;
-    if (Math.hypot(zd.mesh.position.x - P.pos.x, zd.mesh.position.z - P.pos.z) < 2.0 &&
-        Math.abs(zd.mesh.position.y - P.pos.y) < 1.6) reached = true;
+  var garageDoor = Object.keys(G.map.doors).map(function (id) { return G.map.doors[id]; })
+    .filter(function (d) { return d.name === 'Mainframe Garage Shutter'; })[0];
+  ok(!!garageDoor, 'Mainframe Garage Shutter exists');
+  if (garageDoor) {
+    var west = new THREE.Vector3(garageDoor.pos.x - G.CFG.CELL * 0.72, 0, garageDoor.pos.z);
+    var east = new THREE.Vector3(garageDoor.pos.x + G.CFG.CELL * 0.72, 0, garageDoor.pos.z);
+    ok(!G.map.bodyBlocked(west.x, west.z, 0) && !G.map.bodyBlocked(east.x, east.z, 0),
+       'the former stair/cabinet obstruction is gone from both sides of the Garage entrance');
+    var wn = G.nav.nearest(west.x, west.z, 0), en = G.nav.nearest(east.x, east.z, 0);
+    ok(wn && en && isFinite(wn.dist) && isFinite(en.dist),
+       'player and zombie navigation spans the cleared Garage entrance');
   }
-  ok(minY < 1.0, 'zombie descends from the upper floor (min y=' + minY.toFixed(1) + ')');
-  ok(reached, 'descending zombie reaches the player on the ground floor');
 
-  // melee still can't connect through a floor (vertical gate)
-  P.pos.copy(S.deckCenter); P.vel.set(0, 0, 0); P.hp = P.maxHp;
-  var dealt = 0; P.damage = function (d) { dealt += d; };
-  clearHorde(G); step(20);
-  var zb = G.zombies.spawnAt(new THREE.Vector3(P.pos.x, 0, P.pos.z));
-  for (var j = 0; j < 50; j++) {
-    zb.mesh.position.set(P.pos.x, 0, P.pos.z);
-    zb.state = 'attack'; zb.t = 0.4; zb.hasHit = false; zb.attackCd = 0;
-    step(1);
-  }
-  ok(dealt === 0, 'melee does not connect through the upper floor');
-
-  // indoor rooms are roofed with REAL collision (matches the visible ceiling):
-  // a body can't occupy the ceiling, but the floor below stays clear
-  var gc = G.CFG.cellToWorld(12, 5); // roofed Garage bay outside the stair shafts
-  ok(G.map.bodyBlocked(gc.x, gc.z, 3.5), 'indoor room has a solid ceiling (roof collision present)');
-  ok(!G.map.bodyBlocked(gc.x, gc.z, 0), 'the floor below stays walkable');
-  // ceilings render from above too (not see-through from the catwalk): the
-  // ceiling tile carries the wall texture on a double-sided material, tinted to
-  // this map's palette ceiling colour.
-  var ceilHex = (G.CFG.cur.palette && G.CFG.cur.palette.ceil) || 0x55504a;
-  var aCeil = null;
-  G.scene.traverse(function (o) {
-    if (!aCeil && o.material && o.material.side === THREE.DoubleSide &&
-        o.material.map === G.tex.wall && o.material.color && o.material.color.getHex() === ceilHex) aCeil = o;
-  });
-  ok(!!aCeil, 'ceiling tiles are double-sided (not see-through from above)');
-  // doorways are roofed (no open slot above a threshold that touches an indoor room)
-  var roofedDoor = Object.keys(G.map.doors).some(function (id) {
-    var d = G.map.doors[id]; return G.map.bodyBlocked(d.pos.x, d.pos.z, 3.5);
-  });
-  ok(roofedDoor, 'doorways are roofed (ceiling above the threshold)');
-  var upperDoorsClear = Object.keys(G.map.doors).filter(function (id) {
-    return (G.map.doors[id].pos.y || 0) > 3;
-  }).every(function (id) {
-    var d = G.map.doors[id]; return !G.map.bodyBlocked(d.pos.x, d.pos.z, d.pos.y + 0.2);
-  });
-  ok(upperDoorsClear, 'every open upstairs doorway is walkable above the downstairs layout');
-  var noDoorwayBleed = true;
-  for (var gdr = 0; gdr < G.map.parsed.rows; gdr++) {
-    for (var gdc = 0; gdc < G.map.parsed.cols; gdc++) {
-      var groundCell = G.map.parsed.cells[gdr][gdc];
-      if (!groundCell || groundCell.type !== 'door' || !G.map.floorCellAboveAt(gdc, gdr, 0)) continue;
-      var aboveDoor = G.CFG.cellToWorld(gdc, gdr);
-      if (G.map.bodyBlocked(aboveDoor.x, aboveDoor.z, 4.2)) noDoorwayBleed = false;
-    }
-  }
-  ok(noDoorwayBleed, 'downstairs door headers never clip into an upstairs walking area');
-
-  // upper floor is FULLY functional: Wonderfizz sits in Furnace Administration
-  // and is only buyable upstairs (height-gated), not from the room below.
-  P.damage = function () {};
-  var sp = G.map.perkMachines.filter(function (m) { return m.perk === 'wonderfizz'; })[0];
-  ok(sp && sp.pos.y > 3, 'Der Wunderfizz sits in the upper factory (y=' + (sp ? sp.pos.y.toFixed(1) : '?') + ')');
+  // Wonderfizz was moved down intact and is buyable through the real F input.
+  var fizz = G.map.perkMachines.filter(function (m) { return m.perk === 'wonderfizz'; })[0];
   G.player.points = 100000; G.player.perks = [];
-  function faceTry(y) {
-    var yaw = sp.mesh.rotation.y;
-    P.pos.set(sp.pos.x + Math.sin(yaw) * 1.0, y, sp.pos.z + Math.cos(yaw) * 1.0);
-    P.vel.set(0, 0, 0); step(2);
-    P.yaw = Math.atan2(-(sp.pos.x - P.pos.x), -(sp.pos.z - P.pos.z));
-    G.player.consumeInteract(); win.dispatch('keydown', { code: 'KeyF' }); step(3);
-    win.dispatch('keyup', { code: 'KeyF' });
-  }
-  faceTry(0);                          // from the ground directly below
-  ok(G.player.perks.length === 0, 'cannot buy the upper perk from the ground below');
-  faceTry(sp.pos.y);                   // standing up on the catwalk
-  ok(G.player.perks.length === 1, 'CAN buy a Wonderfizz perk while upstairs');
+  var yaw = fizz.mesh.rotation.y;
+  P.pos.set(fizz.pos.x + Math.sin(yaw), 0, fizz.pos.z + Math.cos(yaw));
+  P.vel.set(0, 0, 0); step(2);
+  P.yaw = Math.atan2(-(fizz.pos.x - P.pos.x), -(fizz.pos.z - P.pos.z));
+  G.player.consumeInteract(); win.dispatch('keydown', { code: 'KeyF' }); step(3);
+  win.dispatch('keyup', { code: 'KeyF' });
+  ok(G.player.perks.length === 1, 'ground-floor Wunderfizz is reachable and usable');
 }
+
 function clearHorde(G) {
   G.zombies.list.slice().forEach(function (z) { if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true }); });
 }
@@ -1179,7 +1088,7 @@ function testSoulBox(ctx) {
 }
 
 /* Der Riese prestige continuation: normal reward -> conduits -> three timed
-   teleporter-routed cells -> alternating-floor lockdown -> weapon-gated boss ->
+   teleporter-routed cells -> alternating-room lockdown -> weapon-gated boss ->
    adaptive super variant + permanent Heart of the Giant. */
 function testOverclockGiant(ctx) {
   var G = ctx.G, oc = G.interact.overclock, ee = G.interact.ee;
@@ -1189,7 +1098,7 @@ function testOverclockGiant(ctx) {
     return G.interact.list.filter(function (it) { return it.prompt && re.test(it.prompt() || ''); })[0];
   }
   var regulator = prompted(/Begin optional quest/);
-  ok(!!regulator, 'upper regulator clearly offers Overclock the Giant');
+  ok(!!regulator, 'ground-floor Power Garage regulator clearly offers Overclock the Giant');
   regulator.use();
   ok(oc.stage === 1 && oc.conduits.every(function (c) { return c.mesh.visible; }),
     'accepting the continuation reveals all three weapon-reactive conduits');
@@ -1207,17 +1116,17 @@ function testOverclockGiant(ctx) {
       'cell ' + (i + 1) + ' requires its distinct teleporter route');
     ok(G.interact.primeOverclockCell(oc.carrying.teleporter), 'cell ' + (i + 1) + ' phase-primes at the correct teleporter');
     var install = prompted(/Install phase-primed reactor cell/);
-    ok(!!install, 'phase-primed cell returns to the upper regulator');
+    ok(!!install, 'phase-primed cell returns to the Power Garage regulator');
     install.use();
   }
   ok(oc.stage === 3 && oc.installed === 3, 'all three reactor cells install successfully');
   prompted(/control-block pressure lockdown/).use();
-  ok(oc.stage === 4 && !oc.lockdownUpper, 'lockdown starts with a ground-floor pressure cycle');
+  ok(oc.stage === 4 && oc.lockdownRoom === 'L', 'lockdown starts in Animal Testing');
   for (var k = 0; k < 24; k++) {
-    var y = oc.lockdownUpper ? 4 : 0;
-    G.interact.onKill(new THREE.Vector3(0, y, 0), { dead: true });
+    var pressureCenter = G.map.parsed.rooms[oc.lockdownRoom].center;
+    G.interact.onKill(new THREE.Vector3(pressureCenter.x, 0, pressureCenter.z), { dead: true });
   }
-  ok(oc.stage === 5 && oc.boss && oc.boss.questBoss, 'alternating-floor lockdown awakens the Iron Subject');
+  ok(oc.stage === 5 && oc.boss && oc.boss.questBoss, 'alternating-room lockdown awakens the Iron Subject');
   var boss = oc.boss, hp = boss.hp;
   G.powerups.timers.insta = 0;
   G.zombies.damageZombie(boss, 999999, { boom: true, weaponId: 'm14' });

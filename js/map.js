@@ -178,7 +178,11 @@
     cv.width = w; cv.height = h;
     var c = cv.getContext('2d');
     var zen = new THREE.Color(atmos.sky).multiplyScalar(0.7);
-    var hor = new THREE.Color(atmos.fog).lerp(new THREE.Color(0x8a93b5), 0.4);
+    // Der Riese's outdoor yards should read as an industrial dusk under smog,
+    // rather than the clean grey-blue horizon shared by the arctic station.
+    var hor = CFG && CFG.cur && CFG.cur.id === 'derriese'
+      ? new THREE.Color(atmos.fog).lerp(new THREE.Color(0x8f6b48), 0.24)
+      : new THREE.Color(atmos.fog).lerp(new THREE.Color(0x8a93b5), 0.4);
     var g = c.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, '#' + zen.getHexString());
     g.addColorStop(0.62, '#' + new THREE.Color(atmos.sky).lerp(hor, 0.5).getHexString());
@@ -1068,13 +1072,10 @@
         zBase: zW(baseRow) + CELL / 2 - inset, steps: Math.max(18, (baseRow - topRow + 1) * 6) };
       return deck;
     }
-    if (CFG.cur.id === 'derriese') {
-      // The only vertical layer is the authentic furnace/garage control block.
-      // Both flights occupy one exterior-wall cell and open into the same
-      // connected upper department; neither crosses a room centre or doorway.
-      stageSpecs.push(interiorStair(3, 3, 2, 4, false),
-                      interiorStair(19, 19, 7, 9, false));
-    }
+    // Der Riese is intentionally flat. Its former stair at [19,7..9] stood
+    // directly behind the Mainframe-to-Garage door and made a valid doorway
+    // function as a dead end. Vertical stages remain available to maps whose
+    // gameplay actually benefits from them (notably Der Wetterjunge).
     if (CFG.cur.id === 'wetterjunge') {
       // One narrow stair per northern wing, each tucked against its OUTER wall
       // (the old center-column flights bisected all three rooms and their side
@@ -1490,7 +1491,8 @@
       bulb.position.y = -0.04; fixture.add(bulb);
       fixture.position.set(x, fy + WALL_H - 0.55, z);
       G.scene.add(fixture);
-      var light = new THREE.PointLight(color, 0.75, 18, 1);
+      var light = new THREE.PointLight(color, CFG.cur.id === 'derriese' ? 0.98 : 0.75,
+        CFG.cur.id === 'derriese' ? 20 : 18, 1);
       light.position.set(x, fy + WALL_H - 0.9, z);
       G.scene.add(light);
       G.map.roomLights.push(light);
@@ -1508,7 +1510,12 @@
       // pull every room's lamp toward this map's tint so the whole map shares one
       // light temperature (warm bunker / cool factory / cold arctic) instead of
       // some rooms glowing warm and others cold
-      var color = new THREE.Color(CFG.ROOMS[roomId].light).lerp(new THREE.Color(palC('lampTint', 0xffe9c0)), 0.62).getHex();
+      // Der Riese deliberately keeps each department's own colour. The former
+      // 62% blend into one beige lamp tint made furnace, lab and cooling rooms
+      // look identical even though their config colours were different.
+      var tintBlend = CFG.cur.id === 'derriese' ? 0.16 : 0.62;
+      var color = new THREE.Color(CFG.ROOMS[roomId].light).lerp(
+        new THREE.Color(palC('lampTint', 0xffe9c0)), tintBlend).getHex();
       function avg(list) {
         var cx = 0, cz = 0;
         list.forEach(function (cr) { var w = CFG.cellToWorld(cr[0], cr[1]); cx += w.x; cz += w.z; });
@@ -3045,25 +3052,69 @@
           lamp.position.set(p.x, y, p.z); G.scene.add(lamp); map.roomLights.push(lamp);
           taskLight(c, r, y + 0.02, new THREE.MeshBasicMaterial({ color: color }));
         }
+        function roomAura(c, r, color, radius, intensity, distance) {
+          // One broad, low-cost light and one translucent floor pool per sector.
+          // These are static atmosphere, not particle FX, so they establish the
+          // room at a glance without recreating the old map's performance drag.
+          var p = wc(c, r), mat = new THREE.MeshBasicMaterial({ color: color,
+            transparent: true, opacity: 0.13, depthWrite: false });
+          var pool = new THREE.Mesh(new THREE.CircleGeometry(radius || 5.2, 32), mat);
+          pool.rotation.x = -Math.PI / 2; pool.position.set(p.x, 0.035, p.z);
+          G.scene.add(pool);
+          var glow = new THREE.PointLight(color, intensity || 1.0, distance || 25, 1.35);
+          glow.position.set(p.x, 1.25, p.z); G.scene.add(glow); map.roomLights.push(glow);
+          map.derRieseAuras = map.derRieseAuras || [];
+          map.derRieseAuras.push({ pool: pool, glow: glow, color: color });
+        }
+        function sectorBand(c, r, face, color) {
+          var p = wc(c, r), o = OFF[face], m = new THREE.MeshBasicMaterial({ color: color });
+          var x = p.x + o[0] * (CELL / 2 - 0.16), z = p.z + o[1] * (CELL / 2 - 0.16);
+          if (face === 'N' || face === 'S') addBox(2.1, 0.09, 0.09, x, 2.75, z, m);
+          else addBox(0.09, 0.09, 2.1, x, 2.75, z, m);
+          // A three-bar 935-style sector glyph gives the wall a readable icon
+          // without a floating label that can clip through a doorway.
+          for (var i = -1; i <= 1; i++) {
+            if (face === 'N' || face === 'S') addBox(0.18, 0.72, 0.07,
+              x + i * 0.42, 2.28, z - o[1] * 0.03, m);
+            else addBox(0.07, 0.72, 0.18,
+              x - o[0] * 0.03, 2.28, z + i * 0.42, m);
+          }
+        }
         function steelPost(c, r, ox, oz, h) {
           var p = wc(c, r), x = p.x + (ox || 0), z = p.z + (oz || 0);
           addBox(0.34, h || 3.6, 0.34, x, (h || 3.6) / 2, z, iron);
           solid(x, z, 0.2, 0.2, h || 3.6);
         }
 
-        // BUILDING SILHOUETTE — the courtyards stay open. The lower laboratory
-        // halls have their own roofs; Furnace Administration and Garage Control
-        // rise together as the only two-storey mass.
+        // BUILDING SILHOUETTE — the courtyards stay open and every playable
+        // interior is a coherent single-height factory hall. The old stacked
+        // control block is gone; pitched furnace/garage roofs now meet the lower
+        // masonry directly, so there is no false second floor to enter or clip.
         roofPrism(9, 19, 12, 22, 4.12, 1.65);
         roofPrism(21, 27, 17, 23, 4.12, 1.35);
-        roofPrism(3, 10, 0, 5, 8.25, 1.9);
-        roofPrism(10, 19, 2, 10, 8.25, 1.65);
+        roofPrism(3, 10, 0, 5, 4.12, 1.9);
+        roofPrism(10, 19, 2, 10, 4.12, 1.65);
         [5, 9].forEach(function (c) {
           var p = wc(c, 0), stack = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.62, 5.5, 12), soot);
-          stack.position.set(p.x, 11.0, p.z); G.scene.add(stack);
+          stack.position.set(p.x, 6.85, p.z); G.scene.add(stack);
           var cap = new THREE.Mesh(new THREE.TorusGeometry(0.47, 0.09, 7, 16), iron);
-          cap.position.set(p.x, 13.75, p.z); cap.rotation.x = Math.PI / 2; G.scene.add(cap);
+          cap.position.set(p.x, 9.6, p.z); cap.rotation.x = Math.PI / 2; G.scene.add(cap);
         });
+
+        // Six unmistakable visual districts. The pools overlap only within
+        // their rooms and the matching wall glyphs remain useful at a distance.
+        roomAura(24, 12, 0xe7b85d, 5.0, 0.78, 23); // Mainframe / amber
+        roomAura(4, 11, 0x71b8a5, 5.4, 0.88, 24);  // Cooling / sea green
+        roomAura(7, 3, 0xff662f, 4.9, 1.08, 23);   // Furnace / orange
+        roomAura(15, 6, 0x72d39b, 5.2, 0.96, 24);  // Power / green
+        roomAura(14, 17, 0xc84b5c, 5.4, 0.86, 25); // Testing / crimson
+        roomAura(24, 20, 0x5bbfe5, 5.1, 1.0, 24);  // A Lab / cyan
+        sectorBand(27, 9, 'E', 0xe7b85d);
+        sectorBand(0, 10, 'W', 0x71b8a5);
+        sectorBand(6, 0, 'N', 0xff662f);
+        sectorBand(15, 2, 'N', 0x72d39b);
+        sectorBand(14, 22, 'S', 0xc84b5c);
+        sectorBand(25, 23, 'S', 0x5bbfe5);
 
         // COOLING COURTYARD / TELEPORTER C — tower outside the west wall,
         // condensate basin inside, and a pressure line along the north edge.
@@ -3121,7 +3172,9 @@
         prop('generator', 17, 6, 0.8, 0, 0, -Math.PI / 2, 1.25, [1.0, 0.72, 1.55]);
         prop('electrical_cabinet', 19, 3, 1.15, 0, 0, -Math.PI / 2, 1.05, [0.35, 0.62, 2.0]);
         prop('tool_cart', 10, 9, 1.1, 0, 0, Math.PI / 2, 0.95, [0.48, 0.72, 1.0]);
-        var carP = wc(14, 9); prop('wrecked_car', 14, 9, 0, 0.25, 0, Math.PI / 2, 0.86, [1.7, 1.05, 1.5]);
+        // The lift lives on the east service side, leaving the main north-south
+        // lane clean for the MP40 wall-buy and a proper Garage training loop.
+        var carP = wc(17, 9); prop('wrecked_car', 17, 9, 0, 0.25, 0, Math.PI / 2, 0.86, [1.7, 1.05, 1.5]);
         [-1, 1].forEach(function (s) {
           addBox(0.3, 3.2, 0.36, carP.x + s * 1.7, 1.6, carP.z + 0.25, iron);
           addBox(1.05, 0.12, 0.42, carP.x + s * 0.85, 0.28, carP.z + 0.25, soot);
@@ -3134,7 +3187,7 @@
           line3(new THREE.Vector3(x, 3.42, ganA.z), new THREE.Vector3(x, 2.55, ganA.z), 0.04, soot);
         });
         prop('locker', 12, 2, -0.95, -0.72, 0, 0, 0.95);
-        prop('gas_cylinder', 19, 6, 0.85, -0.85, 0, Math.PI / 2, 0.95);
+        prop('gas_cylinder', 12, 5, -0.8, 0, 0, Math.PI / 2, 0.95);
         prop('machinery_unit', 11, 7, 0.75, 0.85, 0, Math.PI / 2, 0.88);
         prop('barrel_cluster', 18, 9, 0.75, 0.7, 0, -Math.PI / 2, 0.9);
         workLight(14, 5, 3.15, 0xffc67c, 0.62, 17);
@@ -3149,13 +3202,27 @@
           addBox(0.38, 0.3, 0.05, p.x, 2.3, p.z - 1.68, i === 1 ? red : paper);
           solid(p.x, p.z - 1.35, 0.84, 0.46, 2.22);
         });
-        var op = wc(14, 16);
-        addBox(3.2, 0.15, 2.8, op.x, 0.075, op.z, G.MAT.get('concreteDark'));
+        // Keep the operating island off the centre line: Animal Testing still
+        // has its signature set piece, but now the west and north routes stay
+        // clear for an uninterrupted training circle.
+        var op = wc(16, 16);
+        // The operating island is deliberately large enough to read as the
+        // room's centrepiece and to turn this formerly empty hall into two
+        // natural circulation loops, without narrowing either side route.
+        addBox(5.8, 0.15, 4.8, op.x, 0.075, op.z, G.MAT.get('concreteDark'));
         addBox(2.0, 0.72, 0.84, op.x, 0.54, op.z, iron);
         addBox(1.78, 0.05, 0.74, op.x, 0.93, op.z, blood);
-        line3(new THREE.Vector3(op.x + 1.22, 0.2, op.z + 1.22), new THREE.Vector3(op.x + 1.22, 3.45, op.z + 1.22), 0.05, soot);
-        line3(new THREE.Vector3(op.x + 1.22, 3.4, op.z + 1.22), new THREE.Vector3(op.x, 3.0, op.z), 0.05, soot);
-        solid(op.x, op.z, 1.1, 0.54, 1.02);
+        [[-2.35, -1.72], [2.35, -1.72], [-2.35, 1.72], [2.35, 1.72]].forEach(function (q) {
+          addBox(0.14, 3.3, 0.14, op.x + q[0], 1.65, op.z + q[1], iron);
+          solid(op.x + q[0], op.z + q[1], 0.12, 0.12, 3.3);
+        });
+        line3(new THREE.Vector3(op.x - 2.35, 3.35, op.z - 1.72), new THREE.Vector3(op.x + 2.35, 3.35, op.z - 1.72), 0.05, soot);
+        line3(new THREE.Vector3(op.x + 2.35, 3.35, op.z - 1.72), new THREE.Vector3(op.x + 2.35, 3.35, op.z + 1.72), 0.05, soot);
+        line3(new THREE.Vector3(op.x + 2.35, 3.35, op.z + 1.72), new THREE.Vector3(op.x, 3.0, op.z), 0.05, soot);
+        var bloodHalo = new THREE.Mesh(new THREE.CircleGeometry(2.35, 24),
+          new THREE.MeshBasicMaterial({ color: 0xa82238, transparent: true, opacity: 0.2, depthWrite: false }));
+        bloodHalo.rotation.x = -Math.PI / 2; bloodHalo.position.set(op.x, 0.16, op.z); G.scene.add(bloodHalo);
+        solid(op.x, op.z, 2.55, 2.1, 1.02);
         prop('lab_cabinet', 8, 21, -1.1, 0, 0, Math.PI / 2, 1.0, [0.42, 0.72, 1.8]);
         var broken = wc(18, 21);
         addBox(1.55, 2.05, 0.7, broken.x + 1.15, 1.03, broken.z, iron).rotation.z = 0.1;
@@ -3171,15 +3238,28 @@
         prop('lab_cabinet', 18, 17, 0.9, 0, 0, -Math.PI / 2, 0.95);
         prop('gas_cylinder', 9, 21, -0.75, 0.7, 0, Math.PI / 2, 0.9);
         prop('supply_pallet', 18, 22, 0.65, 0.7, 0, -Math.PI / 2, 0.82);
-        var testA = wc(11, 18), testB = wc(17, 18);
+        var testA = wc(11, 21), testB = wc(17, 18);
         [testA, testB].forEach(function (p) {
           addBox(2.15, 0.16, 0.9, p.x, 0.88, p.z, iron);
           addBox(0.22, 0.82, 0.22, p.x - 0.8, 0.41, p.z, soot);
           addBox(0.22, 0.82, 0.22, p.x + 0.8, 0.41, p.z, soot);
           solid(p.x, p.z, 1.1, 0.48, 1.0);
         });
-        workLight(11, 16, 3.12, 0x8ccad2, 0.7, 18);
-        workLight(17, 19, 3.12, 0x8ccad2, 0.7, 18);
+        // Two intact containment bays flank the surgical island. Their backs
+        // are solid glass-and-steel walls; the room-facing sides remain open,
+        // keeping the playable path a clear figure-eight rather than a maze.
+        [testA, testB].forEach(function (p, i) {
+          var side = i ? 1 : -1;
+          addBox(2.7, 1.78, 0.09, p.x, 1.48, p.z + 1.18, glass);
+          addBox(0.09, 1.78, 2.35, p.x + side * 1.3, 1.48, p.z + 0.08, glass);
+          addBox(2.84, 0.13, 0.15, p.x, 2.38, p.z + 1.18, iron);
+          solid(p.x, p.z + 1.18, 1.36, 0.1, 1.8);
+          solid(p.x + side * 1.3, p.z + 0.08, 0.1, 1.2, 1.8);
+          var specimen = new THREE.Mesh(new THREE.SphereGeometry(0.28, 9, 9), i ? red : cyan);
+          specimen.scale.y = 1.45; specimen.position.set(p.x - side * 0.38, 1.36, p.z + 0.62); G.scene.add(specimen);
+        });
+        workLight(11, 16, 3.12, 0xd94b5e, 0.88, 19);
+        workLight(17, 19, 3.12, 0xd94b5e, 0.88, 19);
 
         // TELEPORTER A LAB — specimen vessels and a north-wall wet bench frame
         // the teleporter instead of competing with it.
@@ -3191,7 +3271,9 @@
           mass.scale.y = 1.55; mass.position.set(p.x - 1.18, 1.0, p.z); G.scene.add(mass);
           solid(p.x - 1.18, p.z, 0.52, 0.52, 2.12);
         });
-        var bench = wc(24, 17);
+        // Set the wet bench back from the Mainframe-to-Lab threshold. It reads
+        // as a north-wall fixture without fighting the doorway's approach.
+        var bench = wc(24, 18);
         addBox(5.6, 0.16, 0.72, bench.x, 0.9, bench.z - 1.34, iron);
         addBox(5.3, 0.1, 0.64, bench.x, 1.03, bench.z - 1.34, glass);
         [-2, 0, 2].forEach(function (o, i) {
@@ -3209,15 +3291,30 @@
         addBox(0.2, 0.82, 0.2, islandA.x - 0.8, 0.42, islandA.z, soot);
         addBox(0.2, 0.82, 0.2, islandA.x + 0.8, 0.42, islandA.z, soot);
         solid(islandA.x, islandA.z, 1.12, 0.55, 1.1);
-        workLight(23, 18, 3.15, 0x8edce2, 0.66, 17);
-        workLight(26, 21, 3.15, 0x8edce2, 0.66, 17);
+        // A concentric powered floor and three additional specimen tubes make
+        // Teleporter A feel like an active wet lab, not a teleporter in a box.
+        var aPad = wc(24, 20);
+        [1.52, 2.18].forEach(function (rad) {
+          var loop = new THREE.Mesh(new THREE.TorusGeometry(rad, 0.045, 8, 28), cyan);
+          loop.rotation.x = Math.PI / 2; loop.position.set(aPad.x, 0.07, aPad.z); G.scene.add(loop);
+        });
+        [19, 21, 23].forEach(function (r, i) {
+          var tp = wc(26, r), tube = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 2.15, 12), glass);
+          tube.position.set(tp.x + 0.88, 1.22, tp.z); G.scene.add(tube);
+          addBox(0.46, 0.18, 0.46, tp.x + 0.88, 0.09, tp.z, iron);
+          var sample = new THREE.Mesh(new THREE.SphereGeometry(0.16 + i * 0.025, 8, 8), i === 1 ? orange : cyan);
+          sample.position.set(tp.x + 0.88, 1.12, tp.z); G.scene.add(sample);
+          solid(tp.x + 0.88, tp.z, 0.42, 0.42, 2.18);
+        });
+        workLight(23, 18, 3.15, 0x66d8f0, 0.86, 19);
+        workLight(26, 21, 3.15, 0x66d8f0, 0.86, 19);
 
         // MAINFRAME YARD — open central movement, wall-side logistics, and three
         // physical cable trenches that make the teleporter loop legible.
-        floorLine(24, 14, 24, 10, cyan, 0.045, 0.13);
-        floorLine(20, 8, 24, 10, amber, 0.045, 0.13);
-        floorLine(19, 13, 24, 10, green, 0.045, 0.13);
-        floorLine(24, 10, 14, 16, cyan, 0.045, 0.11);
+        floorLine(24, 14, 23, 11, cyan, 0.045, 0.13);
+        floorLine(20, 8, 23, 11, amber, 0.045, 0.13);
+        floorLine(19, 13, 23, 11, green, 0.045, 0.13);
+        floorLine(23, 11, 14, 16, cyan, 0.045, 0.11);
         prop('crate_stack', 27, 10, 1.0, 0.7, 0, -Math.PI / 2, 0.88, [0.74, 0.64, 1.42]);
         prop('field_radio', 27, 13, 1.1, -0.8, 0, -Math.PI / 2, 0.95, [0.42, 0.38, 0.7]);
         prop('supply_pallet', 21, 15, -0.7, 0.75, 0, Math.PI / 2, 0.86);
@@ -3243,67 +3340,44 @@
         workLight(22, 12, 3.25, 0xffcf87, 0.5, 18);
         workLight(26, 8, 3.25, 0x9adbd1, 0.52, 18);
 
-        // UPPER CONTROL BLOCK — two purpose-built departments, not a duplicate
-        // map. Administration is dense at the walls; Garage Control has one
-        // central island and the Giant's Heart hero assembly.
-        _fyByPos = true;
-        prop('locker', 4, 1, -1.05, 0, 4, Math.PI / 2, 1.0, [0.4, 0.62, 1.75]);
-        prop('crt_bank', 7, 0, 0, -1.25, 4, 0, 1.05, [0.9, 0.45, 1.6]);
-        prop('lab_cabinet', 8, 4, 0, 0.65, 4, Math.PI, 1.0, [0.9, 0.58, 1.1]);
-        prop('locker', 10, 5, 0.75, 0.65, 4, Math.PI, 0.9);
-        prop('crt_bank', 5, 5, 0, 0.7, 4, Math.PI, 0.9);
-        prop('field_radio', 9, 1, 0.7, -0.75, 4, -Math.PI / 2, 0.9);
-        prop('server_rack', 12, 2, 0, -1.24, 4, 0, 1.0, [0.58, 0.45, 2.0]);
-        prop('radar_console', 17, 3, 0.9, 0, 4, -Math.PI / 2, 0.95, [0.55, 0.9, 1.5]);
-        prop('server_rack', 10, 8, -1.05, 0, 4, Math.PI / 2, 0.95, [0.45, 0.6, 1.9]);
-        prop('electrical_cabinet', 19, 9, 0.85, 0.65, 4, -Math.PI / 2, 0.92);
-        prop('radar_console', 12, 9, -0.8, 0.65, 4, Math.PI / 2, 0.88);
-        prop('server_rack', 14, 10, 0, 0.75, 4, Math.PI, 0.88);
-        var island = wc(15, 6);
-        addBox(3.0, 0.18, 1.2, island.x, 4.9, island.z, iron);
-        addBox(2.65, 0.1, 1.02, island.x, 5.04, island.z, glass);
-        addBox(0.22, 0.9, 0.22, island.x - 1.05, 4.44, island.z, soot);
-        addBox(0.22, 0.9, 0.22, island.x + 1.05, 4.44, island.z, soot);
-        var scope = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.72, 10), soot);
-        scope.rotation.z = -0.45; scope.position.set(island.x, 5.5, island.z); G.scene.add(scope);
-        solid(island.x, island.z, 1.52, 0.62, 1.58, 4);
-        [[6, 3], [14, 5], [17, 8]].forEach(function (p) { taskLight(p[0], p[1], 7.02, amber); });
-        workLight(6, 2, 7.0, 0xffb36a, 0.66, 17);
-        workLight(14, 5, 7.0, 0x8fd8cf, 0.7, 18);
-        workLight(17, 8, 7.0, 0x8fd8cf, 0.64, 17);
+        // POWER GARAGE CONTROL BAY — every useful function from the removed
+        // upper block now lives against the ground-floor perimeter. The centre
+        // remains a simple loop around the lift, while this illuminated east-wall
+        // assembly gives the room its quest and visual anchor.
+        prop('crt_bank', 13, 2, 0, -1.15, 0, 0, 0.94, [0.82, 0.42, 1.45]);
+        prop('server_rack', 18, 2, 0, -1.13, 0, 0, 0.92, [0.52, 0.42, 1.8]);
+        prop('radar_console', 19, 5, 0.82, -0.55, 0, -Math.PI / 2, 0.86, [0.5, 0.72, 1.35]);
+        // The wall console moves east so the M16 approach stays open along the
+        // north wall instead of ending in the set dressing.
+        var control = wc(18, 3);
+        addBox(3.2, 0.12, 0.86, control.x, 0.72, control.z - 1.2, iron);
+        addBox(2.86, 0.06, 0.64, control.x, 0.82, control.z - 1.2, glass);
+        addBox(0.2, 0.68, 0.2, control.x - 1.15, 0.34, control.z - 1.2, soot);
+        addBox(0.2, 0.68, 0.2, control.x + 1.15, 0.34, control.z - 1.2, soot);
+        solid(control.x, control.z - 1.2, 1.62, 0.46, 0.9);
 
-        // Giant's Heart regulator — complete chamber at the upper east wall.
+        // Giant's Heart regulator — a compact, fully readable ground assembly.
         var reg = wc(19, 6), heart = new THREE.Mesh(new THREE.SphereGeometry(0.84, 16, 14),
           new THREE.MeshLambertMaterial({ color: 0x603c37 }));
-        heart.scale.set(1, 1.25, 0.82); heart.position.set(reg.x + 1.08, 5.72, reg.z); G.scene.add(heart);
-        addBox(1.5, 2.8, 0.32, reg.x + 1.52, 5.42, reg.z, soot);
-        addBox(0.9, 0.82, 0.7, reg.x + 1.05, 4.42, reg.z, iron);
-        addBox(0.32, 0.12, 0.36, reg.x + 0.62, 5.65, reg.z, soot);
+        heart.scale.set(1, 1.25, 0.82); heart.position.set(reg.x + 0.9, 1.7, reg.z); G.scene.add(heart);
+        addBox(1.38, 2.9, 0.32, reg.x + 1.35, 1.45, reg.z, soot);
+        addBox(0.9, 0.82, 0.7, reg.x + 0.86, 0.42, reg.z, iron);
+        addBox(0.32, 0.12, 0.36, reg.x + 0.46, 1.66, reg.z, soot);
         [cyan, amber, green].forEach(function (m, i) {
-          addBox(0.16, 0.16, 0.06, reg.x + 0.57, 6.25 + i * 0.28, reg.z - 0.32 + i * 0.32, m);
-          line3(new THREE.Vector3(reg.x + 1.18, 6.25 + i * 0.22, reg.z - 0.45 + i * 0.45),
-                new THREE.Vector3(reg.x - 0.5 - i * 0.45, 7.5, reg.z - 0.45 + i * 0.45), 0.07, m);
+          addBox(0.16, 0.16, 0.06, reg.x + 0.42, 2.2 + i * 0.28, reg.z - 0.32 + i * 0.32, m);
+          line3(new THREE.Vector3(reg.x + 1.02, 2.12 + i * 0.22, reg.z - 0.45 + i * 0.45),
+                new THREE.Vector3(reg.x - 0.55 - i * 0.4, 3.55, reg.z - 0.45 + i * 0.45), 0.07, m);
         });
-        // Only the rear housing blocks movement. The organ chamber projects
-        // visually into the room, but its quest interaction approach stays
-        // clear instead of pushing the player out of range.
-        solid(reg.x + 1.47, reg.z, 0.22, 0.78, 2.8, 4);
-        _fyByPos = false;
-
-        // Stair entrances have complete amber frames at ground level. They make
-        // vertical circulation obvious without signs floating across rooms.
-        [[3, 4], [19, 9]].forEach(function (s) {
-          var p = wc(s[0], s[1]);
-          addBox(2.55, 0.16, 0.12, p.x, 3.45, p.z + 1.76, amber);
-          addBox(0.12, 1.62, 0.12, p.x - 1.18, 2.56, p.z + 1.76, amber);
-          addBox(0.12, 1.62, 0.12, p.x + 1.18, 2.56, p.z + 1.76, amber);
-        });
+        line3(new THREE.Vector3(wc(17, 6).x + 0.8, 2.5, wc(17, 6).z),
+              new THREE.Vector3(reg.x + 0.9, 2.5, reg.z), 0.1, green);
+        solid(reg.x + 1.3, reg.z, 0.2, 0.74, 2.9);
+        workLight(18, 6, 3.1, 0x72d39b, 0.92, 17);
 
         // Easter-egg stations share one amber 935 plaque and exist as physical
         // objects in the named rooms before the player ever sees a prompt.
         plaque(27, 12, 'E', 0, amber); plaque(8, 19, 'W', 0, amber);
-        plaque(10, 1, 'E', 0, amber); plaque(19, 6, 'E', 4, amber);
-        plaque(14, 22, 'S', 0, green); plaque(3, 4, 'W', 0, amber); plaque(10, 8, 'W', 4, cyan);
+        plaque(10, 1, 'E', 0, amber); plaque(19, 6, 'E', 0, amber);
+        plaque(14, 22, 'S', 0, green); plaque(3, 4, 'W', 0, amber); plaque(14, 2, 'N', 0, cyan);
         var brief = wc(27, 12);
         addBox(1.5, 0.84, 0.62, brief.x + 1.1, 0.42, brief.z + 0.65, soot);
         addBox(0.58, 0.04, 0.42, brief.x + 0.72, 0.86, brief.z + 0.65, paper);
@@ -3318,7 +3392,7 @@
         addBox(0.38, 0.05, 0.52, stamp.x + 1.02, 0.93, stamp.z, orange);
         addBox(0.28, 0.035, 0.16, stamp.x + 1.0, 0.95, stamp.z + 0.25, soot);
         solid(stamp.x + 1.3, stamp.z, 0.34, 0.62, 0.98);
-        var soul = wc(14, 16), ring = new THREE.Mesh(new THREE.TorusGeometry(1.08, 0.1, 8, 24), soot);
+        var soul = wc(14, 19), ring = new THREE.Mesh(new THREE.TorusGeometry(1.08, 0.1, 8, 24), soot);
         ring.rotation.x = Math.PI / 2; ring.position.set(soul.x, 0.07, soul.z); G.scene.add(ring);
       }
 

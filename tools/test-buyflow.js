@@ -343,7 +343,7 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
           var oc = I.overclock;
           ck(oc.available && !!oc.reward, 'base reward reveals Overclock the Giant', oc.reward);
           buyAtWall(oc.regulatorPos, CFG.cur.OVERCLOCK.regulator.face);
-          ck(oc.stage === 1, 'optional continuation accepted in Garage Control', 'stage=' + oc.stage);
+          ck(oc.stage === 1, 'optional continuation accepted in the Power Garage', 'stage=' + oc.stage);
           oc.conduits.forEach(function (c4) {
             var origin = c4.pos.clone(); origin.z += 3; origin.y += 1;
             I.onWonderFire(oc.reward, origin, new THREE.Vector3(0, 0, -1), 8);
@@ -359,8 +359,11 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
           }
           ck(oc.stage === 3 && oc.installed === 3, 'all three phase-routed cells installed');
           buyAtWall(oc.regulatorPos, CFG.cur.OVERCLOCK.regulator.face);
-          for (var lk = 0; lk < 24; lk++) I.onKill(new THREE.Vector3(0, oc.lockdownUpper ? 4 : 0, 0), { dead: true });
-          ck(oc.stage === 5 && oc.boss && oc.boss.questBoss, 'control-block lockdown awakens the Iron Subject', 'stage=' + oc.stage);
+          for (var lk = 0; lk < 24; lk++) {
+            var pc = G.map.parsed.rooms[oc.lockdownRoom].center;
+            I.onKill(new THREE.Vector3(pc.x, 0, pc.z), { dead: true });
+          }
+          ck(oc.stage === 5 && oc.boss && oc.boss.questBoss, 'two-room pressure lockdown awakens the Iron Subject', 'stage=' + oc.stage);
           if (oc.boss) {
             for (var ah = 0; ah < 6; ah++) G.zombies.damageZombie(oc.boss, 1000, { boom: true, weaponId: oc.reward });
             G.zombies.damageZombie(oc.boss, 1e9, { boom: true, weaponId: oc.reward });

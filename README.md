@@ -9,7 +9,7 @@ zero assets — every texture and sound is generated procedurally at runtime.
 | Map | Layout | Main wonder weapon | Easter egg reward pool |
 |---|---|---|---|
 | **Nacht der Untoten** | Tight bunker | **Thundergun** | **Nachtlicht** flare or **Minenwerfer 115** soul mine |
-| **Der Riese** | Three-wing factory loop with a two-access upper control block | **Wunderwaffe DG-2** | **Seelenmotor** piston or **Nachbildner 115** echo cannon |
+| **Der Riese** | Tight single-level three-wing factory loop | **Wunderwaffe DG-2** | **Seelenmotor** piston or **Nachbildner 115** echo cannon |
 | **Der Wetterjunge** *(custom)* | Storm station with a two-access rooftop weather deck | **Wettermacher** | **Blitzfanger** lightning fence or **Kryolithwerfer** freeze-and-launch cannon |
 | **KurHaus** *(custom)* | Alpine occult spa | **Maelstrom Driver** ricochet bore | **Aether Lance** or **Voss Siphon** |
 
@@ -28,8 +28,10 @@ The rebuilt Der Riese is anchored by the outdoor **Mainframe Yard**. Its west
 route crosses the **Cooling Courtyard** to Teleporter C, its north route links
 the **Furnace/Teleporter B** wing to the **Auto Garage and Power**, and its south
 loop joins **Animal Testing** to the **Teleporter A Laboratory**. Furnace
-Administration and Garage Control form the only upper storey: one supported,
-roofed department with two compact enclosed stair approaches.
+equipment, power controls, every perk, and the Giant's Heart regulator now sit
+on the ground loop. The former upper block and its doorway-blocking stairs were
+removed; six colour-coded districts and denser hero machinery provide the
+vertical silhouette and room identity without adding dead travel.
 
 Every map's mystery box also carries the **Ray Gun** and **Monkey Bombs**;
 other maps' wonder weapons never roll.
