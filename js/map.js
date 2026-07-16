@@ -3272,10 +3272,10 @@
         map.addCollider(brf.x + 1.1, brf.z + 0.8, brf.x + 1.9, brf.z + 1.4, 0, 0.95);
         // subject-tag specimen cabinet with a pulled drawer [7,15]W
         var tagW = wc(7, 15);
-        addBox(0.8, 1.9, 0.9, tagW.x - 1.3, 0.95, tagW.z, steel);
-        addBox(0.7, 0.16, 0.5, tagW.x - 0.85, 1.1, tagW.z, dark);        // open drawer
-        addBox(0.18, 0.05, 0.28, tagW.x - 0.8, 1.16, tagW.z, glowAmber); // the tag inside
-        map.addCollider(tagW.x - 1.7, tagW.z - 0.5, tagW.x - 0.85, tagW.z + 0.5, 0, 2.0);
+        addBox(0.8, 1.9, 0.9, tagW.x - 1.3, 0.95, tagW.z - 1.9, steel);
+        addBox(0.7, 0.16, 0.5, tagW.x - 0.85, 1.1, tagW.z - 1.9, dark);        // open drawer
+        addBox(0.18, 0.05, 0.28, tagW.x - 0.8, 1.16, tagW.z - 1.9, glowAmber); // the tag inside
+        map.addCollider(tagW.x - 1.7, tagW.z - 2.4, tagW.x - 0.85, tagW.z - 1.4, 0, 2.0);
         // the GIANT'S HEART REGULATOR [18,4] y4 — riveted chamber + feed pipes
         var hrt = new THREE.Mesh(new THREE.SphereGeometry(0.85, 12, 12),
           new THREE.MeshLambertMaterial({ color: 0x5b3f38 }));
