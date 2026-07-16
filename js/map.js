@@ -584,6 +584,31 @@
         }
       }
 
+      // DER RIESE living-map pass — same philosophy as the Kurhaus one: pure
+      // mesh/material animation, no light churn
+      var DA = this.dAnim;
+      if (DA) {
+        for (var de = 0; de < DA.embers.length; de++) {        // furnace embers rise + die
+          var e3 = DA.embers[de], t3 = (G.time * e3.spd + e3.ph) % 2.6;
+          e3.m.position.set(e3.x + Math.sin(G.time * 1.1 + e3.ph) * 0.2, 0.4 + t3, e3.z);
+          e3.m.scale.setScalar(Math.max(0.15, 1 - t3 / 2.6));
+        }
+        for (var ds = 0; ds < DA.steam.length; ds++) {         // cooling steam drifts
+          var s3 = DA.steam[ds], ts3 = (G.time * s3.spd + s3.ph) % 2.2;
+          s3.m.position.y = 0.6 + ts3 * 1.3;
+          s3.mat.opacity = 0.2 * (1 - ts3 / 2.2);
+          s3.m.scale.setScalar(0.8 + ts3 * 0.6);
+        }
+        if (DA.search && DA.search.mast)                       // the overlook sweeps the yard
+          DA.search.mast.rotation.y = Math.sin(G.time * 0.45) * 0.7;
+        DA.sparkT -= dt;                                       // conduit junction arcs over
+        if (DA.sparkT <= 0) { DA.sparkT = 2 + Math.random() * 4; DA.sparkOn = 0.14; }
+        if (DA.sparkOn > 0 && DA.sparkMesh) {
+          DA.sparkOn -= dt;
+          DA.sparkMesh.material.color.setHex(DA.sparkOn > 0 ? 0xdff2ff : 0x2a2d2f);
+        }
+      }
+
       // AETHER SURGE — pulse the marker ring while a wing is surging
       if (this.surge && this.surgeRing) {
         this.surgeRing.visible = true;
@@ -3184,6 +3209,84 @@
           addBox(0.1, 0.7, 0.1, ubW.x, 5.6, ubW.z - 1.35, dark);
           addBox(1.4, 0.08, 0.08, ubW.x, 6.0, ubW.z - 1.35, steel);        // tool rail
         });
+        /* ---- LIFE + FILL: the map breathes and the halls earn their size ----
+           Anim registry (map.dAnim, driven from map.update): furnace embers
+           rise and die, cooling-yard steam drifts, the overlook searchlight
+           sweeps the yard, the mainframe conduits spark. Fill: overhead
+           gantries/trusses/wires (zero floor cost), painted floor guides that
+           lead to every stair bay, and edge-anchored set pieces — a car on a
+           lift, a coal cart on rails, a surgical corner. */
+        var DA = map.dAnim = { embers: [], steam: [], search: null, sparkT: 2.5, sparks: [] };
+        var emberM2 = new THREE.MeshBasicMaterial({ color: 0xff7a2a });
+        var steamM2 = new THREE.MeshBasicMaterial({ color: 0xcfd8d4, transparent: true, opacity: 0.2, depthWrite: false });
+        for (var em2 = 0; em2 < 5; em2++) {                    // furnace embers
+          var ebm = new THREE.Mesh(new THREE.SphereGeometry(0.06 + (em2 % 2) * 0.03, 6, 6), emberM2);
+          ebm.position.set(fdo.x - 0.8 + em2 * 0.4, 0.4, fdo.z - 1.2);
+          G.scene.add(ebm);
+          DA.embers.push({ m: ebm, x: ebm.position.x, z: ebm.position.z, spd: 0.5 + (em2 % 3) * 0.22, ph: em2 * 1.3 });
+        }
+        for (var sv2 = 0; sv2 < 4; sv2++) {                    // cooling-yard steam
+          var svm = new THREE.Mesh(new THREE.SphereGeometry(0.3, 7, 7), sv2 ? steamM2.clone() : steamM2);
+          svm.position.set(drA.x + 1 + sv2 * 3.2, 0.6, drA.z + 1.6);
+          G.scene.add(svm);
+          DA.steam.push({ m: svm, mat: svm.material, spd: 0.4 + (sv2 % 2) * 0.25, ph: sv2 * 1.7 });
+        }
+        DA.search = { mast: sl2, lens: null, cx: obX + 0.7, cz: obZ + 0.2 };   // sweeping searchlight
+        DA.sparkMesh = addBox(0.3, 0.3, 0.2, mfW.x, 0.3, mfW.z + 1.4,
+          new THREE.MeshBasicMaterial({ color: 0x2a2d2f }));   // arcing conduit junction box
+        // overhead: gantry rail + chain hooks across the Garage, trusses over
+        // Animal Testing, catenary poles + wires across the open yard
+        var gzA = wc(10, 7), gzB = wc(16, 7);
+        addBox(gzB.x - gzA.x, 0.3, 0.34, (gzA.x + gzB.x) / 2, 3.4, gzA.z, steel);
+        for (var gh2 = 0; gh2 < 4; gh2++) {
+          var ghx = gzA.x + 2 + gh2 * 5.4;
+          addBox(0.06, 0.9, 0.06, ghx, 2.85, gzA.z, dark);
+          var hk2 = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.045, 6, 12, Math.PI * 1.4), steel);
+          hk2.position.set(ghx, 2.3, gzA.z); G.scene.add(hk2);
+        }
+        for (var tr2 = 11; tr2 <= 17; tr2 += 3) {              // L hall trusses
+          var trW = wc(12, tr2);
+          addBox(wc(16, tr2).x - wc(8, tr2).x, 0.26, 0.3, trW.x, 3.62, trW.z, dark);
+          addBox(wc(16, tr2).x - wc(8, tr2).x, 0.1, 0.1, trW.x, 3.3, trW.z, steel);
+        }
+        [[18, 8], [20, 10], [22, 8]].forEach(function (cp2, ci3) {   // yard catenary
+          var cpW = wc(cp2[0], cp2[1]);
+          addBox(0.16, 4.6, 0.16, cpW.x, 2.3, cpW.z, dark);
+          if (ci3) {
+            var ppW = wc([[18, 8], [20, 10], [22, 8]][ci3 - 1][0], [[18, 8], [20, 10], [22, 8]][ci3 - 1][1]);
+            floorCable(ppW.x, ppW.z, cpW.x, cpW.z, dark, 0.06).position.y = 4.35;
+          }
+        });
+        // painted guides: an amber lane from each stair base into its room, so
+        // 'upstairs' advertises itself from the floor
+        [[5, 3], [17, 4], [15, 15], [19, 17]].forEach(function (sg2) {
+          var sgW = wc(sg2[0], sg2[1]);
+          var sgz = sgW.z + 2.0;                               // just south of the stair base
+          addBox(0.5, 0.025, 3.2, sgW.x, 0.04, sgz + 1.7, amber);
+          addBox(1.4, 0.025, 0.5, sgW.x, 0.04, sgz + 3.2, amber);
+        });
+        // anchors: car on a lift (Garage south bay), coal cart on rails
+        // (Furnace east wall), surgical corner (Animal Testing SW)
+        var carW = wc(11, 9);
+        [[-1.1, 0], [1.1, 0]].forEach(function (lp2) {
+          addBox(0.5, 0.5, 0.5, carW.x + lp2[0], 0.25, carW.z + 1.25, steel);
+        });
+        addBox(2.9, 0.5, 1.25, carW.x, 1.05, carW.z + 1.25, new THREE.MeshLambertMaterial({ color: 0x4a4d42 }));
+        addBox(1.7, 0.42, 1.1, carW.x - 0.15, 1.5, carW.z + 1.25, dark);   // cabin
+        solidProp(carW.x, carW.z + 1.25, 1.5, 0.7, 1.8);
+        var cartW = wc(11, 1);
+        addBox(1.2, 0.65, 0.85, cartW.x + 1.15, 0.55, cartW.z, dark);      // coal cart
+        for (var cw2 = 0; cw2 < 4; cw2++)
+          addBox(0.28, 0.2, 0.24, cartW.x + 0.85 + (cw2 % 2) * 0.55, 0.95, cartW.z - 0.2 + ((cw2 / 2) | 0) * 0.35, dark);
+        solidProp(cartW.x + 1.15, cartW.z, 0.65, 0.5, 1.1);
+        floorCable(cartW.x + 1.15, cartW.z + 0.4, fdo.x, fdo.z - 1.0, dark, 0.08);  // cart rail
+        floorCable(cartW.x + 1.45, cartW.z + 0.4, fdo.x + 0.3, fdo.z - 1.0, dark, 0.08);
+        var surW = wc(8, 17);
+        addBox(0.1, 2.0, 0.1, surW.x - 1.2, 1.0, surW.z + 1.0, steel);     // IV stand
+        addBox(0.3, 0.24, 0.06, surW.x - 1.2, 1.85, surW.z + 1.0, glassM);
+        addBox(1.5, 0.06, 0.06, surW.x - 0.4, 2.3, surW.z + 1.3, dark);    // curtain rail
+        addBox(1.3, 1.4, 0.04, surW.x - 0.4, 1.55, surW.z + 1.3, new THREE.MeshLambertMaterial({ color: 0x8a9488 }));
+        solidProp(surW.x - 0.8, surW.z + 1.15, 0.9, 0.4, 1.2);
         // Real roof mass: uncovered ground cells receive a thick tar/concrete
         // cap, while every upper department receives a pitched industrial roof.
         // The roof volumes complete the building silhouette without adding any
