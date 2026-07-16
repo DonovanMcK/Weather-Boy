@@ -1068,37 +1068,7 @@
         zBase: zW(baseRow) + CELL / 2 - inset, steps: Math.max(18, (baseRow - topRow + 1) * 6) };
       return deck;
     }
-    if (CFG.cur.id === 'derriese') {
-      // Four enclosed stairs, ONE cell wide, each tucked against a side wall so
-      // the room's floor and kite lane stay open (the old two-cell masses cut
-      // Furnace, Garage and Animal Testing in half):
-      //  - Furnace:      west wall, clear of the Tel-B pad and both doors
-      //  - Garage:       northeast corner, clear of POWER, the boxes and door 5
-      //  - Animal Test.: east edge of the gallery slab, clear of door 7's lane
-      //  - A-Lab:        col 19 line, clear of the Tel-A pad and the east window
-      // each shaft pierces its slab from INSIDE the footprint (a slab's
-      // perimeter wall would seal off an externally-attached landing)
-      // three-row runs: a 4m climb over ~7.5m keeps the slope under the nav
-      // engine's step limit (a two-row run reads as a cliff and orphans the slab)
-      stageSpecs.push(interiorStair(5, 5, 1, 3, false),
-                      interiorStair(17, 17, 2, 4, false),
-                      interiorStair(15, 15, 13, 15, false),
-                      interiorStair(19, 19, 15, 17, false));
-      // Teleporter C keeps one authentic open steel access catwalk along its
-      // north wall. It is supported on posts and intentionally does not carry a
-      // full second building over the cooling yard.
-      var cDeck = { x1: xW(1) - 1.55, x2: xW(6) + 1.55,
-        z1: zW(6) - CELL / 2 + 0.3, z2: zW(7) - 0.35,
-        h: 4.0, thin: true, openUnder: true, supports: true, railings: true, stairRails: true };
-      cDeck.stairs = { x1: xW(6) - 1.35, x2: xW(6) + 1.35,
-        zTop: cDeck.z2, zBase: zW(9) + 1.25, steps: 18 };
-      stageSpecs.push(cDeck);
-      // The narrow service bridge is the only upper crossing above Mainframe.
-      // It grows out of Upper Assembly and has visible columns rather than
-      // floating as a detached slab.
-      bridgeSpecs.push({ x1: xW(17) - 0.85, x2: xW(18) + 0.85,
-        z1: zW(6) - 0.2, z2: zW(8) + 1.25, h: 4.0, rails: true, supports: true });
-    }
+    // (Der Riese: verticality removed — flat factory floor per playtesting)
     if (CFG.cur.id === 'wetterjunge') {
       // One narrow stair per northern wing, each tucked against its OUTER wall
       // (the old center-column flights bisected all three rooms and their side
@@ -3086,18 +3056,6 @@
           addBox(wpA[2], 0.03, wpA[3], mfW.x + wpA[0], 0.045, mfW.z + wpA[1], amber);
         }
         symbolPlaque(mfW.x, 2.2, mfW.z - 1.9, 0);
-        // the service bridge gets a PURPOSE: a manned overlook at its south end
-        // watching the mainframe yard — searchlight, sandbags, the mark. It's
-        // an observation post now, not a rail to nowhere.
-        var obX = (xW(17) + xW(18)) / 2, obZ = zW(8) + 0.35, obY = 4.0;
-        addBox(2.4, 1.0, 0.14, obX, obY + 0.5, obZ + 0.75, steel);          // end parapet
-        addBox(0.6, 0.35, 0.42, obX - 0.75, obY + 0.18, obZ + 0.3, dark);   // sandbags
-        addBox(0.6, 0.35, 0.42, obX - 0.15, obY + 0.18, obZ + 0.42, dark);
-        addBox(0.14, 0.9, 0.14, obX + 0.7, obY + 0.45, obZ + 0.2, steel);   // searchlight mast
-        var sl2 = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.45, 10), steel);
-        sl2.position.set(obX + 0.7, obY + 1.05, obZ + 0.2); sl2.rotation.x = 1.15; G.scene.add(sl2);
-        addBox(0.26, 0.26, 0.05, obX + 0.7, obY + 0.95, obZ + 0.42, glowAmber); // lit lens
-        symbolPlaque(obX, obY + 1.35, obZ + 0.68, Math.PI);
         // BRIEFING [23,11]E: spotlight cone + dropped ID card + blood trail
         // heading for Animal Testing's east door [16,10]
         var brf = wc(23, 11);
@@ -3167,10 +3125,10 @@
         // regulator; pulsing indicators (bright emissives) mark the console
         var regW = wc(18, 4);
         for (var cb2 = 0; cb2 < 3; cb2++)
-          addBox(0.12, 4.2, 0.12, regW.x + 1.7, 2.1, regW.z - 0.5 + cb2 * 0.35, [cyan, amber, green][cb2]);
+          addBox(0.12, 2.6, 0.12, regW.x + 1.7, 1.3, regW.z - 0.5 + cb2 * 0.35, [cyan, amber, green][cb2]);
         for (var il2 = 0; il2 < 3; il2++)
-          addBox(0.14, 0.14, 0.06, regW.x + 1.55, 5.1 + il2 * 0.3, regW.z, il2 === 1 ? glowRed : glowAmber);
-        symbolPlaque(regW.x + 1.4, 5.9, regW.z + 0.7, -Math.PI / 2);
+          addBox(0.14, 0.14, 0.06, regW.x + 1.55, 2.2 + il2 * 0.3, regW.z, il2 === 1 ? glowRed : glowAmber);
+        symbolPlaque(regW.x + 1.4, 2.6, regW.z + 0.7, -Math.PI / 2);
         // COOLING YARD — drainage channel running from the tower line to a
         // grate, plus a dripping condensate pipe and an abandoned toolbox
         var drA = wc(1, 9), drB = wc(6, 9);
@@ -3201,14 +3159,7 @@
         solidProp(ydW.x + 1.1, ydW.z - 1.6, 0.55, 0.7, 1.3);
         addBox(1.3, 1.0, 0.9, ydW.x + 1.15, 0.5, ydW.z + 0.4, dark); solidProp(ydW.x + 1.15, ydW.z + 0.4, 0.7, 0.5, 1.1);
         addBox(0.9, 0.7, 0.7, ydW.x + 1.0, 1.35, ydW.z + 0.6, steel);
-        // Upper Assembly: two production benches with overhead tool rails
-        [[14, 3], [16, 3]].forEach(function (ub2) {
-          var ubW = wc(ub2[0], ub2[1]);
-          addBox(1.9, 0.9, 0.65, ubW.x, 4.45, ubW.z - 1.35, steel);
-          map.addCollider(ubW.x - 1.0, ubW.z - 1.7, ubW.x + 1.0, ubW.z - 1.0, 4, 5.0);
-          addBox(0.1, 0.7, 0.1, ubW.x, 5.6, ubW.z - 1.35, dark);
-          addBox(1.4, 0.08, 0.08, ubW.x, 6.0, ubW.z - 1.35, steel);        // tool rail
-        });
+
         /* ---- CENTERPIECES: one trainable machine dead-centre in each hall
            (footprint r<=1.6 at the ring's exact centre, so the R5 kite lane
            always clears it) + truss-end columns that break the big volumes. */
@@ -3279,11 +3230,11 @@
         // the GIANT'S HEART REGULATOR [18,4] y4 — riveted chamber + feed pipes
         var hrt = new THREE.Mesh(new THREE.SphereGeometry(0.85, 12, 12),
           new THREE.MeshLambertMaterial({ color: 0x5b3f38 }));
-        hrt.scale.y = 1.25; hrt.position.set(regW.x + 1.0, 5.4, regW.z + 1.6); G.scene.add(hrt);
-        addBox(0.5, 0.9, 0.5, regW.x + 1.0, 4.35, regW.z + 1.6, dark);
-        addBox(0.14, 0.14, 1.4, regW.x + 1.0, 5.9, regW.z + 0.8, dPipe);
-        addBox(0.3, 0.1, 0.34, regW.x + 0.6, 5.3, regW.z + 1.2, dark);   // the tag SLOT
-        map.addCollider(regW.x + 0.4, regW.z + 1.1, regW.x + 1.6, regW.z + 2.1, 4, 6.4);
+        hrt.scale.y = 1.25; hrt.position.set(regW.x + 1.0, 1.75, regW.z + 1.6); G.scene.add(hrt);
+        addBox(0.7, 0.9, 0.7, regW.x + 1.0, 0.45, regW.z + 1.6, dark);
+        addBox(0.14, 0.14, 1.4, regW.x + 1.0, 2.45, regW.z + 0.8, dPipe);
+        addBox(0.3, 0.1, 0.34, regW.x + 0.6, 1.7, regW.z + 1.2, dark);   // the tag SLOT
+        map.addCollider(regW.x + 0.4, regW.z + 1.1, regW.x + 1.6, regW.z + 2.1, 0, 2.6);
         // dormant soul-device emplacement at [13,16] — recessed ring + bolts
         var sdW = wc(13, 16);
         var sdr = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.1, 8, 20), dark);
@@ -3299,8 +3250,8 @@
           addBox(0.3, 0.5, 0.08, ocW.x + oc2[2], 1.0, ocW.z + oc2[3] * 0.72, oc2[1]);
         });
         var ocK = wc(23, 17);
-        addBox(0.5, 1.2, 0.5, ocK.x + 1.55, 4.6, ocK.z, dark);
-        addBox(0.08, 0.5, 0.3, ocK.x + 1.12, 5.0, ocK.z, cyan);
+        addBox(0.5, 1.2, 0.5, ocK.x + 1.55, 0.6, ocK.z, dark);
+        addBox(0.08, 0.5, 0.3, ocK.x + 1.12, 1.0, ocK.z, cyan);
         // Iron Subject aftermath: torn chain + drag gouges leaving the cage
         addBox(0.06, 1.3, 0.06, wrk.x - 0.9, 0.65, wrk.z + 0.9, dark);
         for (var dg2 = 0; dg2 < 3; dg2++)
@@ -3327,7 +3278,6 @@
           G.scene.add(svm);
           DA.steam.push({ m: svm, mat: svm.material, spd: 0.4 + (sv2 % 2) * 0.25, ph: sv2 * 1.7 });
         }
-        DA.search = { mast: sl2, lens: null, cx: obX + 0.7, cz: obZ + 0.2 };   // sweeping searchlight
         DA.sparkMesh = addBox(0.3, 0.3, 0.2, mfW.x, 0.3, mfW.z + 1.4,
           new THREE.MeshBasicMaterial({ color: 0x2a2d2f }));   // arcing conduit junction box
         // overhead: gantry rail + chain hooks across the Garage, trusses over

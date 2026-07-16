@@ -197,8 +197,8 @@
       { perk: 'jugg',   cell: [7, 16],  off: [0, 0] },
       { perk: 'speed',  cell: [18, 2],  off: [0, 0] },
       { perk: 'dtap',   cell: [0, 9],   off: [0, 0] },
-      { perk: 'wonderfizz', cell: [6, 0], off: [0, 0], y: 4.0 },
-      { perk: 'stamin', cell: [23, 18], off: [0, 0], y: 4.0 }
+      { perk: 'wonderfizz', cell: [6, 0], off: [0, 0] },
+      { perk: 'stamin', cell: [23, 18], off: [0, 0] }
     ],
     WALLBUYS: [
       { gun: 'm14',      cell: [23, 7], off: [1.6, 0], face: 'E' },    // [22,13]S sat ON a window barricade
@@ -214,7 +214,7 @@
       { cell: [9, 1], off: [0, 0] }, { cell: [16, 5], off: [0, 0] },
       { cell: [2, 11],off: [0, 0] }, { cell: [20, 12],off: [0, 0] },
       { cell: [9, 17],off: [0, 0] }, { cell: [21, 17],off: [0, 0] },
-      { cell: [17, 5],off: [0, 0], y: 4.0 }, { cell: [13, 15],off: [0, 0], y: 4.0 }
+      { cell: [2, 7], off: [0, 0] }
     ],
     TELEPORTERS: [
       { id: 'A', cell: [21, 18], off: [0, 0] },
@@ -238,18 +238,18 @@
       { cell: [7, 15], face: 'W', room: 'Animal Testing', kind: 'subject tag',
         prompt: 'Recover the marked subject tag', clue: 'FURNACE — Temper the tag in Teleporter B' },
       { cell: [7, 0], face: 'N', room: 'Furnace Room', kind: 'heat stamp',
-        prompt: 'Temper the tag in the furnace stamp', clue: 'UPPER ASSEMBLY — Carry it to the regulator above' },
-      { cell: [18, 4], face: 'E', y: 4, room: 'Assembly Control', kind: 'heart regulator',
+        prompt: 'Temper the tag in the furnace stamp', clue: 'GARAGE — Carry it to the heart regulator' },
+      { cell: [18, 4], face: 'E', room: 'Garage Control', kind: 'heart regulator',
         prompt: "Install the tag in the Giant's regulator", clue: 'COURTYARD — The buried reactor is awake' }
     ],
     // Optional prestige continuation after the normal Giant's Heart reward.
     // It deliberately revisits both floors and all three teleporter wings.
     OVERCLOCK: {
-      regulator: { cell: [18, 4], face: 'E', y: 4 },
+      regulator: { cell: [18, 4], face: 'E' },
       conduits: [
         { cell: [12, 19], face: 'S', y: 0, room: 'Animal Testing' },
         { cell: [4, 3], face: 'W', y: 0, room: 'Furnace Room' },
-        { cell: [23, 17], face: 'E', y: 4, room: 'A-Lab Observation' }
+        { cell: [23, 17], face: 'E', room: 'A-Lab' }
       ],
       cells: [
         { cell: [21, 18], y: 0, room: 'Teleporter A Laboratory', teleporter: 'A' },
@@ -272,49 +272,8 @@
   // directly on their supporting buildings. A narrow, supported service bridge
   // extends from Upper Assembly toward the Mainframe; the yards never receive a
   // second building stacked over them.
-  CFG.MAPS.derriese.FLOORS = [
-    { id: '1', floorY: 0, primary: true, GRID: CFG.MAPS.derriese.GRID,
-      ROOMS: CFG.MAPS.derriese.ROOMS, OUTDOOR: CFG.MAPS.derriese.OUTDOOR,
-      WINDOWS: CFG.MAPS.derriese.WINDOWS, RISERS: CFG.MAPS.derriese.RISERS },
-    { id: '2', floorY: 4,
-      // stairwell shafts cut from the slabs — one single-cell column per stair
-      // (Furnace's stair hugs col 4, OUTSIDE the B slab, so B stays whole)
-      FLOOR_OMIT: [[5, 1], [5, 2], [5, 3],
-        [17, 2], [17, 3], [17, 4],
-        [15, 13], [15, 14], [15, 15],
-        [19, 15], [19, 16], [19, 17]], GRID: [
-      '.....BBBBBBB............',
-      '.....BBBBBBB............',
-      '.....BBBBBBB.WWWWWW.....',
-      '.....BBBBBBB.WWWWWW.....',
-      '.....BBBBBBB.WWWWWW.....',
-      '.............WWWWWW.....',
-      '.............WWWWWW.....',
-      '........................',
-      '........................',
-      '........................',
-      '........................',
-      '........................',
-      '........HHHHHHHH........',
-      '........HHHHHHHH........',
-      '........HHHHHHHH........',
-      '........HHHHHHHH..KKKKKK',
-      '........HHHHHHHH..KKKKKK',
-      '........HHHHHHHH..KKKKKK',
-      '..................KKKKKK',
-      '..................KKKKKK'
-    ], ROOMS: {
-      B: { name: 'Furnace Offices', floor: 0x343536, light: 0xb88962 },
-      W: { name: 'Upper Assembly', floor: 0x303a39, light: 0x80b09c },
-      H: { name: 'Animal Testing Balcony', floor: 0x303842, light: 0x78a9bc },
-      K: { name: 'A-Lab Observation', floor: 0x29343c, light: 0x72bbce }
-    }, DOORS: {}, WINDOWS: [
-      { cell: [5, 0], dir: 'N' }, { cell: [11, 1], dir: 'E' },
-      { cell: [18, 3], dir: 'E' }, { cell: [13, 6], dir: 'S' },
-      { cell: [8, 14], dir: 'W' }, { cell: [15, 17], dir: 'S' },
-      { cell: [23, 16], dir: 'E' }, { cell: [20, 19], dir: 'S' }
-    ] }
-  ];
+  // (Der Riese is a single flat floor — verticality removed in playtesting)
+  
 
   /* -------------------------------------------------- DER WETTERJUNGE --- */
   // Showpiece custom map: a huge OUTDOOR courtyard hub (C) ringed by indoor

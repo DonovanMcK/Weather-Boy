@@ -477,6 +477,7 @@ async function runQuick(mapId) {
 /* climbing an indoor staircase to an upper floor must not headbutt the room
    ceiling — the stairwell ceiling lifts to clear the player at the top */
 function testStairHeadroom(ctx) {
+  if (!ctx.G.map.stages.length) return;   // flat map
   var G = ctx.G;
   var stairChoices = (G.map.stages || []).filter(function (s) { return s.stairBase; });
   // Der Riese's broad Animal Testing stair has a full room around its foot and
@@ -506,6 +507,7 @@ function testStairHeadroom(ctx) {
    cuts "side-mount" edges onto the middle of a ramp and stops the steering
    look-ahead cutting the corner through the ramp's side. */
 function testStairFunnel(ctx) {
+  if (!ctx.G.map.stages.length) return;   // flat map
   var G = ctx.G, Z = G.zombies, P = G.player;
   var funnelStairs = (G.map.stages || []).filter(function (s) { return s.stairBase; });
   var stg = G.CFG.cur.id === 'derriese' ? funnelStairs[funnelStairs.length - 1] : funnelStairs[0];
@@ -554,6 +556,7 @@ function testMainframeYard(ctx) {
   // the stairs carry MULTIPLE nav lanes across their width so the horde spreads
   // instead of choking single-file (finer nav resolution)
   var stg = G.map.stages[0];
+  if (!stg) return;   // flat map — verticality removed in playtesting
   var sx1 = stg.deckCenter.x - 4, sx2 = stg.deckCenter.x + 4;
   var sz1 = Math.min(stg.deckCenter.z, stg.stairBase.z) + 0.4;
   var sz2 = Math.max(stg.deckCenter.z, stg.stairBase.z) - 0.4;
@@ -680,11 +683,10 @@ function testVerticality(ctx) {
   ok(G.map.perkMachines.some(function (m) { return m.perk === 'wonderfizz'; }), 'Der Wunderfizz machine present');
   ok(!G.map.perkMachines.some(function (m) { return m.perk === 'mule'; }), 'Mule Kick machine removed');
 
-  var upper = G.map.floors && G.map.floors.filter(function (f) { return f.floorY > 3; })[0];
-  ok(upper && Object.keys(upper.parsed.rooms).length >= 4,
-     'Der Riese has four supported partial upper departments');
-  var S = G.map.stages[0];
-  ok(S && S.deckTop > 3.0, 'catwalk is a real upper floor (' + S.deckTop.toFixed(1) + 'm)');
+  // Der Riese is a flat single floor now (verticality removed in playtesting)
+  ok(!G.map.stages.length, 'Der Riese carries no stairs or upper decks');
+  ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'KeyC', 'Space'].forEach(ctx.keyup);
+  return;
 
   // --- stacked floors: ground beneath the catwalk is still its own walkable
   //     room, AND the upper deck coexists at the same x/z (multi-layer nav)
