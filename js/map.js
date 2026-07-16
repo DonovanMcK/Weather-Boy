@@ -3165,39 +3165,21 @@
            always clears it) + truss-end columns that break the big volumes. */
         function centerOf(rid) { return P.rooms[rid] && P.rooms[rid].center; }
         var cL = centerOf('L'), cG = centerOf('G'), cF = centerOf('F'), cC = centerOf('C'), cA = centerOf('A');
-        if (cL) {   // Animal Testing: raised operating island + surgical light rig
-          addBox(3.0, 0.16, 3.0, cL.x, 0.08, cL.z, dConc);
-          addBox(1.9, 0.75, 0.8, cL.x, 0.55, cL.z, steel);
-          addBox(1.7, 0.05, 0.7, cL.x, 0.95, cL.z, bloodM);
-          addBox(0.08, 2.6, 0.08, cL.x + 1.2, 1.3, cL.z + 1.2, dark);
-          addBox(1.4, 0.08, 0.08, cL.x + 0.5, 2.6, cL.z + 1.2, dark);
-          addBox(0.5, 0.16, 0.5, cL.x, 2.5, cL.z, glowAmber);            // surgical lamp head
+        if (cL) {   // Animal Testing: Blender-authored operating island
+          G.GLB.place('optable', cL.x, 0, cL.z, 0.3);
           map.addCollider(cL.x - 1.0, cL.z - 0.45, cL.x + 1.0, cL.z + 0.45, 0, 1.0);
         }
-        if (cG) {   // Garage: diesel generator block with exhaust stack
-          addBox(2.4, 1.5, 1.3, cG.x, 0.75, cG.z, steel);
-          addBox(2.5, 0.2, 1.4, cG.x, 1.6, cG.z, dark);
-          addBox(0.3, 2.4, 0.3, cG.x + 0.8, 2.6, cG.z, dark);            // stack
-          addBox(0.5, 0.5, 0.06, cG.x - 0.9, 1.0, cG.z + 0.68, glowAmber); // gauge glow
+        if (cG) {   // Garage: Blender-authored diesel generator
+          G.GLB.place('generator', cG.x, 0, cG.z, -0.25);
           map.addCollider(cG.x - 1.25, cG.z - 0.7, cG.x + 1.25, cG.z + 0.7, 0, 1.8);
         }
-        if (cF) {   // Furnace: crucible under a chain hoist
-          var cru = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.75, 1.5, 12),
-            new THREE.MeshLambertMaterial({ color: 0x3a3532 }));
-          cru.position.set(cF.x, 0.75, cF.z); G.scene.add(cru);
-          var melt = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.06, 12),
-            new THREE.MeshBasicMaterial({ color: 0xff7a2a }));
-          melt.position.set(cF.x, 1.53, cF.z); G.scene.add(melt);
-          addBox(0.05, 2.2, 0.05, cF.x, 2.8, cF.z, dark);                // hoist chain
+        if (cF) {   // Furnace: Blender-authored crucible under its chain
+          G.GLB.place('crucible', cF.x, 0, cF.z, 0.6);
+          addBox(0.05, 1.2, 0.05, cF.x, 3.2, cF.z, dark);   // chain continues to the roof
           map.addCollider(cF.x - 1.0, cF.z - 1.0, cF.x + 1.0, cF.z + 1.0, 0, 1.7);
         }
-        if (cC) {   // Cooling yard: round condensate basin
-          var bas = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.8, 0.6, 16),
-            new THREE.MeshLambertMaterial({ color: 0x555c58 }));
-          bas.position.set(cC.x, 0.3, cC.z); G.scene.add(bas);
-          var wat = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.55, 0.05, 16), glassM);
-          wat.position.set(cC.x, 0.58, cC.z); G.scene.add(wat);
-          addBox(0.16, 1.4, 0.16, cC.x, 0.9, cC.z, dPipe);               // feed pipe
+        if (cC) {   // Cooling yard: Blender-authored condensate basin
+          G.GLB.place('basin', cC.x, 0, cC.z, 0);
           map.addCollider(cC.x - 1.7, cC.z - 1.7, cC.x + 1.7, cC.z + 1.7, 0, 0.62);
         }
         if (cA) {   // A-Lab: calibration island (console ring)
@@ -3228,10 +3210,7 @@
         addBox(0.18, 0.05, 0.28, tagW.x - 0.8, 1.16, tagW.z - 1.9, glowAmber); // the tag inside
         map.addCollider(tagW.x - 1.7, tagW.z - 2.4, tagW.x - 0.85, tagW.z - 1.4, 0, 2.0);
         // the GIANT'S HEART REGULATOR [18,4] y4 — riveted chamber + feed pipes
-        var hrt = new THREE.Mesh(new THREE.SphereGeometry(0.85, 12, 12),
-          new THREE.MeshLambertMaterial({ color: 0x5b3f38 }));
-        hrt.scale.y = 1.25; hrt.position.set(regW.x + 1.0, 1.75, regW.z + 1.6); G.scene.add(hrt);
-        addBox(0.7, 0.9, 0.7, regW.x + 1.0, 0.45, regW.z + 1.6, dark);
+        G.GLB.place('regulator', regW.x + 1.0, 0, regW.z + 1.6, Math.PI, 0.85);
         addBox(0.14, 0.14, 1.4, regW.x + 1.0, 2.45, regW.z + 0.8, dPipe);
         addBox(0.3, 0.1, 0.34, regW.x + 0.6, 1.7, regW.z + 1.2, dark);   // the tag SLOT
         map.addCollider(regW.x + 0.4, regW.z + 1.1, regW.x + 1.6, regW.z + 2.1, 0, 2.6);

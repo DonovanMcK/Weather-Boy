@@ -102,9 +102,12 @@ function createGame() {
     console: console, Math: Math, Object: Object, Array: Array, JSON: JSON,
     Proxy: Proxy, Promise: Promise
   };
+  sandbox.atob = function (b) { return Buffer.from(b, 'base64').toString('binary'); };
+  sandbox.TextDecoder = TextDecoder;
   vm.createContext(sandbox);
 
   ['config', 'audio', 'hud',
+   'models-data', 'glb',
    'assets/materials', 'assets/prop-utils', 'assets/prop-registry',
    'assets/gameplay-machines', 'assets/environment-props', 'assets/interactive-props',
    'map', 'nav', 'player', 'weapons', 'zombies', 'powerups', 'interact', 'gamepad', 'remote', 'terminal', 'main']
