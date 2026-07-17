@@ -427,6 +427,7 @@ async function runQuick(mapId) {
   var ctx = createGame();
   var G = ctx.G;
   bootChecks(ctx, mapId);
+  if (mapId === 'derriese') testDerRieseLighting(ctx);
   G.player._realDamage = G.player.damage;
   G.player.damage = function () {}; // invulnerable for systems testing
   ctx.step(60 * 10);
@@ -471,6 +472,33 @@ async function runQuick(mapId) {
   }
   testEeWeapons(ctx);
   testWallAlignment(ctx, mapId);
+}
+
+/* Der Riese begins in a playable emergency state, then uses the SAME light
+   budget to become a neutral factory after power.  This guards the visual
+   intent without adding an expensive screenshot test to every CI run. */
+function testDerRieseLighting(ctx) {
+  var G = ctx.G, map = G.map, DL = map.derRieseLighting;
+  var pointLightsBefore = map.roomLights.filter(function (l) { return l.isPointLight; }).length;
+  ok(!!DL && DL.powerT === 0,
+     'Der Riese starts in its red emergency-lighting state');
+  ok(map.derRieseAuras.length === 6 && map.derRieseAuras.every(function (a) {
+    return a.glow.intensity >= a.baseIntensity * 0.99;
+  }), 'unpowered factory districts keep their full coloured glow');
+  ok(map.lamps.length > 0 && map.lamps[0].light.color.r > map.lamps[0].light.color.g * 1.5,
+     'unpowered ceiling fixtures read as emergency red');
+
+  map.setPower();
+  ctx.step(180);   // let the authored power ramp settle
+  ok(DL.powerT === 1 && G.hemi.intensity > 0.75 && G.amb.intensity > 0.5,
+     'power restores the neutral factory fill');
+  ok(map.lamps[0].light.color.r / map.lamps[0].light.color.g < 1.4,
+     'powered ceiling fixtures return to warm-neutral factory light');
+  ok(map.derRieseAuras.every(function (a) {
+    return a.glow.intensity > 0 && a.glow.intensity < a.baseIntensity * 0.35;
+  }), 'powered rooms retain only a subtle coloured wall tint');
+  ok(map.roomLights.filter(function (l) { return l.isPointLight; }).length === pointLightsBefore,
+     'power transition adds no real-time lights to the renderer budget');
 }
 
 /* climbing an indoor staircase to an upper floor must not headbutt the room

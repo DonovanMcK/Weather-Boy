@@ -143,6 +143,20 @@
     papRule: 'teleporters',
     atmos: { sky: 0x101714, fog: 0x172018, density: 0.011,
              amb: 0x3e4b42, ambI: 0.62, hemiSky: 0x82998d, hemiGround: 0x252e28 },
+    // Der Riese deliberately starts in emergency power: low red ceiling lamps
+    // and the coloured department glows do the storytelling.  Throwing the
+    // switch restores clean factory fill, but leaves each sector's colour as a
+    // restrained stain on its walls and floor instead of erasing its identity.
+    // These values only retune the existing lights; they never add to the
+    // renderer's light budget.
+    lighting: {
+      emergency: { amb: 0.36, hemi: 0.47, moon: 0.16,
+                   lamp: 0.32, bulb: 0.58, lampColor: 0xb63732,
+                   aura: 1.00, pool: 0.16, work: 0.86 },
+      factory:   { amb: 0.54, hemi: 0.80, moon: 0.32,
+                   lamp: 1.12, bulb: 0.96, lampColor: 0xffe3bd,
+                   aura: 0.30, pool: 0.045, work: 0.28 }
+    },
     palette: { wallA: 0x675044, wallB: 0x574942, wood: 0x826447, plank: 0x9b7a54,
                metal: 0x606b69, beam: 0x2c3434, rust: 0x70462e, conc: 0x666862,
                deck: 0x414a4b, ceil: 0x383d3b, accent: 0x47bca4, lampTint: 0xffc47b },

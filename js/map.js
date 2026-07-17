@@ -494,6 +494,39 @@
       this.effects.push(m);
     },
 
+    // Der Riese has two deliberately different lighting states, but they reuse
+    // the same lamps, auras and work lights that were already in the scene.
+    // The red emergency circuit makes the unpowered factory legible through
+    // colour; restoring power brings back a neutral industrial wash while the
+    // department colours remain as a faint environmental stain.
+    applyDerRieseLighting: function () {
+      var DL = this.derRieseLighting;
+      if (!DL) return;
+      var t = DL.powerT, E = DL.emergency, F = DL.factory;
+      function mix(a, b) { return a + (b - a) * t; }
+
+      this.baseHemiIntensity = mix(E.hemi, F.hemi);
+      // Zombie lightning is an additive flash, never a replacement for the
+      // current power-state baseline.
+      var lightning = G.zombies && G.zombies.lightning > 0 ? G.zombies.lightning * 6 : 0;
+      G.hemi.intensity = this.baseHemiIntensity + lightning;
+      if (G.amb) G.amb.intensity = mix(E.amb, F.amb);
+      if (G.moon) G.moon.intensity = mix(E.moon, F.moon);
+
+      DL.lampColor.copy(DL.emergencyLampColor).lerp(DL.factoryLampColor, t);
+      (this.lamps || []).forEach(function (lamp) {
+        lamp.light.color.copy(DL.lampColor);
+        if (lamp.bulb.material.emissive) lamp.bulb.material.emissive.copy(DL.lampColor);
+      });
+      (this.derRieseAuras || []).forEach(function (aura) {
+        aura.glow.intensity = aura.baseIntensity * mix(E.aura, F.aura);
+        aura.pool.material.opacity = mix(E.pool, F.pool);
+      });
+      (this.derRieseWorkLights || []).forEach(function (work) {
+        work.light.intensity = work.baseIntensity * mix(E.work, F.work);
+      });
+    },
+
     update: function (dt) {
       var self = this;
       // FLOOR CULLING — on a stacked map, hide the geometry/lights of floors more
@@ -550,12 +583,24 @@
         t.ring.material.emissive = t.ring.material.color;
         if (t.light) t.light.intensity = self.power ? (t.linked ? 1.2 : 0.5) : 0;
       });
+      // Let the actual factory circuit rise over a beat instead of popping the
+      // whole map from red emergency mode to bright white in one frame.
+      var DL = this.derRieseLighting;
+      if (DL) {
+        var targetPower = this.power ? 1 : 0;
+        DL.powerT += (targetPower - DL.powerT) * Math.min(1, dt * 2.4);
+        if (Math.abs(targetPower - DL.powerT) < 0.002) DL.powerT = targetPower;
+        this.applyDerRieseLighting();
+      }
       // lamp flicker
       this.lamps.forEach(function (l, i) {
-        var base = self.power ? 1.7 : 0.75;
+        var base = DL ? DL.emergency.lamp + (DL.factory.lamp - DL.emergency.lamp) * DL.powerT
+                      : (self.power ? 1.7 : 0.75);
+        var bulbBase = DL ? DL.emergency.bulb + (DL.factory.bulb - DL.emergency.bulb) * DL.powerT
+                          : (self.power ? 1.0 : 0.35);
         var fl = 1 + Math.sin(G.time * 9 + i * 7) * 0.04 + Math.sin(G.time * 23 + i * 3) * 0.025;
         l.light.intensity = base * fl;
-        l.bulb.material.emissiveIntensity = (self.power ? 1.0 : 0.35) * fl;
+        l.bulb.material.emissiveIntensity = bulbBase * fl;
       });
 
       // KURHAUS living-map pass — pure mesh/material animation, no light churn
@@ -623,8 +668,12 @@
 
     setPower: function () {
       this.power = true;
-      G.hemi.intensity = 0.95;
-      if (G.amb) G.amb.intensity = 0.7;
+      // Der Riese owns a smooth two-state profile; the other maps retain their
+      // established immediate power response.
+      if (!this.derRieseLighting) {
+        G.hemi.intensity = 0.95;
+        if (G.amb) G.amb.intensity = 0.7;
+      }
       this.perkMachines.forEach(function (p) { if (p.light) p.light.intensity = 0.9; });
     }
   };
@@ -675,6 +724,24 @@
     if (G.amb) {
       G.amb.intensity = atmos.ambI != null ? atmos.ambI : 0.5;
       if (atmos.amb != null) G.amb.color.setHex(atmos.amb);
+    }
+    // Der Riese's two lighting profiles are configured beside the map rather
+    // than as a pile of special-case lights.  They only retune existing scene
+    // entries, so the performance light count is identical before and after
+    // the power switch is used.
+    map.power = false;
+    map.derRieseAuras = [];
+    map.derRieseWorkLights = [];
+    map.derRieseLighting = null;
+    if (CFG.cur.id === 'derriese' && CFG.cur.lighting) {
+      map.derRieseLighting = {
+        emergency: CFG.cur.lighting.emergency,
+        factory: CFG.cur.lighting.factory,
+        powerT: 0,
+        lampColor: new THREE.Color(CFG.cur.lighting.emergency.lampColor),
+        emergencyLampColor: new THREE.Color(CFG.cur.lighting.emergency.lampColor),
+        factoryLampColor: new THREE.Color(CFG.cur.lighting.factory.lampColor)
+      };
     }
 
     map.risers = (CFG.RISERS || []).map(function (cr) {
@@ -1509,12 +1576,13 @@
       // pull every room's lamp toward this map's tint so the whole map shares one
       // light temperature (warm bunker / cool factory / cold arctic) instead of
       // some rooms glowing warm and others cold
-      // Der Riese deliberately keeps each department's own colour. The former
-      // 62% blend into one beige lamp tint made furnace, lab and cooling rooms
-      // look identical even though their config colours were different.
-      var tintBlend = CFG.cur.id === 'derriese' ? 0.16 : 0.62;
-      var color = new THREE.Color(CFG.ROOMS[roomId].light).lerp(
-        new THREE.Color(palC('lampTint', 0xffe9c0)), tintBlend).getHex();
+      // Der Riese's ceiling circuit is neutral factory light after power. Its
+      // individual department identity comes from the retained coloured auras,
+      // which are strongest before power and become a subtle wall tint after.
+      var color = CFG.cur.id === 'derriese'
+        ? CFG.cur.lighting.factory.lampColor
+        : new THREE.Color(CFG.ROOMS[roomId].light).lerp(
+          new THREE.Color(palC('lampTint', 0xffe9c0)), 0.62).getHex();
       function avg(list) {
         var cx = 0, cz = 0;
         list.forEach(function (cr) { var w = CFG.cellToWorld(cr[0], cr[1]); cx += w.x; cz += w.z; });
@@ -3057,6 +3125,7 @@
           if (!fixtureOnly) {
             var lamp = new THREE.PointLight(color, intensity || 0.72, distance || 17, 1.4);
             lamp.position.set(p.x, y, p.z); G.scene.add(lamp); map.roomLights.push(lamp);
+            map.derRieseWorkLights.push({ light: lamp, baseIntensity: intensity || 0.72 });
           }
           taskLight(c, r, y + 0.02, new THREE.MeshBasicMaterial({ color: color }));
         }
@@ -3071,8 +3140,8 @@
           G.scene.add(pool);
           var glow = new THREE.PointLight(color, intensity || 1.0, distance || 25, 1.35);
           glow.position.set(p.x, 1.25, p.z); G.scene.add(glow); map.roomLights.push(glow);
-          map.derRieseAuras = map.derRieseAuras || [];
-          map.derRieseAuras.push({ pool: pool, glow: glow, color: color });
+          map.derRieseAuras.push({ pool: pool, glow: glow, color: color,
+            baseIntensity: intensity || 1.0 });
         }
         function sectorBand(c, r, face, color) {
           var p = wc(c, r), o = OFF[face], m = new THREE.MeshBasicMaterial({ color: color });
@@ -3779,6 +3848,10 @@
       });
     })();
 
+    // Apply the initial emergency profile after every lamp and district aura
+    // exists. This is a one-time build pass; later changes occur only while the
+    // player is throwing the power switch.
+    if (map.derRieseLighting) map.applyDerRieseLighting();
     map.recomputeReachable();
   };
 

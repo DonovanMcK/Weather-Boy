@@ -65,6 +65,9 @@
     var moon = new THREE.DirectionalLight(0xaabbdd, 0.55);
     moon.position.set(30, 50, -20);
     G.scene.add(moon);
+    // Maps with a power-state lighting profile can retune this existing fill
+    // light. Keeping the reference avoids creating a second directional light.
+    G.moon = moon;
 
     G.hud.init();
 
