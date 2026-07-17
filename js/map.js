@@ -1595,10 +1595,10 @@
       // under-lit ceiling/void — roughly one lamp per ~6 cells (1..4). Kurhaus
       // caps at 3 because its wings carry their own accent glows; forward-
       // rendered point lights remain the map's main per-pixel cost.
-      // Der Riese has one coloured aura per department and emissive machinery,
-      // so it needs only one or two real ceiling lights per room. This removes
-      // a large per-pixel light cost without flattening its visual identity.
-      var lampCap = CFG.cur.id === 'derriese' ? 2 : (CFG.cur.id === 'kurhaus' ? 3 : 4);
+      // Der Riese carries a self-lit department aura and physical emissive
+      // fixtures, so a single real ceiling lamp is enough per room. That keeps
+      // its factory readability while cutting the forward-light cost in half.
+      var lampCap = CFG.cur.id === 'derriese' ? 1 : (CFG.cur.id === 'kurhaus' ? 3 : 4);
       var lampArea = CFG.cur.id === 'derriese' ? 15 : 6;
       var nL = Math.max(1, Math.min(lampCap, Math.round(cells.length / lampArea)));
       // sort cells along the room's longer axis, then split into nL contiguous
@@ -3236,7 +3236,7 @@
         prop('tool_cart', 3, 5, 1.15, 0, 0, Math.PI / 2, 0.92, [0.48, 0.68, 1.0]);
         prop('fuel_drum', 4, 1, -0.9, 0.85, 0, 0, 0.95);
         prop('machinery_unit', 10, 4, 0.85, -0.95, 0, -Math.PI / 2, 0.9);
-        workLight(6, 3, 3.15, 0xff8a42, 0.86, 18);
+        workLight(6, 3, 3.15, 0xff8a42, 0.86, 18, true);
         workLight(9, 4, 3.1, 0xffb16a, 0.62, 14, true);
         for (var em = 0; em < 3; em++) {
           var ep = new THREE.Mesh(new THREE.SphereGeometry(0.055 + (em & 1) * 0.025, 6, 6), orange);
@@ -3335,7 +3335,7 @@
           var specimen = new THREE.Mesh(new THREE.SphereGeometry(0.28, 9, 9), i ? red : cyan);
           specimen.scale.y = 1.45; specimen.position.set(p.x - side * 0.38, 1.36, p.z + 0.62); G.scene.add(specimen);
         });
-        workLight(11, 16, 3.12, 0xd94b5e, 0.88, 19);
+        workLight(11, 16, 3.12, 0xd94b5e, 0.88, 19, true);
         workLight(17, 19, 3.12, 0xd94b5e, 0.88, 19, true);
 
         // TELEPORTER A LAB — specimen vessels and a north-wall wet bench frame
@@ -3383,7 +3383,7 @@
           sample.position.set(tp.x + 0.88, 1.12, tp.z); G.scene.add(sample);
           solid(tp.x + 0.88, tp.z, 0.42, 0.42, 2.18);
         });
-        workLight(23, 18, 3.15, 0x66d8f0, 0.86, 19);
+        workLight(23, 18, 3.15, 0x66d8f0, 0.86, 19, true);
         workLight(26, 21, 3.15, 0x66d8f0, 0.86, 19, true);
 
         // MAINFRAME YARD — open central movement, wall-side logistics, and three
@@ -3414,7 +3414,7 @@
         plinth.rotation.y = Math.PI / 4;
         DR.sparkMesh = addBox(0.3, 0.3, 0.2, mf.x, 0.3, mf.z + 1.35,
           new THREE.MeshBasicMaterial({ color: 0x2a2d2f }));
-        workLight(22, 12, 3.25, 0xffcf87, 0.5, 18);
+        workLight(22, 12, 3.25, 0xffcf87, 0.5, 18, true);
         workLight(26, 8, 3.25, 0x9adbd1, 0.52, 18, true);
 
         // POWER GARAGE CONTROL BAY — every useful function from the removed
@@ -3448,7 +3448,7 @@
         line3(new THREE.Vector3(wc(17, 6).x + 0.8, 2.5, wc(17, 6).z),
               new THREE.Vector3(reg.x + 0.9, 2.5, reg.z), 0.1, green);
         solid(reg.x + 1.3, reg.z, 0.2, 0.74, 2.9);
-        workLight(18, 6, 3.1, 0x72d39b, 0.92, 17);
+        workLight(18, 6, 3.1, 0x72d39b, 0.92, 17, true);
 
         // Easter-egg stations share one amber 935 plaque and exist as physical
         // objects in the named rooms before the player ever sees a prompt.

@@ -12,6 +12,16 @@
 
   G.bestKey = function () { return 'wj_best_' + G.CFG.cur.id; };
 
+  // A map may opt into a lower internal render scale when its authored scene is
+  // deliberately dense. This changes pixel workload only — never simulation,
+  // controls, light colours, or the CSS size of the game.
+  function applyMapRenderScale() {
+    var cap = G.CFG && G.CFG.cur && G.CFG.cur.renderPixelRatio;
+    cap = cap == null ? 1.5 : cap;
+    G.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
+    G.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
   /* ------------------------------------------------- input mode detection
      Macs (usually trackpads) default to "simple" aim: no ADS, tighter
      hip-fire and bullet magnetism. Mouse machines get full ADS. The start
@@ -183,6 +193,7 @@
     if (started) return;
     started = true;
     G.CFG.setMap(mapId);
+    applyMapRenderScale();
     G.map.build();
     G.player.spawn();
     G.weapons.init();

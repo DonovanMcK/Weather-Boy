@@ -135,10 +135,14 @@
     id: 'derriese',
     name: 'DER RIESE',
     sub: "The Giant rebuilt — a tight three-wing factory loop with distinct furnace, power, cooling, and testing districts.",
-    // Keep the full three-wing loop, but trim roughly 16% of its old 3.5m
-    // footprint. This remains deliberately modest: rooms still breathe while
-    // routes are faster and the main lanes stay trainable.
-    cellSize: 3.2,
+    // Keep the full three-wing loop, but tighten the prior 3.2m grid one more
+    // safe step. 3.0m removes another 12% of the footprint while leaving a
+    // generous one-cell doorway and every authored set piece clear.
+    cellSize: 3.0,
+    // This map is the densest of the four. Native-resolution rendering avoids
+    // Retina supersampling here, cutting its GPU heat/load dramatically without
+    // changing gameplay, lighting colours, or the visual asset set.
+    renderPixelRatio: 1.0,
     wonder: 'wunderwaffe',
     papRule: 'teleporters',
     atmos: { sky: 0x101714, fog: 0x172018, density: 0.011,

@@ -79,9 +79,9 @@ function createGame() {
   function KeyboardEventStub(type, init) { this.type = type; this.code = init && init.code; this.repeat = false; this.isTrusted = false; }
   var navigatorStub = { platform: 'Test', userAgent: 'node', getGamepads: function () { return fakePads; } };
 
-  function FakeRenderer() { this.domElement = canvasStub(); }
+  function FakeRenderer() { this.domElement = canvasStub(); this.pixelRatio = 1; }
   FakeRenderer.prototype.setSize = function () {};
-  FakeRenderer.prototype.setPixelRatio = function () {};
+  FakeRenderer.prototype.setPixelRatio = function (v) { this.pixelRatio = v; };
   // the real renderer updates world matrices each frame; mirror that
   FakeRenderer.prototype.render = function (scene) { scene.updateMatrixWorld(true); };
   var THREEStub = Object.create(THREE);
@@ -480,6 +480,10 @@ async function runQuick(mapId) {
 function testDerRieseLighting(ctx) {
   var G = ctx.G, map = G.map, DL = map.derRieseLighting;
   var pointLightsBefore = map.roomLights.filter(function (l) { return l.isPointLight; }).length;
+  ok(G.renderer.pixelRatio === 1,
+     'Der Riese caps its renderer at native resolution to reduce GPU load');
+  ok(pointLightsBefore <= 14,
+     'Der Riese uses a compact local-light budget without removing its auras');
   ok(!!DL && DL.powerT === 0,
      'Der Riese starts in its red emergency-lighting state');
   ok(map.derRieseAuras.length === 6 && map.derRieseAuras.every(function (a) {
@@ -708,7 +712,7 @@ function testPowerups(ctx) {
 // has its authored colour aura.
 function testDerRieseGroundLoop(ctx) {
   var G = ctx.G, step = ctx.step, win = ctx.win, P = G.player;
-  ok(Math.abs(G.CFG.CELL - 3.2) < 0.01, 'Der Riese uses the tightened 3.2m grid scale');
+  ok(Math.abs(G.CFG.CELL - 3.0) < 0.01, 'Der Riese uses the tightened 3.0m grid scale');
   ok((G.map.floors || []).filter(function (f) { return f.floorY > 0.5; }).length === 0,
      'Der Riese has no orphaned playable upper floor');
   ok((G.map.stages || []).filter(function (s) { return s.stairBase; }).length === 0,
