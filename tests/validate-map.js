@@ -111,15 +111,25 @@ CFG.MAP_IDS.forEach(function (mapId) {
   (CFG.TRAPS || []).forEach(function (t) { checkPlacement('trap ' + t.type, t.cell, t); });
 
   // Wall buys should face a wall (void or different room beyond their face dir),
-  // on their own floor's grid.
+  // on their own floor's grid. A wall buy may never occupy a boarded window or
+  // face a buy-door: those are barriers, not its own wall bay.
   CFG.WALLBUYS.forEach(function (w) {
     var gp = gridFor(w);
-    var o = OFF[w.face], nr = w.cell[1] + o[1], nc = w.cell[0] + o[0];
+    var o = OFF[w.face];
+    ok(!!o, 'wallbuy ' + w.gun + ' has a cardinal wall face (' + w.face + ')');
+    if (!o) return;
+    var nr = w.cell[1] + o[1], nc = w.cell[0] + o[0];
     var n = (nr < 0 || nr >= gp.rows || nc < 0 || nc >= gp.cols)
       ? { type: 'void' } : gp.cells[nr][nc];
     var cell = gp.cells[w.cell[1]][w.cell[0]];
     var wallThere = n.type === 'void' || (n.type === 'room' && n.room !== cell.room);
     ok(wallThere, 'wallbuy ' + w.gun + ' faces a wall (' + w.face + ')');
+    ok(n.type !== 'door', 'wallbuy ' + w.gun + ' is not mounted on a buy-door barrier');
+    var onWindow = CFG.WINDOWS.some(function (win) {
+      return win.cell[0] === w.cell[0] && win.cell[1] === w.cell[1] &&
+        win.dir === w.face && (win.y || 0) === (w.y || 0);
+    });
+    ok(!onWindow, 'wallbuy ' + w.gun + ' is not mounted on a boarded window barrier');
   });
 
   // Teleporter rule integrity.

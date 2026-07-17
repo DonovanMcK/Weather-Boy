@@ -1303,12 +1303,11 @@
       });
       propSolids(root);
       propCollider(fl.x, fl.z, 0.48, 0.4, by, by + 1.9, fl.yaw);
-      // Kurhaus has nine perk machines plus authored wing lighting. Their prop
-      // art already uses emissive signs/bottles, so nine overlapping point
-      // lights added cost without changing the silhouette. Keep those machines
-      // self-lit and reserve dynamic lights for the room fixtures and altars.
+      // The perk art already has emissive signs/bottles. Extra point lights on
+      // every cabinet cost far more than they add, especially on Der Riese's
+      // district-lit factory, so these machines stay self-lit there.
       var light = null;
-      if (CFG.cur.id !== 'kurhaus') {
+      if (CFG.cur.id !== 'kurhaus' && CFG.cur.id !== 'derriese') {
         light = new THREE.PointLight(def.color, pm.perk === 'revive' ? 0.8 : 0.25, 7);
         light.position.set(fl.x, by + 2.2, fl.z);
         G.scene.add(light);
@@ -1491,8 +1490,8 @@
       bulb.position.y = -0.04; fixture.add(bulb);
       fixture.position.set(x, fy + WALL_H - 0.55, z);
       G.scene.add(fixture);
-      var light = new THREE.PointLight(color, CFG.cur.id === 'derriese' ? 0.98 : 0.75,
-        CFG.cur.id === 'derriese' ? 20 : 18, 1);
+      var light = new THREE.PointLight(color, CFG.cur.id === 'derriese' ? 0.82 : 0.75,
+        CFG.cur.id === 'derriese' ? 17 : 18, 1);
       light.position.set(x, fy + WALL_H - 0.9, z);
       G.scene.add(light);
       G.map.roomLights.push(light);
@@ -1524,12 +1523,16 @@
       var rfy = map.floorYOf(roomId);              // this room's floor height
       var all = avg(cells);
       P.rooms[roomId].center = new THREE.Vector3(all.x, rfy, all.z);
-      // scale lamp count with floor area so big rooms aren't left with a dark,
+      // Scale lamp count with floor area so big rooms aren't left with a dark,
       // under-lit ceiling/void — roughly one lamp per ~6 cells (1..4). Kurhaus
-      // caps at 3: its wings carry their own accent glows, and forward-rendered
-      // point lights are the map's main per-pixel cost (audit: 57 -> ~46)
-      var lampCap = CFG.cur.id === 'kurhaus' ? 3 : 4;
-      var nL = Math.max(1, Math.min(lampCap, Math.round(cells.length / 6)));
+      // caps at 3 because its wings carry their own accent glows; forward-
+      // rendered point lights remain the map's main per-pixel cost.
+      // Der Riese has one coloured aura per department and emissive machinery,
+      // so it needs only one or two real ceiling lights per room. This removes
+      // a large per-pixel light cost without flattening its visual identity.
+      var lampCap = CFG.cur.id === 'derriese' ? 2 : (CFG.cur.id === 'kurhaus' ? 3 : 4);
+      var lampArea = CFG.cur.id === 'derriese' ? 15 : 6;
+      var nL = Math.max(1, Math.min(lampCap, Math.round(cells.length / lampArea)));
       // sort cells along the room's longer axis, then split into nL contiguous
       // groups and light each group's centre — spreads the lamps evenly
       var w0 = 1e9, w1 = -1e9, d0 = 1e9, d1 = -1e9;
@@ -3047,9 +3050,14 @@
           var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), color || amber);
           bulb.position.set(p.x, y, p.z); G.scene.add(bulb);
         }
-        function workLight(c, r, y, color, intensity, distance) {
-          var p = wc(c, r), lamp = new THREE.PointLight(color, intensity || 0.72, distance || 17, 1.4);
-          lamp.position.set(p.x, y, p.z); G.scene.add(lamp); map.roomLights.push(lamp);
+        function workLight(c, r, y, color, intensity, distance, fixtureOnly) {
+          var p = wc(c, r);
+          // A fixture-only lamp keeps its readable physical bulb but skips a
+          // costly per-pixel point light. The room aura carries the colour.
+          if (!fixtureOnly) {
+            var lamp = new THREE.PointLight(color, intensity || 0.72, distance || 17, 1.4);
+            lamp.position.set(p.x, y, p.z); G.scene.add(lamp); map.roomLights.push(lamp);
+          }
           taskLight(c, r, y + 0.02, new THREE.MeshBasicMaterial({ color: color }));
         }
         function roomAura(c, r, color, radius, intensity, distance) {
@@ -3132,7 +3140,7 @@
         basin.position.set(basinP.x, 0.28, basinP.z); G.scene.add(basin);
         var water = new THREE.Mesh(new THREE.CylinderGeometry(1.42, 1.42, 0.05, 18), glass);
         water.position.set(basinP.x, 0.57, basinP.z); G.scene.add(water); solid(basinP.x, basinP.z, 1.65, 1.65, 0.62);
-        for (var sv = 0; sv < 4; sv++) {
+        for (var sv = 0; sv < 2; sv++) {
           var sm = new THREE.Mesh(new THREE.SphereGeometry(0.28, 7, 7),
             new THREE.MeshBasicMaterial({ color: 0xd4dcd8, transparent: true, opacity: 0.2, depthWrite: false }));
           sm.position.set(wc(7, 8 + sv * 2).x + 0.8, 0.6, wc(7, 8 + sv * 2).z); G.scene.add(sm);
@@ -3160,8 +3168,8 @@
         prop('fuel_drum', 4, 1, -0.9, 0.85, 0, 0, 0.95);
         prop('machinery_unit', 10, 4, 0.85, -0.95, 0, -Math.PI / 2, 0.9);
         workLight(6, 3, 3.15, 0xff8a42, 0.86, 18);
-        workLight(9, 4, 3.1, 0xffb16a, 0.62, 14);
-        for (var em = 0; em < 7; em++) {
+        workLight(9, 4, 3.1, 0xffb16a, 0.62, 14, true);
+        for (var em = 0; em < 3; em++) {
           var ep = new THREE.Mesh(new THREE.SphereGeometry(0.055 + (em & 1) * 0.025, 6, 6), orange);
           ep.position.set(wc(5, 0).x - 0.9 + em * 0.3, 0.4, wc(5, 0).z - 1.18); G.scene.add(ep);
           DR.embers.push({ m: ep, x: ep.position.x, z: ep.position.z, spd: 0.5 + (em % 3) * 0.18, ph: em * 1.1 });
@@ -3190,8 +3198,8 @@
         prop('gas_cylinder', 12, 5, -0.8, 0, 0, Math.PI / 2, 0.95);
         prop('machinery_unit', 11, 7, 0.75, 0.85, 0, Math.PI / 2, 0.88);
         prop('barrel_cluster', 18, 9, 0.75, 0.7, 0, -Math.PI / 2, 0.9);
-        workLight(14, 5, 3.15, 0xffc67c, 0.62, 17);
-        workLight(17, 8, 3.15, 0xa8d7bc, 0.68, 18);
+        workLight(14, 5, 3.15, 0xffc67c, 0.62, 17, true);
+        workLight(17, 8, 3.15, 0xa8d7bc, 0.68, 18, true);
 
         // ANIMAL TESTING — numbered containment runs lead to a central surgical
         // island and one visibly ruptured cage. The three loop exits remain bare.
@@ -3259,7 +3267,7 @@
           specimen.scale.y = 1.45; specimen.position.set(p.x - side * 0.38, 1.36, p.z + 0.62); G.scene.add(specimen);
         });
         workLight(11, 16, 3.12, 0xd94b5e, 0.88, 19);
-        workLight(17, 19, 3.12, 0xd94b5e, 0.88, 19);
+        workLight(17, 19, 3.12, 0xd94b5e, 0.88, 19, true);
 
         // TELEPORTER A LAB — specimen vessels and a north-wall wet bench frame
         // the teleporter instead of competing with it.
@@ -3307,7 +3315,7 @@
           solid(tp.x + 0.88, tp.z, 0.42, 0.42, 2.18);
         });
         workLight(23, 18, 3.15, 0x66d8f0, 0.86, 19);
-        workLight(26, 21, 3.15, 0x66d8f0, 0.86, 19);
+        workLight(26, 21, 3.15, 0x66d8f0, 0.86, 19, true);
 
         // MAINFRAME YARD — open central movement, wall-side logistics, and three
         // physical cable trenches that make the teleporter loop legible.
@@ -3338,7 +3346,7 @@
         DR.sparkMesh = addBox(0.3, 0.3, 0.2, mf.x, 0.3, mf.z + 1.35,
           new THREE.MeshBasicMaterial({ color: 0x2a2d2f }));
         workLight(22, 12, 3.25, 0xffcf87, 0.5, 18);
-        workLight(26, 8, 3.25, 0x9adbd1, 0.52, 18);
+        workLight(26, 8, 3.25, 0x9adbd1, 0.52, 18, true);
 
         // POWER GARAGE CONTROL BAY — every useful function from the removed
         // upper block now lives against the ground-floor perimeter. The centre

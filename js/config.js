@@ -135,9 +135,10 @@
     id: 'derriese',
     name: 'DER RIESE',
     sub: "The Giant rebuilt — a tight three-wing factory loop with distinct furnace, power, cooling, and testing districts.",
-    // The 28x24 plan keeps its authored topology, while a tighter cell scale
-    // removes roughly 23% of the empty floor area and shortens dead travel.
-    cellSize: 3.5,
+    // Keep the full three-wing loop, but trim roughly 16% of its old 3.5m
+    // footprint. This remains deliberately modest: rooms still breathe while
+    // routes are faster and the main lanes stay trainable.
+    cellSize: 3.2,
     wonder: 'wunderwaffe',
     papRule: 'teleporters',
     atmos: { sky: 0x101714, fog: 0x172018, density: 0.011,
@@ -209,7 +210,9 @@
     ],
     WALLBUYS: [
       { gun: 'm14', cell: [27, 8], off: [1.6, 0], face: 'E' },
-      { gun: 'olympia', cell: [27, 14], off: [1.6, 0], face: 'E' },
+      // Kept on the Mainframe's east exterior wall, clear of the boarded
+      // window at [27,14] and the nearby A-Lab gate.
+      { gun: 'olympia', cell: [27, 10], off: [1.6, 0], face: 'E' },
       { gun: 'mp5k', cell: [0, 13], off: [-1.6, 0], face: 'W' },
       { gun: 'mp40', cell: [14, 10], off: [0, 1.25], face: 'S' },
       { gun: 'ak74u', cell: [7, 0], off: [0, -1.6], face: 'N' },

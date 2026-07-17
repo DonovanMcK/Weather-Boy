@@ -680,7 +680,7 @@ function testPowerups(ctx) {
 // has its authored colour aura.
 function testDerRieseGroundLoop(ctx) {
   var G = ctx.G, step = ctx.step, win = ctx.win, P = G.player;
-  ok(Math.abs(G.CFG.CELL - 3.5) < 0.01, 'Der Riese uses the tightened 3.5m grid scale');
+  ok(Math.abs(G.CFG.CELL - 3.2) < 0.01, 'Der Riese uses the tightened 3.2m grid scale');
   ok((G.map.floors || []).filter(function (f) { return f.floorY > 0.5; }).length === 0,
      'Der Riese has no orphaned playable upper floor');
   ok((G.map.stages || []).filter(function (s) { return s.stairBase; }).length === 0,

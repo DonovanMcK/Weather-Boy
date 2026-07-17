@@ -264,15 +264,16 @@
     }
     I.pickEeReward = chooseEeReward;
 
-    // The older maps now advertise their quest with a conspicuous authored
-    // briefing station. Once read, exactly one numbered objective marker is
-    // visible at a time and every completion names the next room. This keeps
-    // discovery in-world without requiring the player to press F on random art.
+    // The briefing station and physical quest props are enough to discover the
+    // classic-map Easter eggs. Der Riese deliberately does not project any new
+    // objective tags into the world: the player follows the environment and HUD.
     var eeStart = !questOn && CFG.cur.EE_START;
     function eeMarker(text, pos, color) {
-      var sp = G.util.textSprite(text, color || '#8ff', 4.2, 'rgba(0,0,0,0.68)');
-      sp.position.set(pos.x, (pos.y || 0) + 2.35, pos.z); G.scene.add(sp);
-      I.ee.markers.push(sp); return sp;
+      // Keep the quest state API intact without adding a billboard, beacon, or
+      // any other extra visual helper to the level.
+      void text; void pos; void color;
+      var marker = new THREE.Group(); marker.visible = false;
+      I.ee.markers.push(marker); return marker;
     }
     function showEeObjective(idx) {
       I.ee.step = idx;
@@ -285,9 +286,9 @@
        This is constructed up-front but remains completely dormant until the
        normal Giant's Heart chest awards its regular wonder weapon. */
     function ocMarker(text, pos, color) {
-      var sp = G.util.textSprite(text, color || '#79ffe0', 3.6, 'rgba(0,0,0,0.72)');
-      sp.position.set(pos.x, (pos.y || 0) + 2.2, pos.z); sp.visible = false;
-      G.scene.add(sp); I.overclock.markers.push(sp); return sp;
+      void text; void pos; void color;
+      var marker = new THREE.Group(); marker.visible = false;
+      I.overclock.markers.push(marker); return marker;
     }
     function hideOcMarkers() { I.overclock.markers.forEach(function (m) { m.visible = false; }); }
     function ocObjective(text, marker) {
@@ -1328,12 +1329,11 @@
     var pool = Object.keys(CFG.WEAPONS).filter(function (id) {
       var w = CFG.WEAPONS[id];
       if (!w.box) return false;
-      if (w.wonder && id !== CFG.cur.wonder) return false; // map's own wonder only
+      if (w.wonder && id !== CFG.cur.wonder) return false;
       if (G.weapons.hasWeapon(id)) return false;
-      if (recent.indexOf(id) >= 0) return false;            // no repeats from the last few rolls
+      if (recent.indexOf(id) >= 0) return false;
       return true;
     });
-    // never let the recent-filter empty the pool
     return pool.length ? pool : boxPool(false);
   }
 

@@ -153,6 +153,22 @@
 
     var tipZ = -0.5;
 
+    // Wonder weapons get a tiny amount of viewmodel-only life: rotating
+    // mechanical parts and a breathing emissive core. These are just material
+    // tweaks and transforms on the held model — no new scene lights, particles,
+    // or per-shot allocations.
+    function wonderRotor(mesh, axis, speed, phase) {
+      var a = g.userData.wonderMotion || (g.userData.wonderMotion = { rotors: [], glows: [] });
+      a.rotors.push({ mesh: mesh, axis: axis || 'z', speed: speed || 1, phase: phase || 0,
+        base: mesh.rotation[axis || 'z'] || 0 });
+      return mesh;
+    }
+    function wonderGlow(material, base, amp, speed, phase) {
+      var a = g.userData.wonderMotion || (g.userData.wonderMotion = { rotors: [], glows: [] });
+      a.glows.push({ material: material, base: base || 0.7, amp: amp || 0.2, speed: speed || 2, phase: phase || 0 });
+      return material;
+    }
+
     if (cls === 'pistol') {
       var sl = 0.2 * vm.len * vm.slideFac;
       box(0.052, 0.07, sl + 0.06, 0, 0.02, -sl / 2, body);                 // slide
@@ -237,26 +253,114 @@
       tipZ = -0.62;
       void t1;
     } else if (id === 'seelenmotor') {
-      box(0.16, 0.16, 0.48, 0, 0, -0.14, accentMat(0x384b52, papped, dpap));
-      for (var sm = 0; sm < 3; sm++) cylZ(0.055, 0.055, 0.16, (sm - 1) * 0.07, 0.09, -0.38, accentMat(0x9fe8ff, papped, dpap), 10);
-      box(0.07, 0.18, 0.09, 0, -0.14, 0.02, M.wood, 0.2); tipZ = -0.55;
-    } else if (id === 'nachbildner115') {
-      box(0.11, 0.14, 0.5, 0, 0, -0.16, accentMat(0x4a315d, papped, dpap));
-      var prism = new THREE.Mesh(new THREE.OctahedronGeometry(0.1, 0), accentMat(0xb78cff, papped, dpap));
-      prism.position.set(0, 0.11, -0.28); prism.scale.z = 1.5; g.add(prism);
-      cylZ(0.025, 0.05, 0.25, 0, 0, -0.52, M.mid, 8); tipZ = -0.68;
-    } else if (cls === 'wunder') {
-      box(0.07, 0.12, 0.3, 0, -0.03, 0.12, M.wood);                       // stock
-      box(0.08, 0.1, 0.44, 0, 0, -0.2, body);                             // body
-      for (var ci = 0; ci < 3; ci++) {
-        var coilM = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.07, 10),
-          new THREE.MeshPhongMaterial({ color: 0x223344, emissive: 0x33ccff, emissiveIntensity: 0.9, shininess: 80 }));
-        coilM.position.set(0, 0.085, -0.1 - ci * 0.14);
-        g.add(coilM);
+      // Seelenmotor: a heavy soul-pressure engine. Its exposed flywheel and
+      // piston rails make it read as machinery rather than a second DG-2.
+      var motorShell = accentMat(0x52646a, papped, dpap);
+      var motorBrass = accentMat(0x9b7241, papped, dpap);
+      var soulMat = new THREE.MeshPhongMaterial({
+        color: 0x0b2d35, emissive: new THREE.Color(0x19c7be), emissiveIntensity: 0.9,
+        shininess: 95, specular: new THREE.Color(0x9dfff0)
+      });
+      wonderGlow(soulMat, 0.88, 0.2, 3.2, 0.1);
+      cylZ(0.105, 0.125, 0.4, 0, -0.01, -0.12, motorShell, 12);           // pressure canister
+      box(0.22, 0.04, 0.22, 0, 0.105, -0.08, M.mid);                      // top pressure plate
+      box(0.085, 0.19, 0.095, 0, -0.14, 0.08, M.wood, 0.22);              // insulated grip
+      box(0.08, 0.024, 0.12, 0, -0.055, -0.01, M.dark);                   // trigger guard
+      [-0.105, 0.105].forEach(function (x) {
+        cylZ(0.025, 0.025, 0.48, x, -0.02, -0.22, motorBrass, 8);         // pressure rails
+        cylZ(0.042, 0.038, 0.12, x, -0.07, -0.45, M.mid, 9);              // exposed pistons
+      });
+      var motor = new THREE.Group();
+      motor.position.set(0, 0.11, -0.28);
+      var cage = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.125, 0.05, 10), M.mid);
+      cage.rotation.x = Math.PI / 2; motor.add(cage);
+      var soul = new THREE.Mesh(new THREE.SphereGeometry(0.071, 10, 10), soulMat);
+      soul.position.z = -0.035; soul.scale.z = 1.25; motor.add(soul);
+      var flywheel = new THREE.Group();
+      var hub = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.035, 10), M.mid);
+      hub.rotation.x = Math.PI / 2; flywheel.add(hub);
+      for (var sm = 0; sm < 4; sm++) {
+        var blade = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.017, 0.018), motorBrass);
+        blade.rotation.z = sm * Math.PI / 2; flywheel.add(blade);
       }
-      cylZ(0.018, 0.018, 0.12, 0, 0.0, -0.48, M.mid);
-      box(0.05, 0.14, 0.07, 0, -0.13, 0.02, M.wood, 0.2);
-      tipZ = -0.56;
+      motor.add(flywheel); g.add(motor); wonderRotor(flywheel, 'z', 3.0, 0.2);
+      cylZ(0.072, 0.102, 0.16, 0, 0.01, -0.55, M.mid, 12);               // pressure bell
+      cylZ(0.045, 0.064, 0.1, 0, 0.01, -0.66, soulMat, 10);
+      tipZ = -0.73;
+    } else if (id === 'nachbildner115') {
+      // Nachbildner 115: a mirrored, open-frame duplicator. The prism spins
+      // inside three rails, with violet light kept deliberately unmistakable.
+      var mirror = accentMat(0x4a315d, papped, dpap);
+      var prismFrame = accentMat(0x8e68c7, papped, dpap);
+      var prismMat = new THREE.MeshPhongMaterial({
+        color: 0x28113b, emissive: new THREE.Color(0x9a48d7), emissiveIntensity: 0.92,
+        shininess: 100, specular: new THREE.Color(0xe0b1ff)
+      });
+      wonderGlow(prismMat, 0.9, 0.22, 2.4, 1.2);
+      box(0.115, 0.11, 0.3, 0, -0.01, -0.02, mirror);                    // compact receiver
+      box(0.074, 0.18, 0.09, 0, -0.14, 0.1, M.poly, 0.22);               // grip
+      box(0.102, 0.025, 0.15, 0, -0.06, -0.03, M.dark);                  // trigger spine
+      [-0.105, 0.105].forEach(function (x) {
+        cylZ(0.018, 0.024, 0.6, x, 0.02, -0.37, prismFrame, 8);          // two long mirror rails
+      });
+      var prismCage = new THREE.Group();
+      prismCage.position.set(0, 0.075, -0.32);
+      var prism = new THREE.Mesh(new THREE.OctahedronGeometry(0.105, 0), prismMat);
+      prism.scale.set(0.78, 1.08, 1.38); prismCage.add(prism);
+      var outer = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.014, 6, 18), prismFrame);
+      prismCage.add(outer);
+      for (var pn = 0; pn < 3; pn++) {
+        var pa = pn / 3 * Math.PI * 2;
+        var rail = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, 0.31), prismFrame);
+        rail.position.set(Math.cos(pa) * 0.122, Math.sin(pa) * 0.122, 0); prismCage.add(rail);
+      }
+      g.add(prismCage); wonderRotor(prismCage, 'y', 1.55, 0.4);
+      [-0.053, 0.053].forEach(function (x) {
+        cylZ(0.019, 0.025, 0.2, x, 0.0, -0.73, prismMat, 8);             // split fork muzzle
+      });
+      box(0.13, 0.026, 0.06, 0, 0.0, -0.64, M.mid);                      // muzzle bridge
+      tipZ = -0.86;
+    } else if (cls === 'wunder') {
+      // Wunderwaffe DG-2: insulated coil rifle, brass guide rails, a visible
+      // dynamo and forked muzzle. It stays faithful to the silhouette but now
+      // has readable moving electrical hardware from the player's hand.
+      var dgBrass = accentMat(0xa77b39, papped, dpap);
+      var dgCore = new THREE.MeshPhongMaterial({
+        color: 0x0a2b36, emissive: new THREE.Color(0x18bde0), emissiveIntensity: 0.92,
+        shininess: 100, specular: new THREE.Color(0xc4f8ff)
+      });
+      wonderGlow(dgCore, 0.9, 0.22, 3.6, 0.5);
+      var dgInsulator = new THREE.MeshPhongMaterial({
+        color: 0x18303b, emissive: new THREE.Color(0x16829f), emissiveIntensity: 0.72,
+        shininess: 75, specular: new THREE.Color(0x87e7ff)
+      });
+      wonderGlow(dgInsulator, 0.7, 0.18, 2.2, 2.0);
+      box(0.095, 0.14, 0.33, 0, -0.035, 0.13, M.wood);                   // bakelite stock
+      box(0.125, 0.12, 0.4, 0, 0, -0.13, accentMat(0x334148, papped, dpap)); // armored chassis
+      box(0.08, 0.18, 0.09, 0, -0.14, 0.06, M.wood, 0.22);               // grip
+      box(0.1, 0.025, 0.13, 0, -0.055, -0.02, M.dark);                   // trigger spine
+      [-0.095, 0.095].forEach(function (x) {
+        cylZ(0.018, 0.022, 0.62, x, 0.025, -0.34, dgBrass, 8);           // exposed guide rails
+      });
+      for (var ci = 0; ci < 4; ci++) {
+        var coilM = new THREE.Mesh(new THREE.TorusGeometry(0.066, 0.012, 7, 16), dgInsulator);
+        coilM.position.set(0, 0.025, -0.12 - ci * 0.13); g.add(coilM);   // barrel coils
+      }
+      var dynamo = new THREE.Group(); dynamo.position.set(0, 0.09, -0.28);
+      var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.067, 10, 10), dgCore);
+      bulb.scale.z = 1.2; dynamo.add(bulb);
+      var ring = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.012, 6, 18), dgBrass);
+      dynamo.add(ring);
+      for (var ds = 0; ds < 4; ds++) {
+        var spoke = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.014, 0.016), dgBrass);
+        spoke.rotation.z = ds * Math.PI / 2; dynamo.add(spoke);
+      }
+      g.add(dynamo); wonderRotor(dynamo, 'z', 2.35, 0.1);
+      [-0.065, 0.065].forEach(function (x) {
+        cylZ(0.018, 0.027, 0.25, x, 0.005, -0.71, dgCore, 8);            // forked electrodes
+      });
+      box(0.17, 0.034, 0.055, 0, 0.005, -0.61, M.mid);                   // fork bridge
+      tipZ = -0.86;
     } else if (id === 'blitzfanger') {
       box(0.13, 0.13, 0.4, 0, 0, -0.12, accentMat(0x28566b, papped, dpap));
       [-0.055, 0.055].forEach(function (rx) { cylZ(0.018, 0.025, 0.62, rx, 0.04, -0.4, accentMat(0x66ddff, papped, dpap), 8); });
@@ -796,11 +900,15 @@
     gun.soulCharges = Math.min(3, (gun.soulCharges || 0) + 1);
   };
 
-  function muzzleFlash() {
+  function muzzleFlash(gun) {
     if (!W.muzzle) return;
     var p = W.muzzle.getWorldPosition(new THREE.Vector3());
     W.flashLight.position.copy(p);
-    W.flashLight.intensity = 2.5;
+    var wonderColor = gun && gun.id === 'wunderwaffe' ? 0x88eeff
+      : gun && gun.id === 'seelenmotor' ? 0x9fe8ff
+      : gun && gun.id === 'nachbildner115' ? 0xb78cff : 0xffcc77;
+    W.flashLight.color.setHex(wonderColor);
+    W.flashLight.intensity = gun && CFG.WEAPONS[gun.id].wonder ? 3.4 : 2.5;
     W.flashTimer = 0.05;
   }
 
@@ -817,7 +925,7 @@
     if (gun.infinite) { gun.ammo = s.mag; gun.reserve = s.reserve; }   // power weapon never runs dry
     W.fireCd = 60 / s.rpm;
     G.audio.shoot(s.cls, gun.papped, gun.id, gun.dpap);
-    muzzleFlash();
+    muzzleFlash(gun);
     var heavy = s.cls === 'shotgun' || s.cls === 'thunder' || s.cls === 'sniper' || s.cls === 'launcher';
     G.player.kick(heavy ? 1.6 : 0.45);
     if (gun.model) gun.model.position.z = heavy ? 0.1 : 0.06;
@@ -970,6 +1078,8 @@
   function firePiston(s, gun) {
     var dir = new THREE.Vector3(0, 0, -1).applyEuler(G.camera.rotation); dir.y = 0; dir.normalize();
     reportOverclockShot(gun, dir, s.pistonRange);
+    var pressureStart = W.muzzle ? W.muzzle.getWorldPosition(new THREE.Vector3()) : G.camera.position.clone();
+    poolFlash(pressureStart, 0x9fe8ff, 1.35, 8);
     var charges = gun.overclocked ? (gun.soulCharges || 0) : 0;
     if (charges) { gun.soulCharges = 0; G.hud.banner('SOUL PRESSURE ×' + charges, '#79ffe0', 1.2); }
     W.eeHazards.push({ type: 'piston', pos: G.player.pos.clone(), dir: dir,
@@ -1066,7 +1176,9 @@
                           : G.camera.position.clone().addScaledVector(_dir, 50);
     var start = W.muzzle ? W.muzzle.getWorldPosition(new THREE.Vector3())
                          : G.camera.position.clone();
-    addLine(start, end, 0x88eeff, 0.18, 0.95);
+    addLine(start, end, 0x72dfff, 0.26, 0.98);
+    addLine(start, end, 0xf1ffff, 0.09, 0.96);
+    poolFlash(start, 0x88eeff, 1.55, 9);
     G.audio.zap();
     var first = hits.length && hits[0].object.userData.zombie
       ? hits[0].object.userData.zombie : null;
@@ -1700,6 +1812,25 @@
       if (W.knifing > 0.2) { m.position.z = -0.25; targetRX = -0.3; }
       m.position.y += (targetY - m.position.y) * Math.min(1, dt * 12);
       m.rotation.x += (targetRX - m.rotation.x) * Math.min(1, dt * 12);
+
+      // Keep the three Der Riese wonders alive in-hand without adding any
+      // world effects: only their own mechanical groups and emissive materials
+      // move. This remains invisible to the map's light and particle budgets.
+      var motion = m.userData.wonderMotion;
+      if (motion) {
+        motion.rotors.forEach(function (r) {
+          r.mesh.rotation[r.axis] = r.base + G.time * r.speed + r.phase;
+        });
+        motion.glows.forEach(function (q) {
+          if (q.material && q.material.emissive)
+            q.material.emissiveIntensity = Math.max(0, q.base + Math.sin(G.time * q.speed + q.phase) * q.amp);
+        });
+      }
+      if (m.userData.overclockHalo) {
+        var halo = m.userData.overclockHalo;
+        halo.rotation.z = G.time * 1.6;
+        halo.scale.setScalar(1 + Math.sin(G.time * 3.4) * 0.08);
+      }
     }
 
     updateProjectiles(dt);

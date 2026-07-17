@@ -61,6 +61,38 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         }
         return { reached: false, timeout: true, dist: +Math.hypot(tx - P.pos.x, tz - P.pos.z).toFixed(1), pos: { x: +P.pos.x.toFixed(1), z: +P.pos.z.toFixed(1) } };
       }
+      // A room centre can legitimately sit behind a lab island or a vehicle
+      // lift. The real test is that the player can take a collision-safe route
+      // through the opened doorway, not that a straight-line bot can walk
+      // through a set piece. Follow the same fine navigation graph the horde
+      // uses, while still moving with the real player controller.
+      function goNavTo(tx, tz, reach, maxFrames) {
+        reach = reach || 1.6; maxFrames = maxFrames || 650;
+        if (!G.nav || !G.nav.build) return goTo(tx, tz, reach, maxFrames);
+        if (G.nav.dirty || !G.nav.built) G.nav.build();
+        G.nav.computeField({ x: tx, z: tz, y: P.pos.y });
+        var best = Infinity, sinceImprove = 0;
+        for (var f = 0; f < maxFrames; f++) {
+          var dx = tx - P.pos.x, dz = tz - P.pos.z, d = Math.hypot(dx, dz);
+          if (d < reach) return { reached: true, frames: f, pos: { x: P.pos.x, z: P.pos.z } };
+          var node = G.nav.nearest(P.pos.x, P.pos.z, P.pos.y);
+          var target = G.nav.nextPoint(P.pos.x, P.pos.z, P.pos.y);
+          if (!node || !target || !isFinite(node.dist))
+            return { reached: false, noNav: true, dist: +d.toFixed(1), pos: { x: +P.pos.x.toFixed(1), z: +P.pos.z.toFixed(1) }, frames: f };
+          var ndx = target.x - P.pos.x, ndz = target.z - P.pos.z;
+          P.yaw = Math.atan2(-ndx, -ndz);
+          setKeys({ W: true, sprint: true });
+          G.player.update(DT);
+          path.push([+P.pos.x.toFixed(1), +P.pos.z.toFixed(1), +P.pos.y.toFixed(1)]);
+          if (P.pos.y < -1.5) return { reached: false, fell: true, pos: { x: P.pos.x, y: P.pos.y, z: P.pos.z }, frames: f };
+          if (P.pos.x < minX || P.pos.x > maxX || P.pos.z < minZ || P.pos.z > maxZ)
+            return { reached: false, escaped: true, pos: { x: +P.pos.x.toFixed(1), z: +P.pos.z.toFixed(1) }, frames: f };
+          if (node.dist < best - 0.06) { best = node.dist; sinceImprove = 0; }
+          else if (++sinceImprove > 150)
+            return { reached: false, stuck: true, navDist: +node.dist.toFixed(1), pos: { x: +P.pos.x.toFixed(1), z: +P.pos.z.toFixed(1) }, frames: f };
+        }
+        return { reached: false, timeout: true, dist: +Math.hypot(tx - P.pos.x, tz - P.pos.z).toFixed(1), pos: { x: +P.pos.x.toFixed(1), z: +P.pos.z.toFixed(1) } };
+      }
       function tp(x, z, y) { P.pos.set(x, (y || 0) + 0.2, z); P.vel.set(0, 0, 0); G.player.update(DT); }
 
       var rooms = G.map.floors[0].parsed.rooms;
@@ -68,13 +100,19 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
 
       // ---- 1. CRITICAL-PATH WALK: spawn -> through every door -> every room ----
       // hops as [fromRoom, doorId, toRoom]; walk center->door->next center
-      var hops = CFG.cur.id === 'kurhaus' ? [['S', 1, 'A'], ['A', 4, 'V'], ['V', 5, 'N'], ['N', 7, 'B'], ['B', 2, 'S'], ['S', 3, 'M'], ['M', 8, 'F'], ['F', 6, 'V']] : [];
+      // Build the actual door graph instead of keeping a map-specific route
+      // list. This makes the movement test cross every single Der Riese door
+      // as well as every door on the older maps.
+      var hops = Object.keys(G.map.parsed.doors).map(function (id) {
+        var d = G.map.parsed.doors[id];
+        return [d.rooms[0], +id, d.rooms[1]];
+      });
       var walk = [];
       hops.forEach(function (h) {
         tp(ctr(h[0]).x, ctr(h[0]).z);            // always start the hop in its from-room
         var dpos = G.map.doors[h[1]].pos;
-        var toDoor = goTo(dpos.x, dpos.z, 1.4, 500);
-        var toRoom = goTo(ctr(h[2]).x, ctr(h[2]).z, 2.0, 500);
+        var toDoor = goNavTo(dpos.x, dpos.z, 1.4, 650);
+        var toRoom = goNavTo(ctr(h[2]).x, ctr(h[2]).z, 2.0, 650);
         var ok = toDoor.reached && toRoom.reached;
         walk.push({ seg: h[0] + '->door' + h[1] + '->' + h[2], ok: ok, door: toDoor, room: toRoom });
         if (!ok) bugs.push('WALK ' + h[0] + '->' + h[2] + ' (door ' + h[1] + '): ' + JSON.stringify(toDoor.reached ? toRoom : toDoor));
