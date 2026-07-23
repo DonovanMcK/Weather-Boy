@@ -53,7 +53,9 @@ after the gameplay layer lands.**
 
 ## TIER 3 — DEFERRED, likely not worth it (real engineering hiding behind a fun idea — decide explicitly before building, do NOT build casually)
 
-- **Maelstrom Driver "Rime" mode freezes the Cold Plunge into walkable ice.**
+- **Optional future Maelstrom Driver "Rime" mode freezes the Cold Plunge into
+  walkable ice.** This would supplement its current wall-safe ricochet
+  pressure-bore disk rather than replace it.
   ⚠ This is a **dynamic terrain state that changes collision AND the navmesh
   mid-game** — real work and a real new bug surface for a one-room gimmick.
   Parked until someone decides it's worth the cost.

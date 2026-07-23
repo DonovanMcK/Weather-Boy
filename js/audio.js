@@ -309,6 +309,61 @@
       // (shoot_<cls>); falls back to procedural synthesis when no file is present
       if (id && playSample('shoot_' + id, 0.8, 0.05)) return;
       if (playSample('shoot_' + cls, 0.8, 0.05)) return;
+      // Each wonder weapon has a procedural voice of its own. Keeping these
+      // branches before the class fallbacks prevents the quest weapons from all
+      // sounding like the same storm tube or generic launcher.
+      if (id === 'raygun2') {
+        tone({ type: 'square', freq: 1320, to: 520, dur: 0.11, vol: 0.13, send: 0.25 });
+        tone({ type: 'sine', freq: 2100, to: 960, dur: 0.07, vol: 0.07 });
+        return;
+      }
+      if (id === 'nachtlicht') {
+        noise({ dur: 0.12, bp: 1250, q: 1.4, vol: 0.22 });
+        tone({ type: 'sawtooth', freq: 620, to: 1500, dur: 0.2, vol: 0.1, send: 0.45 });
+        return;
+      }
+      if (id === 'minenwerfer115') {
+        tone({ type: 'sine', freq: 105, to: 45, dur: 0.28, vol: 0.32 });
+        noise({ dur: 0.1, lp: 520, vol: 0.28 });
+        return;
+      }
+      if (id === 'seelenmotor') {
+        tone({ type: 'sawtooth', freq: 115, to: 55, dur: 0.42, vol: 0.24, drive: 1.5 });
+        noise({ dur: 0.18, bp: 420, q: 1.1, vol: 0.18 });
+        tone({ type: 'sine', freq: 760, to: 380, dur: 0.3, vol: 0.07, send: 0.55 });
+        return;
+      }
+      if (id === 'nachbildner115') {
+        tone({ type: 'sine', freq: 480, to: 1280, dur: 0.22, vol: 0.11, send: 0.7 });
+        tone({ type: 'triangle', freq: 960, to: 340, dur: 0.36, vol: 0.08, when: 0.04, send: 0.65 });
+        return;
+      }
+      if (id === 'stormcaller') {
+        noise({ dur: 0.48, bp: 900, q: 0.8, slide: 180, vol: 0.26, send: 0.65 });
+        tone({ type: 'sine', freq: 190, to: 75, dur: 0.5, vol: 0.25, send: 0.5 });
+        return;
+      }
+      if (id === 'maelstrom') {
+        tone({ type: 'sawtooth', freq: 260, to: 1380, dur: 0.18, vol: 0.12, send: 0.4 });
+        noise({ dur: 0.16, hp: 1500, vol: 0.16 });
+        return;
+      }
+      if (id === 'aetherlance') return; // fireLance supplies the skewer crack
+      if (id === 'blitzfanger') {
+        tone({ type: 'square', freq: 1600, to: 320, dur: 0.14, vol: 0.11 });
+        noise({ dur: 0.09, hp: 2200, vol: 0.18 });
+        return;
+      }
+      if (id === 'kryolithwerfer') {
+        tone({ type: 'sine', freq: 1180, to: 540, dur: 0.3, vol: 0.1, send: 0.65 });
+        noise({ dur: 0.14, hp: 2800, vol: 0.1 });
+        return;
+      }
+      if (id === 'vosssiphon') {
+        tone({ type: 'sine', freq: 240, to: 85, dur: 0.24, vol: 0.14, send: 0.5 });
+        noise({ dur: 0.2, bp: 650, q: 2, vol: 0.1 });
+        return;
+      }
       if (cls === 'raygun') {
         tone({ type: 'sawtooth', freq: 880, to: 140, dur: 0.22, vol: 0.3, send: 0.4, drive: 2 });
         tone({ type: 'square', freq: 1500, to: 400, dur: 0.1, vol: 0.08 });
@@ -397,13 +452,9 @@
       noise({ dur: 0.1, bp: 2000, q: 1, vol: 0.12, when: 0.02 });
     },
 
-    // Maelstrom implosion: the vacuum winds UP for the pull duration…
-    implodeCharge: function (dur) {
-      tone({ type: 'sawtooth', freq: 90, to: 620, dur: dur || 1.3, vol: 0.11, send: 0.6 });
-      noise({ dur: dur || 1.3, bp: 500, q: 1.2, vol: 0.05 });
-    },
-    // …then the clump detonates: a deep doubled thump
-    implodeBurst: function () {
+    // Nachbildner's completed reverse replay: one deep doubled collapse rather
+    // than an explosion sound for every recorded target.
+    replicaCollapse: function () {
       tone({ type: 'sine', freq: 95, to: 28, dur: 0.5, vol: 0.3 });
       tone({ type: 'sine', freq: 190, to: 60, dur: 0.3, vol: 0.14, when: 0.03 });
       noise({ dur: 0.25, bp: 300, q: 1, vol: 0.2 });

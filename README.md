@@ -9,12 +9,37 @@ zero assets — every texture and sound is generated procedurally at runtime.
 | Map | Layout | Main wonder weapon | Easter egg reward pool |
 |---|---|---|---|
 | **Nacht der Untoten** | Tight bunker | **Thundergun** | **Nachtlicht** flare or **Minenwerfer 115** soul mine |
-| **Der Riese** | Tight single-level three-wing factory loop | **Wunderwaffe DG-2** | **Seelenmotor** piston or **Nachbildner 115** echo cannon |
+| **Der Riese** | Tight single-level three-wing factory loop | **Wunderwaffe DG-2** | **Seelenmotor** piston or **Nachbildner 115 Replicator** |
 | **Der Wetterjunge** *(custom)* | Storm station with a two-access rooftop weather deck | **Wettermacher** | **Blitzfanger** lightning fence or **Kryolithwerfer** freeze-and-launch cannon |
-| **KurHaus** *(custom)* | Alpine occult spa | **Maelstrom Driver** ricochet bore | **Aether Lance** or **Voss Siphon** |
+| **KurHaus** *(custom)* | Alpine occult spa | **Maelstrom Driver** wall-safe ricochet pressure-bore disk | **Aether Lance** or **Voss Siphon** |
 
 Completing a map's Easter egg awards one of its two exclusive weapons. The next
 completion awards the other, so repeat runs do not endlessly duplicate one gun.
+
+### Wonder weapon field guide
+
+| Weapon | Combat identity |
+|---|---|
+| **Ray Gun** | Fast explosive plasma sidearm with swept projectile collision. |
+| **Ray Gun Mark II** | Three-round plasma burst rifle; each bolt remains reliable at low frame rates. |
+| **Thundergun** | Short-range pressure wave that throws a horde backward without passing through walls. |
+| **Wunderwaffe DG-2** | Lethal lightning bolt that chains only between visible, same-floor targets. |
+| **Wettermacher** | Launches a storm eye that pulls and repeatedly shocks enemies inside its visible vortex. |
+| **Maelstrom Driver** | Fires a physical pressure disk that cuts through bodies and ricochets from walls, floors, and ceilings. |
+| **Nachtlicht** | Local signal flare that attracts nearby visible zombies before it detonates. |
+| **Minenwerfer 115** | Soul mine that charges from bodies it can actually see, then releases its stored blast. |
+| **Seelenmotor** | Industrial soul piston that repeatedly crushes a straight pressure lane. |
+| **Nachbildner 115 Replicator** | Records unique targets around an imprint core, then collapses their afterimages in reverse. |
+| **Blitzfänger** | Plants two physical rods; a clear link between them becomes a persistent three-arc lightning fence. |
+| **Kryolithwerfer** | First hit freezes a target into a statue; the next launches it into enemies before it shatters. |
+| **Aether Lance** | Long, wall-stopped aether skewer that pierces enemies along a narrow line. |
+| **Voss's Siphon** | Drains one target—or a visible chain when upgraded—and returns real damage as health. |
+
+The **Maelstrom Driver** fires a physical pressure-bore disk that ricochets
+through the room but stops safely at solid geometry instead of clipping through
+walls. The **Nachbildner 115 Replicator** deploys an imprint core that records
+targets entering its field; fire again—or let its timer expire—to collapse the
+recorded afterimages in reverse order.
 
 Every Easter egg now begins at a clearly marked briefing and displays one named,
 numbered destination at a time. See [EASTER-EGGS.md](EASTER-EGGS.md) for the full

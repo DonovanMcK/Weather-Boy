@@ -249,24 +249,30 @@ function testWonderWeapon(ctx) {
     ok(zs.every(function (z) { return z.dead; }), 'vortex zapped the pack');
     ok(G.weapons.vortices.length === 0, 'vortex expired');
   } else if (wonderId === 'maelstrom') {
-    // The IMPLOSION driver: projectile -> vacuum field that DRAGS the pack
-    // into a clump -> the clump detonates. No vortex, no push, no chain.
-    var sawImp = false;
-    for (var mi = 0; mi < 200 && !sawImp; mi++) { ctx.step(1); if (G.weapons.implosions.length > 0) sawImp = true; }
-    ok(sawImp, 'Maelstrom detonates into an implosion field (not a storm vortex)');
+    // The Maelstrom is the pressure-disk weapon again: it cuts a line through
+    // bodies and ricochets from walls, never becoming Wettermacher's vortex.
+    var sawBore = G.weapons.projectiles.some(function (p) { return p.type === 'bore'; });
+    ok(sawBore, 'Maelstrom launches its physical ricochet pressure disk');
     ok(G.weapons.vortices.length === 0, 'Maelstrom never creates a Wettermacher vortex');
-    // let the vacuum drag, then measure the clump before the burst resolves
-    var impC = G.weapons.implosions.length ? G.weapons.implosions[0].c : null;
-    ctx.step(40);
-    if (impC) {
-      var spread = zs.filter(function (z) { return !z.dead; }).map(function (z) {
-        return Math.hypot(z.mesh.position.x - impC.x, z.mesh.position.z - impC.z); });
-      ok(!spread.length || Math.max.apply(null, spread) < 2.5,
-         'vacuum dragged the pack into a clump (max ' + (spread.length ? Math.max.apply(null, spread).toFixed(2) : '0') + 'm)');
-    } else ok(false, 'implosion field had no centre');
-    ctx.step(60 * 2);
-    ok(zs.every(function (z) { return z.dead; }), 'the clump detonation killed the pack');
-    ok(G.weapons.implosions.length === 0, 'implosion field expired');
+    ok(!G.weapons.implosions && !G.weapons._implode,
+      'obsolete Maelstrom implosion runtime is completely removed');
+    var bore = G.weapons.projectiles.filter(function (p) { return p.type === 'bore'; })[0];
+    var ceiling = G.map.colliders.filter(function (col) {
+      return col.on !== false && col.y1 > 2.5 &&
+        col.x2 - col.x1 > 1 && col.z2 - col.z1 > 1;
+    })[0];
+    if (bore && ceiling) {
+      bore.mesh.position.set((ceiling.x1 + ceiling.x2) / 2, ceiling.y1 - 0.24,
+        (ceiling.z1 + ceiling.z2) / 2);
+      bore.vel.set(0.3, 12, 0.2);
+      var ceilingBounces = bore.opts.bounces;
+      ctx.step(2);
+      ok(G.weapons.projectiles.indexOf(bore) >= 0 && bore.vel.y < 0 &&
+        bore.opts.bounces === ceilingBounces - 1,
+        'Maelstrom disk reflects cleanly from ceiling slabs');
+    } else ok(false, 'Maelstrom ceiling-reflection fixture exists');
+    ctx.step(60);
+    ok(zs.some(function (z) { return z.dead; }), 'ricochet disk cut through the pack');
   }
 }
 
@@ -291,20 +297,90 @@ function testEeWeapons(ctx) {
     var ptype = G.CFG.WEAPONS[id].projectile;
     if (ptype === 'flare' || ptype === 'soulmine')
       ok(G.weapons.projectiles.some(function (p) { return p.type === ptype; }), id + ' launches its unique device');
-    if (ptype === 'piston' || ptype === 'echo')
+    if (ptype === 'flare') {
+      var flare = G.weapons.projectiles.filter(function (p) { return p.type === 'flare'; })[0];
+      for (var fi = 0; fi < 300 && flare && !flare.landed; fi++) ctx.step(1);
+      ctx.step(2);
+      ok(flare && flare.landed && G.zombies.lure &&
+        G.zombies.lure.radius === G.weapons.stats(gun).flareRadius,
+        'Nachtlicht lands as a local, radius-bounded zombie lure');
+    }
+    if (ptype === 'soulmine') {
+      var mine = G.weapons.projectiles.filter(function (p) { return p.type === 'soulmine'; })[0];
+      for (var mi = 0; mi < 300 && mine && !mine.landed; mi++) ctx.step(1);
+      var oldLos = G.map.losBlocked;
+      if (mine && mine.landed) {
+        for (var mz = 0; mz < G.weapons.stats(gun).mineNeed; mz++) {
+          var blockedZ = G.zombies.spawnAt(new THREE.Vector3(
+            mine.mesh.position.x + (mz - 2) * 0.25, mine.mesh.position.y, mine.mesh.position.z + 0.5));
+          blockedZ.speed = 0; blockedZ.hp = blockedZ.hpMax = 1e9;
+        }
+        G.map.losBlocked = function () { return true; };
+        ctx.step(12);
+      }
+      ok(mine && mine.landed && G.weapons.projectiles.indexOf(mine) >= 0,
+        'Minenwerfer ignores bodies hidden behind walls when charging');
+      G.map.losBlocked = oldLos;
+    }
+    if (ptype === 'piston')
       ok(G.weapons.eeHazards.some(function (h) { return h.type === ptype; }), id + ' creates its unique field');
+    if (ptype === 'imprint') {
+      for (var ip = 0; ip < 200 && !G.weapons.imprints.length; ip++) ctx.step(1);
+      ok(G.weapons.imprints.length === 1 && G.weapons.imprints[0].phase === 'record',
+        'Nachbildner launches and anchors a recording core instead of a laser');
+      var imprint = G.weapons.imprints[0], npos = imprint.nodes[0].pos;
+      var echoes = [
+        G.zombies.spawnAt(new THREE.Vector3(npos.x + 0.8, npos.y, npos.z)),
+        G.zombies.spawnAt(new THREE.Vector3(npos.x - 0.8, npos.y, npos.z))
+      ];
+      echoes.forEach(function (z) { z.speed = 0; z.hp = z.hpMax = 1e9; });
+      ctx.step(12);
+      ok(imprint.marked.length === 2,
+        'Nachbildner recording field visibly captures unique targets');
+      var echoHp = echoes.map(function (z) { return z.hp; });
+      G.weapons.fireCd = 0; G.weapons.mouseDown = true; ctx.step(2); G.weapons.mouseDown = false;
+      ctx.step(60);
+      ok(echoes.every(function (z, ei) { return z.hp < echoHp[ei]; }) && !G.weapons.imprints.length,
+        'second Nachbildner trigger collapses the recorded afterimages');
+    }
     if (ptype === 'rod') {
-      ok(G.weapons.rods.length === 1, 'Blitzfänger plants its first rod');
+      ok(G.weapons.rods.length === 1 && G.weapons.rods[0].mesh,
+        'Blitzfänger plants a visible first rod');
+      var firstRodPos = G.weapons.rods[0].pos.clone();
+      ctx.moveTo(new THREE.Vector3(c.x + 3, c.y || 0, c.z));
       ctx.step(60); G.weapons.fireCd = 0; G.weapons.mouseDown = true; ctx.step(2); G.weapons.mouseDown = false;
-      ok(G.weapons.eeHazards.some(function (h) { return h.type === 'fence'; }), 'second rod forms a lightning fence');
+      var madeFence = G.weapons.eeHazards.some(function (h) {
+        return h.type === 'fence' && h.arcs && h.arcs.length === 3;
+      });
+      var loosePos = G.weapons.rods.length ? G.weapons.rods[0].pos : null;
+      ok(madeFence, 'second separated rod forms a persistent visible lightning fence' +
+        (!madeFence && loosePos ? ' (first ' + firstRodPos.x.toFixed(1) + ',' +
+          firstRodPos.z.toFixed(1) + '; remaining ' +
+          loosePos.x.toFixed(1) + ',' + loosePos.z.toFixed(1) + '; LOS blocked ' +
+          G.map.losBlocked(firstRodPos.x, firstRodPos.z, loosePos.x, loosePos.z, firstRodPos.y) + ')' : ''));
     }
     if (ptype === 'kryolith') {
       ok(target && target.wwFrozen, 'Kryolithwerfer freezes a zombie into a launchable statue');
       ctx.step(60); G.weapons.fireCd = 0; G.weapons.mouseDown = true; ctx.step(2); G.weapons.mouseDown = false;
       ok(G.weapons.iceSlides.some(function (s) { return s.z === target; }), 'second Kryolith shot launches the frozen statue');
+      var frozenShell = target.wwIceShell, shellDisposed = 0;
+      if (frozenShell) frozenShell.traverse(function (o) {
+        if (!o.geometry || !o.geometry.dispose) return;
+        var realDispose = o.geometry.dispose.bind(o.geometry);
+        o.geometry.dispose = function () { shellDisposed++; realDispose(); };
+      });
+      G.zombies.despawnForDown();
+      ok(!target.wwIceShell && frozenShell && !frozenShell.parent && shellDisposed >= 2,
+        'Kryolith ice shell releases its per-zombie resources on forced despawn');
     }
     if (ptype === 'siphon') ok(G.player.hp > G.player.maxHp - 60, "Voss's Siphon restores health from damage");
     G.weapons.projectiles.forEach(function (p) { G.scene.remove(p.mesh); });
+    G.weapons.imprints.forEach(function (im) {
+      im.phase = 'collapse'; im.collapseIndex = -1; im.collapseT = 0;
+    });
+    G.weapons.eeHazards.forEach(function (h) { h.t = 0; });
+    G.weapons.rods.forEach(function (r) { r.t = 0; });
+    ctx.step(2);
     G.weapons.projectiles.length = 0; G.weapons.eeHazards.length = 0; G.weapons.rods.length = 0;
     G.weapons.iceSlides.length = 0; G.zombies.lure = null;
   });
@@ -1163,6 +1239,10 @@ function testOverclockGiant(ctx) {
   G.powerups.timers.insta = 0;
   G.zombies.damageZombie(boss, 999999, { boom: true, weaponId: 'm14' });
   ok(boss.hp === hp && !boss.questArmorBroken, 'ordinary weapons cannot bypass the Iron Subject plating');
+  var sealedState = boss.state;
+  ok(G.zombies.fling(boss, new THREE.Vector3(0, 0, -1), { weaponId: 'thunder' }) === false &&
+    boss.state === sealedState && boss.hp === hp,
+    'Thundergun cannot fling-kill the sealed Iron Subject through its plating');
   for (var h = 0; h < 6; h++) G.zombies.damageZombie(boss, 1000, { boom: true, weaponId: oc.reward });
   ok(boss.questArmorBroken, 'six contacts from the awarded weapon break the Iron Subject armor');
   G.zombies.damageZombie(boss, 1e9, { boom: true, weaponId: oc.reward });
@@ -1176,8 +1256,8 @@ function testOverclockGiant(ctx) {
   var es = G.weapons.stats({ id: 'nachbildner115', papped: false, dpap: false, overclocked: true });
   ok(ps.name === 'Seelenmotor Überdruck' && ps.pistonWidth > 2,
     'Seelenmotor route produces the crushing Überdruck super variant');
-  ok(es.name === 'Nachbildner Paradox' && es.echoPulses === 6,
-    'Nachbildner route produces the multi-angle Paradox super variant');
+  ok(es.name === 'Nachbildner Paradox' && es.paradoxPair && es.imprintCap === 24,
+    'Nachbildner route produces the linked-core Paradox Replicator variant');
 
   G.player.shield = { has: false, owned: true, hp: 0, max: 5 };
   G.player.giantHeartRoundStart();
@@ -1741,9 +1821,8 @@ function runGunModels() {
   G.startGame('nacht');
   var ids = Object.keys(G.CFG.WEAPONS);
   var sig = {};
-  ids.forEach(function (id) {
-    G.weapons.giveWeapon(id);
-    var m = G.weapons.current().model, parts = [];
+  function signature(m) {
+    var parts = [];
     m.traverse(function (o) {
       if (o.geometry && o.geometry.parameters) {
         var p = o.geometry.parameters;
@@ -1752,15 +1831,77 @@ function runGunModels() {
           Math.round(o.position.x * 1e3), Math.round(o.position.y * 1e3), Math.round(o.position.z * 1e3)].join(','));
       }
     });
-    sig[id] = parts.sort().join('|');
+    return parts.sort().join('|');
+  }
+  ids.forEach(function (id) {
+    G.weapons.giveWeapon(id);
+    sig[id] = signature(G.weapons.current().model);
   });
   var byKey = {};
   ids.forEach(function (id) { (byKey[sig[id]] = byKey[sig[id]] || []).push(id); });
   var dupes = Object.keys(byKey).filter(function (k) { return byKey[k].length > 1; }).map(function (k) { return byKey[k].join('='); });
   ok(dupes.length === 0, 'all ' + ids.length + ' gun models are visually distinct' + (dupes.length ? ' — DUPES: ' + dupes.join('; ') : ''));
-  // a model rebuilds identically for the same gun (deterministic)
-  G.weapons.giveWeapon(ids[0]);
-  ok(true, 'gun models built without error');
+  // Wonder weapons carry an explicit visual contract: fixed palette, forward
+  // muzzle, emissive hardware and at least one cheap in-hand animation.
+  var wonders = ids.filter(function (id) {
+    return G.CFG.WEAPONS[id].wonder || id === 'raygun' || id === 'raygun2';
+  });
+  wonders.forEach(function (id) {
+    G.weapons.giveWeapon(id);
+    var gun = G.weapons.current(), model = gun.model, motion = model.userData.wonderMotion;
+    var emissive = 0;
+    model.traverse(function (o) {
+      if (o.material && o.material.emissive && o.material.emissive.getHex() !== 0) emissive++;
+    });
+    ok(model.userData.visualId === id && model.userData.fxColor === G.CFG.WEAPONS[id].fxColor,
+      id + ' preserves its unique visual identity and firing palette');
+    ok(model.userData.tip && model.userData.tip.position.z < -0.45,
+      id + ' has a valid forward muzzle');
+    ok(emissive > 0 && motion &&
+      ((motion.rotors && motion.rotors.length) || (motion.glows && motion.glows.length) ||
+       (motion.bobs && motion.bobs.length)),
+      id + ' has emissive and animated wonder hardware');
+  });
+  var keptSlot = G.weapons.cur, keptModel = G.weapons.current().model;
+  G.weapons.equip(0, true);
+  G.weapons.equip(keptSlot, true);
+  ok(G.weapons.current().model === keptModel,
+    'switching weapons reuses the authored model instead of leaking a rebuild');
+
+  // A 50 ms frame is the runtime's low-FPS cap. Mark II travels farther than
+  // its blast radius in that frame, so this catches endpoint-only tunnelling.
+  G.zombies.mode = 'break'; G.zombies.breakTimer = 999; G.zombies.toSpawn = 0;
+  G.zombies.list.slice().forEach(function (z) {
+    if (!z.dead) G.zombies.damageZombie(z, 1e9, { boom: true, silent: true });
+  });
+  var c = roomCenter(G, 'S'); ctx.moveTo(c); G.player.yaw = 0; G.player.pitch = 0; ctx.step(2);
+  G.weapons.giveWeapon('raygun2');
+  var lowFpsTarget = G.zombies.spawnAt(new THREE.Vector3(c.x, 0, c.z - 1.8));
+  lowFpsTarget.speed = 0; lowFpsTarget.hp = lowFpsTarget.hpMax = 1e9;
+  ctx.step(2);
+  var lowFpsHp = lowFpsTarget.hp;
+  G.weapons.fireCd = 0; G.weapons.semiLatch = false; G.weapons.mouseDown = true;
+  G.weapons.update(0.05); // queues the three-round burst
+  G.weapons.update(0.05); // fires its first projectile at the frame cap
+  G.weapons.mouseDown = false;
+  ok(lowFpsTarget.hp < lowFpsHp,
+    'Ray Gun Mark II swept impact damages its contact at the 50ms frame cap');
+
+  // AoE/delayed effects must retain the weapon + trigger snapshot. Otherwise
+  // scald kills lose variant credit and cannot make valid quest-boss contacts.
+  var aoeSeen = null, realDamageZombie = G.zombies.damageZombie;
+  G.zombies.damageZombie = function (z, dmg, opts) { aoeSeen = opts; };
+  G.zombies.aoe(lowFpsTarget.mesh.position, 1, 1, {
+    boom: true, weaponId: 'raygun2', shotId: 4711
+  });
+  G.zombies.damageZombie = realDamageZombie;
+  ok(aoeSeen && aoeSeen.weaponId === 'raygun2' && aoeSeen.shotId === 4711 && aoeSeen.boom,
+    'AoE damage preserves weapon and shot attribution');
+
+  // Rebuilding the same weapon must reproduce its authored silhouette.
+  G.weapons.giveWeapon(wonders[0]);
+  var rebuilt = signature(G.weapons.current().model);
+  ok(rebuilt === sig[wonders[0]], 'wonder models rebuild deterministically');
 }
 
 /* prop registry: every builder constructs, returns a Group, exposes the

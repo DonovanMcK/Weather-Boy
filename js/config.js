@@ -1110,7 +1110,7 @@
     raygun: {
       name: 'Ray Gun', cls: 'raygun', dmg: 1000, head: 1, rpm: 180, mag: 20,
       reserve: 160, reload: 3.0, mode: 'semi', spread: 0.4, box: 3.0,
-      projectile: 'ray',
+      projectile: 'ray', fxColor: 0x52ff73,
       pap: { name: "Porter's X2 Ray Gun", dmg: 2000, mag: 40, reserve: 200 }
     },
     // universal box wonder weapon — a 3-round burst splitting ray (no map
@@ -1118,41 +1118,40 @@
     raygun2: {
       name: 'Ray Gun Mark II', cls: 'raygun', dmg: 620, head: 1, rpm: 380, mag: 21,
       reserve: 189, reload: 3.0, mode: 'burst', burst: 3, spread: 1.3, box: 1.6,
-      projectile: 'ray',
+      projectile: 'ray', fxColor: 0x38ffca,
       pap: { name: 'GL Ray Gun Mark II', dmg: 1300, mag: 42, reserve: 252, spread: 1.0 }
     },
     thunder: {
       name: 'Thundergun', cls: 'thunder', dmg: 0, head: 1, rpm: 90, mag: 2,
       reserve: 12, reload: 3.0, mode: 'semi', spread: 0, box: 2.5,
-      projectile: 'wind', wonder: true,
+      projectile: 'wind', wonder: true, fxColor: 0x82a8ff,
       pap: { name: 'Zeus Cannon', mag: 4, reserve: 24 }
     },
     wunderwaffe: {
       name: 'Wunderwaffe DG-2', cls: 'wunder', dmg: 999999, head: 1, rpm: 100,
       mag: 3, reserve: 15, reload: 3.0, mode: 'semi', spread: 0, box: 2.5,
-      projectile: 'chain', wonder: true, chain: 10, chainRadius: 5.5,
+      projectile: 'chain', wonder: true, fxColor: 0x72e9ff, chain: 10, chainRadius: 5.5,
       pap: { name: 'Wunderwaffe DG-3 JZ', mag: 6, reserve: 30,
              chain: 24, chainRadius: 7.5 }
     },
     stormcaller: {
       name: 'Wettermacher', cls: 'storm', dmg: 2500, head: 1, rpm: 80,
       mag: 4, reserve: 16, reload: 3.2, mode: 'semi', spread: 0, box: 2.5,
-      projectile: 'storm', wonder: true, stormDur: 4, stormRadius: 5.5,
+      projectile: 'storm', wonder: true, fxColor: 0x60d9ff, stormDur: 4, stormRadius: 5.5,
       pap: { name: 'Auge des Sturms', dmg: 5000, mag: 8, reserve: 24,
              stormDur: 6.5, stormRadius: 7.5 }
     },
-    // Kurhaus wonder weapon — the IMPLOSION driver, the anti-Thundergun: the
-    // projectile detonates into a vacuum that DRAGS every zombie nearby into a
-    // clump at the point, then the clump detonates. Nothing else in the
-    // arsenal pulls. Flagged wonder:true so it only rolls on Kurhaus.
+    // Kurhaus wonder weapon — a high-speed pressure disk which cuts through
+    // bodies and ricochets from architecture. The swept collision path keeps
+    // the disk on the correct side of even thin walls.
     maelstrom: {
       name: 'Maelstrom Driver', cls: 'storm', dmg: 3200, head: 1, rpm: 75,
       mag: 4, reserve: 16, reload: 3.2, mode: 'semi', spread: 0, box: 2.5,
       vm: { driver: 1 },
-      projectile: 'implode', wonder: true,
-      pullDur: 1.3, pullRadius: 8, burstRadius: 4,
+      projectile: 'bore', wonder: true, fxColor: 0xb07cff,
+      boreSpeed: 38, boreLife: 2.8, boreBounces: 3,
       pap: { name: 'Maelstrom Driver — Event Horizon', dmg: 7000, mag: 8, reserve: 24,
-             pullDur: 1.7, pullRadius: 11, burstRadius: 5.5 }
+             boreSpeed: 46, boreLife: 4.2, boreBounces: 6 }
     },
     // Kurhaus's SECOND wonder — the founder's own weapon, granted ONLY by
     // completing the Founder's Bargain quest (never rolls in any box: wonder
@@ -1162,56 +1161,57 @@
       name: 'Aether Lance', cls: 'storm', dmg: 4200, head: 1, rpm: 55,
       mag: 2, reserve: 8, reload: 2.8, mode: 'semi', spread: 0, box: 0,
       vm: { lance: 1 },
-      projectile: 'lance', wonder: true, lanceRange: 45, pierceRadius: 1.3,
+      projectile: 'lance', wonder: true, fxColor: 0xd2a9ff, lanceRange: 45, pierceRadius: 1.3,
       pap: { name: "Voss's Judgement", dmg: 9500, mag: 3, reserve: 12,
              lanceRange: 60, pierceRadius: 2.1 }
     },
     nachtlicht: {
       name: 'Nachtlicht', cls: 'launcher', dmg: 2400, head: 1, rpm: 45,
       mag: 1, reserve: 5, reload: 2.5, mode: 'semi', spread: 0, box: 0,
-      vm: { len: 0.72, col: 0x7a2d18 }, projectile: 'flare', wonder: true,
+      vm: { len: 0.72, col: 0x7a2d18 }, projectile: 'flare', wonder: true, fxColor: 0xff5b2e,
       flareDur: 7, flareRadius: 13,
       pap: { name: 'Letztes Signal', dmg: 5200, mag: 2, reserve: 8, flareDur: 9, flareRadius: 16 }
     },
     minenwerfer115: {
       name: 'Minenwerfer 115', cls: 'launcher', dmg: 3600, head: 1, rpm: 50,
       mag: 2, reserve: 8, reload: 2.8, mode: 'semi', spread: 0, box: 0,
-      vm: { len: 0.88, drum: 1, col: 0x3f4a35 }, projectile: 'soulmine', wonder: true,
+      vm: { len: 0.88, drum: 1, col: 0x3f4a35 }, projectile: 'soulmine', wonder: true, fxColor: 0x9cff72,
       mineNeed: 5, mineRadius: 4.5,
       pap: { name: 'Totenfeld', dmg: 7600, mag: 3, reserve: 12, mineNeed: 4, mineRadius: 6 }
     },
     seelenmotor: {
       name: 'Seelenmotor', cls: 'wunder', dmg: 1900, head: 1, rpm: 55,
       mag: 3, reserve: 12, reload: 3.0, mode: 'semi', spread: 0, box: 0,
-      vm: { motor: 1, len: 0.95 }, projectile: 'piston', wonder: true,
+      vm: { motor: 1, len: 0.95 }, projectile: 'piston', wonder: true, fxColor: 0x79ffe0,
       pistonDur: 4, pistonWidth: 1.5, pistonRange: 16,
       pap: { name: 'Ewige Schicht', dmg: 3900, mag: 5, reserve: 20, pistonDur: 6, pistonWidth: 2.2 }
     },
     nachbildner115: {
-      name: 'Nachbildner 115', cls: 'wunder', dmg: 2600, head: 1, rpm: 50,
+      name: 'Nachbildner 115 — Replicator', cls: 'wunder', dmg: 2600, head: 1, rpm: 50,
       mag: 2, reserve: 10, reload: 2.8, mode: 'semi', spread: 0, box: 0,
-      vm: { prism: 1, len: 0.8 }, projectile: 'echo', wonder: true,
-      echoPulses: 2, echoRange: 38,
-      pap: { name: 'Massenkopie', dmg: 5200, mag: 3, reserve: 15, echoPulses: 4, echoRange: 50 }
+      vm: { prism: 1, len: 0.8 }, projectile: 'imprint', wonder: true, fxColor: 0xc582ff,
+      imprintDur: 3.4, imprintRadius: 6.5, imprintCap: 12,
+      pap: { name: 'Massenkopie', dmg: 5200, mag: 3, reserve: 15,
+             imprintDur: 4.4, imprintRadius: 8, imprintCap: 18 }
     },
     blitzfanger: {
       name: 'Blitzfänger', cls: 'storm', dmg: 1100, head: 1, rpm: 70,
       mag: 2, reserve: 10, reload: 2.6, mode: 'semi', spread: 0, box: 0,
-      vm: { rods: 1, len: 0.84 }, projectile: 'rod', wonder: true,
+      vm: { rods: 1, len: 0.84 }, projectile: 'rod', wonder: true, fxColor: 0x66ddff,
       rodDur: 12, rodRadius: 1.0,
       pap: { name: 'Himmelszaun', dmg: 2400, mag: 4, reserve: 16, rodDur: 18, rodRadius: 1.4 }
     },
     kryolithwerfer: {
       name: 'Kryolithwerfer', cls: 'storm', dmg: 2800, head: 1, rpm: 65,
       mag: 4, reserve: 16, reload: 2.8, mode: 'semi', spread: 0, box: 0,
-      vm: { cryo: 1, len: 0.9 }, projectile: 'kryolith', wonder: true,
+      vm: { cryo: 1, len: 0.9 }, projectile: 'kryolith', wonder: true, fxColor: 0xbfefff,
       iceSpeed: 18, iceRadius: 1.3,
       pap: { name: 'Absoluter Nullpunkt', dmg: 5900, mag: 6, reserve: 24, iceSpeed: 24, iceRadius: 2.0 }
     },
     vosssiphon: {
       name: "Voss's Siphon", cls: 'storm', dmg: 900, head: 1, rpm: 240,
       mag: 12, reserve: 48, reload: 2.6, mode: 'auto', spread: 0, box: 0,
-      vm: { siphon: 1, len: 0.78 }, projectile: 'siphon', wonder: true,
+      vm: { siphon: 1, len: 0.78 }, projectile: 'siphon', wonder: true, fxColor: 0x76f2ba,
       siphonHeal: 18, siphonTargets: 1,
       pap: { name: 'Fountain of Voss', dmg: 1900, mag: 20, reserve: 80, siphonHeal: 28, siphonTargets: 3 }
     }

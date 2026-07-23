@@ -296,28 +296,14 @@ var URL = 'file://' + path.join(path.resolve(__dirname, '..'), 'index.html');
         ck(burned, 'molten infusion IGNITES (30% proc observed within 40 hits)');
       }
 
-      // -- 13. MAELSTROM IMPLOSION: zombies get DRAGGED to the point, then the
-      // clump detonates (the redesigned wonder — no longer a Wettermacher clone)
-      if (CFG.WEAPONS.maelstrom && CFG.WEAPONS.maelstrom.projectile === 'implode') {
-        var rmsI = G.map.parsed.rooms;
-        var rid0 = Object.keys(rmsI).sort(function (a, b) {         // biggest room = open ground
-          return rmsI[b].cells.length - rmsI[a].cells.length; })[0];
-        var ic = { x: rmsI[rid0].center.x, y: 0, z: rmsI[rid0].center.z };
-        var pulledZ = [];
-        [[3, 0], [-3, 1.2], [0, -3]].forEach(function (o5) {   // tight ring: fits the smallest rooms
-          var zz = { dead: false, hp: 50000, hpMax: 50000, state: 'chase',
-                     mesh: { position: new THREE.Vector3(ic.x + o5[0], 0, ic.z + o5[1]) } };
-          G.zombies.list.push(zz); pulledZ.push({ z: zz, d0: Math.hypot(o5[0], o5[1]) });
-        });
-        G.weapons._implode(new THREE.Vector3(ic.x, 0, ic.z), { pullDur: 1.2, pullRadius: 8, burstRadius: 4, dmg: 99999 });
-        tick(30);                                            // 0.5s of vacuum
-        var dragged = pulledZ.every(function (pz) {
-          return Math.hypot(pz.z.mesh.position.x - ic.x, pz.z.mesh.position.z - ic.z) < pz.d0 - 1.0;
-        });
-        ck(dragged, 'implosion DRAGS zombies toward the point');
-        tick(60);                                            // past pullDur -> burst
-        ck(pulledZ.every(function (pz) { return pz.z.dead; }), 'the clump DETONATES (all dead)');
-        pulledZ.forEach(function (pz) { var ix = G.zombies.list.indexOf(pz.z); if (ix >= 0) G.zombies.list.splice(ix, 1); });
+      // -- 13. MAELSTROM IDENTITY: the Kurhaus box wonder remains the physical
+      // wall-safe ricochet disk advertised by the map, not another storm field.
+      if (CFG.WEAPONS.maelstrom) {
+        ck(CFG.WEAPONS.maelstrom.projectile === 'bore',
+          'Maelstrom is the ricochet pressure disk (not a Wettermacher vortex)');
+        ck(CFG.WEAPONS.maelstrom.boreBounces >= 3 &&
+           CFG.WEAPONS.maelstrom.pap.boreBounces > CFG.WEAPONS.maelstrom.boreBounces,
+          'Maelstrom and Event Horizon have authored ricochet budgets');
       }
 
       // guided classic-map quest: find the labelled briefing, then follow the

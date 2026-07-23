@@ -19,7 +19,7 @@
 
   var Z = G.zombies = {
     list: [],
-    lure: null,            // {pos, proj} monkey bomb override
+    lure: null,            // {pos, proj[, radius]} monkey / local flare override
     flowDirty: true,
     round: 0,
     mode: 'break',         // break | active | dogs
@@ -522,6 +522,10 @@
         }
         return;
       }
+      // Sustained fields may tick several times, but the plating counts one
+      // solid contact per trigger pull rather than six ticks from one shot.
+      if (opts.shotId != null && z._questArmorShotId === opts.shotId) return;
+      if (opts.shotId != null) z._questArmorShotId = opts.shotId;
       z.questArmorHits--;
       if (z.questArmorHits > 0) {
         G.hud.banner('IRON PLATING ' + z.questArmorHits + '/6', '#9fe8ff', 0.8);
@@ -587,11 +591,30 @@
       var d = Math.hypot(z.mesh.position.x - pos.x, z.mesh.position.z - pos.z);
       if (d > radius) continue;
       if (opts.slow) z.slowT = Math.max(z.slowT || 0, opts.slow);
-      Z.damageZombie(z, dmg, { boom: !!opts.boom });
+      // Preserve the firing snapshot all the way through delayed/AoE damage.
+      // This is required for elemental kills, tier-3 procs and the Iron
+      // Subject's per-shot/required-weapon contact rules.
+      Z.damageZombie(z, dmg, {
+        boom: !!opts.boom,
+        head: !!opts.head,
+        knife: !!opts.knife,
+        crawlers: !!opts.crawlers,
+        silent: !!opts.silent,
+        weaponId: opts.weaponId,
+        shotId: opts.shotId
+      });
       n++;
     }
     return n;
   };
+
+  // Per-zombie wonder effects own geometry/materials which are not part of the
+  // shared zombie mesh. Release them before any non-kill despawn path removes
+  // the actor, otherwise repeated Kryolith freezes leak GPU resources.
+  function releaseWeaponState(z) {
+    if ((z.wwFrozen || z.wwIceShell) && G.weapons && G.weapons.thawFrozen)
+      G.weapons.thawFrozen(z);
+  }
 
   function makeCrawler(z) {
     z.crawler = true;
@@ -603,6 +626,7 @@
 
   function killZombie(z, opts) {
     if (z.dead) return;
+    releaseWeaponState(z);
     if (!opts.silent) G.audio.deathGurgle(z.mesh.position.distanceTo(G.player.pos));
     z.dead = true;
     z.state = 'dying';
@@ -628,8 +652,8 @@
       G.powerups.maybeDrop(z.mesh.position);
     }
     if (G.interact && G.interact.onKill) G.interact.onKill(z.mesh.position, z, opts);
-    if (!opts.silent && G.weapons.variantKill) G.weapons.variantKill(z.mesh.position);  // tier-3 PaP procs
-    if (!opts.silent && G.weapons.superKill) G.weapons.superKill(z.mesh.position);
+    if (!opts.silent && G.weapons.variantKill) G.weapons.variantKill(z.mesh.position, opts);  // tier-3 PaP procs
+    if (!opts.silent && G.weapons.superKill) G.weapons.superKill(z.mesh.position, opts);
     checkRoundEnd(z);
   }
 
@@ -639,11 +663,13 @@
     }
   }
 
-  Z.fling = function (z, dir) {
-    if (z.dead) return;
+  Z.fling = function (z, dir, source) {
+    if (z.dead || (z.questBoss && !z.questArmorBroken)) return false;
     z.state = 'flung';
     z.flingVel = new THREE.Vector3(dir.x * 11, 6.5, dir.z * 11);
+    z.flingSource = source || null;
     G.player.addPoints(CFG.PTS.hit);
+    return true;
   };
 
   // when the player goes down, the horde fades out and respawns after the
@@ -652,6 +678,7 @@
     var n = 0;
     Z.list.forEach(function (z) {
       if (!z.dead) {
+        releaseWeaponState(z);
         z.dead = true;
         z.state = 'dying';
         z.t = 0;
@@ -823,9 +850,11 @@
       }
     }
 
-    // layered flow-field refresh (multi-floor pathing toward the player/lure)
+    // Monkey bombs globally redirect the horde. Nachtlicht flares carry a
+    // radius, so the shared flow field stays player-bound and only nearby,
+    // same-floor zombies peel off toward the visible flare below.
     flowTimer -= dt;
-    var target = Z.lure ? Z.lure.pos : G.player.pos;
+    var target = Z.lure && !Z.lure.radius ? Z.lure.pos : G.player.pos;
     if (Z.flowDirty || G.nav.dirty || flowTimer <= 0 || (flowTarget && flowTarget.distanceToSquared(target) > 4)) {
       refreshField(target);
       flowTarget = target.clone();
@@ -864,18 +893,25 @@
       z.t += dt;
       z.attackCd -= dt;
       if (z.slowT > 0) z.slowT -= dt;
-      if (z.pullT > 0) z.pullT -= dt;   // Maelstrom drag flag (weapons.js moves them)
       // molten infusion burn — ticks damage for its duration
       if (z.burnT > 0 && !z.dead) {
         z.burnT -= dt;
         z._burnAcc = (z._burnAcc || 0) + dt;
-        if (z._burnAcc >= 0.5) { z._burnAcc = 0; Z.damageZombie(z, (z.burnDps || 200) * 0.5, { boom: true }); }
+        if (z._burnAcc >= 0.5) {
+          z._burnAcc = 0;
+          Z.damageZombie(z, (z.burnDps || 200) * 0.5, {
+            boom: true,
+            weaponId: z.burnSource && z.burnSource.weaponId,
+            shotId: z.burnSource && z.burnSource.shotId
+          });
+        }
       }
       var moving = false;
 
       // void fall: a zombie that walked off a sunk floor / atrium edge has no
       // floor beneath it — despawn and re-queue it so the round count is kept
       if (z._void && !z.dead && !z.isBoss) {
+        releaseWeaponState(z);
         G.scene.remove(z.mesh);
         Z.list.splice(i, 1);
         Z.toSpawn++;
@@ -887,7 +923,10 @@
       // fight that motion or claw through the ice state.
       if (z.wwFrozen && !z.dead) {
         z.wwFrozenT -= dt;
-        if (z.wwFrozenT <= 0) z.wwFrozen = false;
+        if (z.wwFrozenT <= 0) {
+          if (G.weapons && G.weapons.thawFrozen) G.weapons.thawFrozen(z);
+          else z.wwFrozen = false;
+        }
         else { animate(z, dt, false); continue; }
       }
       // failsafe: a zombie that hasn't moved for ~15s (and isn't busy at a
@@ -901,6 +940,7 @@
         else z._stuck = 0;
         z._anchor = z.mesh.position.clone();
         if (z._stuck >= 3) {
+          releaseWeaponState(z);
           G.scene.remove(z.mesh);
           Z.list.splice(i, 1);
           Z.toSpawn++;
@@ -959,7 +999,15 @@
           break;
 
         case 'chase':
-          var tpos = Z.lure ? Z.lure.pos : G.player.pos;
+          var lure = Z.lure;
+          if (lure && lure.radius) {
+            var lureDist = Math.hypot(z.mesh.position.x - lure.pos.x, z.mesh.position.z - lure.pos.z);
+            var lureFloor = Math.abs(z.mesh.position.y - lure.pos.y) < 2.2;
+            var lureClear = !G.map.losBlocked || !G.map.losBlocked(
+              z.mesh.position.x, z.mesh.position.z, lure.pos.x, lure.pos.z, z.mesh.position.y + 0.8);
+            if (lureDist > lure.radius || !lureFloor || !lureClear) lure = null;
+          }
+          var tpos = lure ? lure.pos : G.player.pos;
           // horizontal distance only (a vaulting/airborne zombie shouldn't
           // count as "reaching" you)
           var dist = Math.hypot(z.mesh.position.x - tpos.x, z.mesh.position.z - tpos.z);
@@ -969,16 +1017,16 @@
           // 1.7m of a ground target but must keep following the nav slope, not
           // cut straight toward the player and stall against the incline
           var sameFloor = dyT < 0.7;
-          if (!Z.lure && dist < MELEE_START && sameLevel && !G.player.downed && z.attackCd <= 0 &&
+          if (!lure && dist < MELEE_START && sameLevel && !G.player.downed && z.attackCd <= 0 &&
               !G.map.losBlocked(z.mesh.position.x, z.mesh.position.z, tpos.x, tpos.z, z.mesh.position.y)) {
             z.state = 'attack'; z.t = 0; z.hasHit = false;
-          } else if (Z.lure && dist < 1.2) {
+          } else if (lure && dist < 1.2) {
             // crowd around the monkey
           } else {
             moving = true;
             // close and truly on the same floor: beeline. Otherwise descend the
             // multi-layer nav gradient (it routes up/down ramps across floors).
-            if (dist < 4 && sameFloor) moveToward(z, tpos, dt);
+            if (lure || (dist < 4 && sameFloor)) moveToward(z, tpos, dt);
             else {
               var np = navTarget(z);
               moveToward(z, np || tpos, dt);
@@ -1020,7 +1068,11 @@
           z.mesh.position.addScaledVector(z.flingVel, dt);
           z.mesh.rotation.x += dt * 6;
           if (z.mesh.position.y <= 0 && z.flingVel.y < 0) {
-            killZombie(z, { boom: true });
+            killZombie(z, {
+              boom: true,
+              weaponId: z.flingSource && z.flingSource.weaponId,
+              shotId: z.flingSource && z.flingSource.shotId
+            });
           }
           break;
 
@@ -1053,7 +1105,10 @@
   };
 
   Z.reset = function () {
-    Z.list.forEach(function (z) { G.scene.remove(z.mesh); });
+    Z.list.forEach(function (z) {
+      releaseWeaponState(z);
+      G.scene.remove(z.mesh);
+    });
     Z.list = [];
     Z._shootablesDirty = true;
   };

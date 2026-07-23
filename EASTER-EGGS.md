@@ -22,7 +22,10 @@ Reward: **Nachtlicht**, a flare that attracts zombies before detonating, or **Mi
 4. In the ground-floor **Power Garage**, install the tag in the Giant's Heart regulator beside the generator bank.
 5. Return to **Animal Testing** and defend the buried reactor. Feed the factory heart **30 nearby kills**.
 
-Reward: **Seelenmotor**, an industrial soul piston, or **Nachbildner 115**, an echo cannon.
+Reward: **Seelenmotor**, an industrial soul piston, or the **Nachbildner 115
+Replicator**. Its physical imprint core records targets that enter its field;
+fire again—or wait for the recording timer—to collapse those afterimages in
+reverse order.
 
 ### Optional continuation — Overclock the Giant
 
@@ -43,7 +46,9 @@ The normal reward above is yours immediately. To pursue the prestige ending, tak
 The weapon transforms according to the base reward:
 
 - **Seelenmotor Überdruck:** a wider, longer crushing assembly line. Kills store up to three soul-pressure charges, which amplify the next shot.
-- **Nachbildner Paradox:** three angled echo paths fire together, drawing the horde into their convergence before the final detonation.
+- **Nachbildner Paradox:** deploys two linked imprint cores. Together they
+  create a larger recording route, capture more targets, and collapse the
+  recorded afterimages in reverse when triggered.
 
 Full-completion reward: **Heart of the Giant**. Its HUD icon shows whether its emergency charge is ready. At the beginning of every round it repairs any Zombie Shield you have assembled and recharges one fatal-damage save. When triggered, it leaves you at one health, grants a brief mercy window, and releases a large electrical stun. It can activate once per round.
 
