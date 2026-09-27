@@ -133,7 +133,7 @@
   CFG.MAPS.derriese = {
     id: 'derriese',
     name: 'DER RIESE',
-    sub: "The giant's factory — rebuilt courtyards, supported upper departments, and The Giant's Heart quest.",
+    sub: "The giant's factory — rebuilt courtyards, ground-level departments, and The Giant's Heart quest.",
     wonder: 'wunderwaffe',
     papRule: 'teleporters',
     atmos: { sky: 0x171a13, fog: 0x1a1c13, density: 0.013,
@@ -174,7 +174,8 @@
       G: { name: 'Auto Garage and Power',   floor: 0x30322e, light: 0x88aa99 }
     },
     DOORS: {
-      1: { cost: 1000, name: 'Furnace Courtyard Stair Hall' },
+      1: { cost: 1000, name: 'Furnace Courtyard' },   // stair hall removed when
+                                                       // Der Riese was flattened
       2: { cost: 750,  name: 'West Garage Shutter' },
       3: { cost: 1000, name: 'Animal Testing West' },
       4: { cost: 1250, name: 'Mainframe Laboratory Gate' },
@@ -243,7 +244,7 @@
         prompt: "Install the tag in the Giant's regulator", clue: 'COURTYARD — The buried reactor is awake' }
     ],
     // Optional prestige continuation after the normal Giant's Heart reward.
-    // It deliberately revisits both floors and all three teleporter wings.
+    // It deliberately revisits all three teleporter wings across the floor.
     OVERCLOCK: {
       regulator: { cell: [18, 4], face: 'E' },
       conduits: [
@@ -268,12 +269,7 @@
     SHIELD_BENCH: { cell: [16, 16], face: 'E' }
   };
 
-  // Authentic partial verticality: four self-contained upper departments sit
-  // directly on their supporting buildings. A narrow, supported service bridge
-  // extends from Upper Assembly toward the Mainframe; the yards never receive a
-  // second building stacked over them.
   // (Der Riese is a single flat floor — verticality removed in playtesting)
-  
 
   /* -------------------------------------------------- DER WETTERJUNGE --- */
   // Showpiece custom map: a huge OUTDOOR courtyard hub (C) ringed by indoor
