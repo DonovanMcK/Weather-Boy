@@ -462,7 +462,7 @@
       s.name = s.name + ' [' + gun.element.charAt(0).toUpperCase() + gun.element.slice(1) + ']';
     if (gun.overclocked && gun.id === 'seelenmotor') {
       s.name = 'Seelenmotor Überdruck'; s.dmg = Math.max(s.dmg, 6500);
-      s.mag = Math.max(s.mag, 6); s.reserve = Math.max(s.reserve, 24);
+      s.mag = Math.max(s.mag, 3); s.reserve = Math.max(s.reserve, 10);
       s.pistonDur = 7; s.pistonWidth = 2.8; s.pistonRange = 22; s.superVariant = 'piston';
     } else if (gun.overclocked && gun.id === 'nachbildner115') {
       s.name = 'Nachbildner Paradox'; s.dmg = Math.max(s.dmg, 7200);
@@ -975,7 +975,9 @@
     W.eeHazards.push({ type: 'piston', pos: G.player.pos.clone(), dir: dir,
       t: s.pistonDur, tick: 0, dmg: s.dmg * (1 + charges * 0.4), width: s.pistonWidth,
       range: s.pistonRange, weaponId: gun.id, super: !!gun.overclocked });
-    G.hud.banner(gun.overclocked ? 'ÜBERDRUCK ASSEMBLY LINE' : 'SOUL ASSEMBLY LINE', '#9fe8ff', 1.2);
+    // no per-shot banner here — every other wonder weapon stays silent on
+    // ordinary fire (the tier name already shows in the ammo HUD, and the
+    // Overclock upgrade itself already got its own one-time banner)
   }
   function fireEcho(s, gun) {
     var dir = new THREE.Vector3(0, 0, -1).applyEuler(G.camera.rotation); dir.y = 0; dir.normalize();
@@ -989,7 +991,8 @@
         width: s.echoWidth || 0.8, range: s.echoRange, weaponId: gun.id,
         super: !!gun.overclocked, superCore: !!gun.overclocked && ai === 1 });
     });
-    if (gun.overclocked) G.hud.banner('PARADOX ECHO', '#d8a6ff', 1.3, 'The echoes draw the horde inward');
+    // no per-shot banner (same fix as firePiston — this fired unconditionally
+    // on every trigger pull with nothing new to say)
     poolFlash(G.camera.position.clone().addScaledVector(dir, 2.5), 0xb78cff, 1.2, 8);
   }
   function fireRod(s) {

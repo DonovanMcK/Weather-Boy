@@ -1160,10 +1160,13 @@
     },
     seelenmotor: {
       name: 'Seelenmotor', cls: 'wunder', dmg: 1900, head: 1, rpm: 55,
-      mag: 3, reserve: 12, reload: 3.0, mode: 'semi', spread: 0, box: 0,
+      // each "shot" is a piston DoT line ticking full dmg every 0.48s for
+      // pistonDur seconds — one pull is worth 8+ normal hits, so the old
+      // mag/reserve (3/12) made it trivial to spam-clear rooms. Cut ~50%.
+      mag: 2, reserve: 6, reload: 3.0, mode: 'semi', spread: 0, box: 0,
       vm: { motor: 1, len: 0.95 }, projectile: 'piston', wonder: true,
       pistonDur: 4, pistonWidth: 1.5, pistonRange: 16,
-      pap: { name: 'Ewige Schicht', dmg: 3900, mag: 5, reserve: 20, pistonDur: 6, pistonWidth: 2.2 }
+      pap: { name: 'Ewige Schicht', dmg: 3900, mag: 3, reserve: 10, pistonDur: 6, pistonWidth: 2.2 }
     },
     nachbildner115: {
       name: 'Nachbildner 115', cls: 'wunder', dmg: 2600, head: 1, rpm: 50,
